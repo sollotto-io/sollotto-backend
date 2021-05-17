@@ -8,7 +8,7 @@ module.exports = gql`
 
   extend type Mutation {
       addUser(walletId:String!): User! 
-      removeUser(userId:ID!) : String!
+      # removeUser(userId:ID!) : String!
   }
 
 `

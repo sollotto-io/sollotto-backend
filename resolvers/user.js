@@ -14,9 +14,9 @@ module.exports = {
       };
     },
 
-    async removeUser(_, { userId }, context, info) {              //userId that will be saved in local storage
-      await User.findByIdAndRemove(userId);                       //find the id in db and remove it
-      return "User is successfully removed";
-    },
+    // async removeUser(_, { userId }, context, info) {              //userId that will be saved in local storage
+    //   await User.findByIdAndRemove(userId);                       //find the id in db and remove it
+    //   return "User is successfully removed";
+    // },
   },
 };
