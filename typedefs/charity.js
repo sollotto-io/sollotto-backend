@@ -3,22 +3,25 @@ const gql = require("graphql-tag");
 module.exports = gql`
   type Charity {
     id: ID!
-    catagoryName: String!
+    charityName: String!
     projectDetails: String!
-    currentVotes: Int
+    # currentVotes: Number
     addedBy: String!
-    lifeTimeVotes: Int
+    # lifeTimeVotes: Number
     Status:String!
   }
   input charityInput {
-    catagoryName: String!
+    charityName: String!
     projectDetails: String!
     addedBy: String!
     Status:String!
   }
 
+  extend type Query{
+    getAllCharities: [Charity]!
+  }
   extend type Mutation {
-      addCatagory(charityInput:charityInput): Charity!
+      addCharity(charityInput:charityInput): Charity!
   }
 
 `

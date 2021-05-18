@@ -1,11 +1,11 @@
 const { model, Schema } = require('mongoose');
 
-const userSchema = new Schema({
+const charitySchema = new Schema({
     charityName: String,
     projectDetails: String,
-    currentVotes: Int,
+    // currentVotes: Number,
     addedBy: String,
-    lifeTimeVotes: Int,    
+    // lifeTimeVotes: Number,    
     Status:String
 });
 
