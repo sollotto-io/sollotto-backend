@@ -19,6 +19,7 @@ module.exports = gql`
 
   extend type Query{
     getAllCharities: [Charity]!
+    getActiveCharities:[Charity!]!
   }
   extend type Mutation {
       addCharity(charityInput:charityInput): Charity!

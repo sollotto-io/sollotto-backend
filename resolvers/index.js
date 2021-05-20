@@ -1,11 +1,12 @@
-const userResolvers = require('./user');
+
 const charityResolvers = require("./charity")
+const ticketResolvers = require('./ticket')
 module.exports = {
    
     Mutation: {
-        ...userResolvers.Mutation,
-        ...charityResolvers.Mutation,
         
+        ...charityResolvers.Mutation,
+        ...ticketResolvers.Mutation
 
     },
     Query:{

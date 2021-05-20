@@ -1,10 +1,10 @@
 
 const root = require('./root')
-const user = require('./user')
 const charity = require('./charity')
+const ticket = require('./ticket')
 
 
-const typedef = [root,user,charity]
+const typedef = [root,charity, ticket]
 
 
 module.exports = typedef;
