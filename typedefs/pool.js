@@ -11,6 +11,8 @@ module.exports = gql`
     TotalDeposit: Int,
     TotalLiquidity: Int,
     Odds: String,
+    currentTicketPrice:Float!
+
   }
   input poolInput {
     PoolName: String!,
@@ -21,6 +23,7 @@ module.exports = gql`
     TotalDeposit: Int!,
     TotalLiquidity: Int!,
     Odds: String!,
+    currentTicketPrice:Float!
   }
 
   extend type Query{

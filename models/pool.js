@@ -9,6 +9,7 @@ const poolSchema = new Schema({
     TotalDeposit: {type:Number, required: false},
     TotalLiquidity: {type:Number, required: false},
     Odds: String,
+    currentTicketPrice:{type: Number }
 });
 
 module.exports = model("Pool", poolSchema);

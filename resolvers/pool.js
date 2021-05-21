@@ -14,6 +14,7 @@ module.exports = {
           TotalDeposit,
           TotalLiquidity,
           Odds,
+          currentTicketPrice
         },
       },
       context,
@@ -28,6 +29,7 @@ module.exports = {
         TotalDeposit,
         TotalLiquidity,
         Odds,
+        currentTicketPrice
       });
       const res = await newPool.save();
       return {
