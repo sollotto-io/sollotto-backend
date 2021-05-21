@@ -4,12 +4,12 @@ module.exports = gql`
   type Ticket {
     id: ID!
     walletID: String!
-    ticketArray:[String!]
+    ticketArray:[Int!]
     charityName:String!
   }
 
   extend type Mutation {
-      addTicket(walletID:String!, ticketArray:[String]!, charityName:String!): Ticket! 
+      addTicket(walletID:String!, ticketArray:[Int]!, charityName:String!): Ticket! 
   }
 
 `
