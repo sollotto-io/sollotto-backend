@@ -1,10 +1,13 @@
 use crate::error::LotteryError::InvalidInstruction;
+use crate::state::{LotteryData, TicketData};
+use borsh::BorshDeserialize;
 use solana_program::program_error::ProgramError;
-
 pub enum LotteryInstruction {
     InitLottery {
+        is_lottery_initialised: bool,
         lottery_id: u32,
-        charity_ids: vec![u32; 4],
+        charity_ids: [u32; 4],
+        charity_vote_counts: [u32; 4],
         winner_user_wallet_pk: Option<[u8; 32]>,
         total_pool_value: f64,
         total_registrations: u32,
@@ -19,28 +22,24 @@ pub enum LotteryInstruction {
 
 impl LotteryInstruction {
     /// Unpacks a byte buffer into a [EscrowInstruction](enum.EscrowInstruction.html).
-    pub fn unpack(
-        instruction_id: u8,
-        lottery_id: u32,
-        charity_ids: &[u32; 4],
-        ticket_price: f64,
-        charity_id: u32,
-        user_wallet_pk: [u8; 32],
-        ticket_number_arr: [u8; 6],
-    ) -> Result<Self, ProgramError> {
-        Ok(match instruction_id {
+    pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
+        let (tag, rest) = input.split_first().ok_or(InvalidInstruction)?;
+
+        Ok(match tag {
             0 => Self::InitLottery {
-                lottery_id: lottery_id,
-                charity_ids: charity_ids,
-                ticket_price: ticket_price,
+                is_lottery_initialised: true,
+                lottery_id: LotteryData::try_from_slice(rest).unwrap().lottery_id,
+                charity_ids: LotteryData::try_from_slice(rest).unwrap().charity_ids,
+                charity_vote_counts: [0, 0, 0, 0],
                 winner_user_wallet_pk: None,
                 total_pool_value: 0.0,
                 total_registrations: 0,
+                ticket_price: LotteryData::try_from_slice(rest).unwrap().ticket_price,
             },
             1 => Self::PurchaseTicket {
-                charity_id: charity_id,
-                user_wallet_pk: user_wallet_pk,
-                ticket_number_arr: ticket_number_arr,
+                charity_id: TicketData::try_from_slice(rest).unwrap().charity_id,
+                user_wallet_pk: TicketData::try_from_slice(rest).unwrap().user_wallet_pk,
+                ticket_number_arr: TicketData::try_from_slice(rest).unwrap().ticket_number_arr,
             },
             _ => return Err(InvalidInstruction.into()),
         })
