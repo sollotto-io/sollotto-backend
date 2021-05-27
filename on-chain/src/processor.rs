@@ -71,10 +71,10 @@ impl Processor {
         lottery_id: u32,
         charity_ids: [u32; 4],
         charity_vote_counts: [u32; 4],
-        winner_user_wallet_pk: Option<[u8; 32]>,
-        total_pool_value: f64,
+        winner_user_wallet_pk: [u8; 32],
+        total_pool_value: u32,
         total_registrations: u32,
-        ticket_price: f64,
+        ticket_price: u32,
     ) -> ProgramResult {
         let accounts_iter = &mut accounts.iter();
         // lottery data account

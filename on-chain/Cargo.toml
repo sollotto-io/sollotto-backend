@@ -14,7 +14,6 @@ arrayref = "0.3.6"
 bs58 = "0.4.0"
 thiserror = "1.0.24"
 
-
 [features]
 test-bpf = []
 
