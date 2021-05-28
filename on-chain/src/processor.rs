@@ -27,8 +27,14 @@ impl Processor {
             LotteryInstruction::InitLottery {
                 is_lottery_initialised,
                 lottery_id,
-                charity_ids,
-                charity_vote_counts,
+                charity_1_id,
+                charity_2_id,
+                charity_3_id,
+                charity_4_id,
+                charity_1_vc,
+                charity_2_vc,
+                charity_3_vc,
+                charity_4_vc,
                 winner_user_wallet_pk,
                 total_pool_value,
                 total_registrations,
@@ -40,8 +46,14 @@ impl Processor {
                     accounts,
                     is_lottery_initialised,
                     lottery_id,
-                    charity_ids,
-                    charity_vote_counts,
+                    charity_1_id,
+                    charity_2_id,
+                    charity_3_id,
+                    charity_4_id,
+                    charity_1_vc,
+                    charity_2_vc,
+                    charity_3_vc,
+                    charity_4_vc,
                     winner_user_wallet_pk,
                     total_pool_value,
                     total_registrations,
@@ -69,8 +81,14 @@ impl Processor {
         accounts: &[AccountInfo],
         is_lottery_initialised: bool,
         lottery_id: u32,
-        charity_ids: [u32; 4],
-        charity_vote_counts: [u32; 4],
+        charity_1_id: u32,
+        charity_2_id: u32,
+        charity_3_id: u32,
+        charity_4_id: u32,
+        charity_1_vc: u32,
+        charity_2_vc: u32,
+        charity_3_vc: u32,
+        charity_4_vc: u32,
         winner_user_wallet_pk: [u8; 32],
         total_pool_value: u32,
         total_registrations: u32,
@@ -88,13 +106,20 @@ impl Processor {
         let mut lottery_data = LotteryData::try_from_slice(&lottery_data_account.data.borrow())?;
         lottery_data.is_lottery_initialised = is_lottery_initialised;
         lottery_data.lottery_id = lottery_id;
-        lottery_data.charity_ids = charity_ids;
-        lottery_data.charity_vote_counts = charity_vote_counts;
+        lottery_data.charity_1_id = charity_1_id;
+        lottery_data.charity_2_id = charity_2_id;
+        lottery_data.charity_3_id = charity_3_id;
+        lottery_data.charity_4_id = charity_4_id;
+        lottery_data.charity_1_vc = charity_1_vc;
+        lottery_data.charity_2_vc = charity_2_vc;
+        lottery_data.charity_3_vc = charity_3_vc;
+        lottery_data.charity_4_vc = charity_4_vc;
         lottery_data.winner_user_wallet_pk = winner_user_wallet_pk;
         lottery_data.total_pool_value = total_pool_value;
         lottery_data.total_registrations = total_registrations;
         lottery_data.ticket_price = ticket_price;
         lottery_data.serialize(&mut &mut lottery_data_account.data.borrow_mut()[..])?;
+        msg!("data stored");
         Ok(())
     }
     fn process_ticket_purchase(
@@ -139,11 +164,11 @@ impl Processor {
             lottery_data.total_pool_value =
                 lottery_data.total_pool_value + lottery_data.ticket_price;
             lottery_data.total_registrations += 1;
-            for (pos, id) in lottery_data.charity_ids.iter().enumerate() {
-                if *id == charity_id {
-                    lottery_data.charity_vote_counts[pos] += 1;
-                }
-            }
+            // for (pos, id) in lottery_data.charity_ids.iter().enumerate() {
+            //     if *id == charity_id {
+            //         lottery_data.charity_vote_counts[pos] += 1;
+            //     }
+            // }
             lottery_data.serialize(&mut &mut lottery_data_account.data.borrow_mut()[..])?;
         } else {
             msg!("Lottery Not yet started, please wait!");

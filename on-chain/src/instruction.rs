@@ -1,14 +1,20 @@
 use crate::error::LotteryError::InvalidInstruction;
-use crate::state::{LotteryData, TicketData};
+use crate::state::{IncomingLotteryData, TicketData};
 use borsh::BorshDeserialize;
-use solana_program::{msg, program_error::ProgramError};
+use solana_program::program_error::ProgramError;
 
 pub enum LotteryInstruction {
     InitLottery {
         is_lottery_initialised: bool,
         lottery_id: u32,
-        charity_ids: [u32; 4],
-        charity_vote_counts: [u32; 4],
+        charity_1_id: u32,
+        charity_2_id: u32,
+        charity_3_id: u32,
+        charity_4_id: u32,
+        charity_1_vc: u32,
+        charity_2_vc: u32,
+        charity_3_vc: u32,
+        charity_4_vc: u32,
         winner_user_wallet_pk: [u8; 32],
         total_pool_value: u32,
         total_registrations: u32,
@@ -25,22 +31,37 @@ impl LotteryInstruction {
     /// Unpacks a byte buffer into a [EscrowInstruction](enum.EscrowInstruction.html).
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
         let (tag, rest) = input.split_first().ok_or(InvalidInstruction)?;
-        msg!("Tag: {}", tag);
-        msg!("Rest: {:?}", rest);
-        msg!("Rest: {:?}", LotteryData::try_from_slice(&rest));
-        msg!("Rest: {:?}", &rest);
         Ok(match tag {
             0 => Self::InitLottery {
                 is_lottery_initialised: true,
-                lottery_id: LotteryData::try_from_slice(&rest).unwrap().lottery_id,
-                charity_ids: LotteryData::try_from_slice(&rest).unwrap().charity_ids,
-                charity_vote_counts: [0, 0, 0, 0],
-                winner_user_wallet_pk: LotteryData::try_from_slice(&rest)
+                lottery_id: IncomingLotteryData::try_from_slice(&rest)
                     .unwrap()
-                    .winner_user_wallet_pk,
+                    .lottery_id,
+                charity_1_id: IncomingLotteryData::try_from_slice(&rest)
+                    .unwrap()
+                    .charity_1_id,
+                charity_2_id: IncomingLotteryData::try_from_slice(&rest)
+                    .unwrap()
+                    .charity_2_id,
+                charity_3_id: IncomingLotteryData::try_from_slice(&rest)
+                    .unwrap()
+                    .charity_3_id,
+                charity_4_id: IncomingLotteryData::try_from_slice(&rest)
+                    .unwrap()
+                    .charity_4_id,
+                charity_1_vc: 0,
+                charity_2_vc: 0,
+                charity_3_vc: 0,
+                charity_4_vc: 0,
+                winner_user_wallet_pk: [
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0,
+                ],
                 total_pool_value: 0,
                 total_registrations: 0,
-                ticket_price: LotteryData::try_from_slice(&rest).unwrap().ticket_price,
+                ticket_price: IncomingLotteryData::try_from_slice(&rest)
+                    .unwrap()
+                    .ticket_price,
             },
             1 => Self::PurchaseTicket {
                 charity_id: TicketData::try_from_slice(&rest).unwrap().charity_id,
