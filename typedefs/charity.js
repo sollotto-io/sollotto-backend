@@ -5,9 +5,10 @@ module.exports = gql`
     id: ID!
     charityName: String!
     projectDetails: String!
-    # currentVotes: Number
+    currentVotes: Int
     addedBy: String!
-    # lifeTimeVotes: Number
+    lifeTimeVotes: Int
+    lifeTimeWins:Int
     Status:String!
   }
   input charityInput {
