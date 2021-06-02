@@ -5,7 +5,7 @@ const poolSchema = new Schema({
     Pool: String,
     PrizePool: {type:Number, required: false},
     TimeRemaining: String,
-    PoolARP: String,
+    PoolARP:  {type:Number},
     TotalDeposit: {type:Number, required: false},
     TotalLiquidity: {type:Number, required: false},
     Odds: String,
