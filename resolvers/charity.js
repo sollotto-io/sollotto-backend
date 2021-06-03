@@ -1,18 +1,37 @@
 const Charity = require("../models/charity");
-const {CHARITY_STATUS} = require("../config")
+const { CHARITY_STATUS } = require("../config");
 module.exports = {
   Mutation: {
     async addCharity(
       _,
-      { charityInput: { charityName, projectDetails, addedBy, Status } },
+      {
+        charityInput: {
+          ID,
+          charityName,
+          projectDetails,
+          addedBy,
+          Status,
+          Years,
+          watchURL,
+          watchGrade,
+          Impact,
+          webURL,
+        },
+      },
       context,
       info
     ) {
       const newCharity = new Charity({
+        ID,
         charityName,
         projectDetails,
         addedBy,
         Status,
+        Years,
+        watchURL,
+        watchGrade,
+        Impact,
+        webURL,
       });
       const res = await newCharity.save();
       return {
@@ -33,7 +52,9 @@ module.exports = {
     async getActiveCharities(_, args, context, info) {
       try {
         const charities = await Charity.find().sort({ createdAt: -1 });
-        activeCharities = charities.filter(p=>p.Status === CHARITY_STATUS.VOTE_NOW)
+        activeCharities = charities.filter(
+          (p) => p.Status === CHARITY_STATUS.VOTE_NOW
+        );
         return activeCharities;
       } catch (err) {
         throw new Error(err);

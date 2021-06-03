@@ -1,9 +1,10 @@
 const { model, Schema } = require('mongoose');
 
 const ticketSchema = new Schema({
-   walletID: String,
+   walletID:  {type: [Number], required:true}, //walletpk
    ticketArray: {type: [Number], required:true},
-   charityName: String
+   charityName: String,
+   DataWallet: {type: [Number], required:true}, // DataAccountpubkey Id
 });
 
 module.exports = model('Tickets', ticketSchema);

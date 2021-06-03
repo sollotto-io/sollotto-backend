@@ -2,14 +2,18 @@ const Ticket = require("../models/ticket");
 
 module.exports = {
   Mutation: {
-    async addTicket(_, { walletID, ticketArray, charityName }, context, info) {             // wallet id that user will enter
-      const newTicket = new Ticket({                                //create a new user object to save
+    async addTicket(_,{  ticketInput: { walletID, ticketArray, charityName ,DataWallet }}, context, info) {       
+      
+
+      
+      const newTicket = new Ticket({                                              
         walletID,
         ticketArray,
-        charityName
+        charityName,
+        DataWallet
       });
 
-      const res = await newTicket.save();                         //save the user obj    
+      const res = await newTicket.save();                            
       return {
         ...res._doc,
         id: res._id,

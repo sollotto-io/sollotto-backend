@@ -13,6 +13,7 @@ module.exports = gql`
     Odds: String,
     currentTicketPrice:Float!
 
+
   }
   input poolInput {
     PoolName: String!,
@@ -31,6 +32,7 @@ module.exports = gql`
   }
   extend type Mutation {
       addPool(poolInput:poolInput): Pool!
+      
   }
 
 `

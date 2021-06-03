@@ -1,13 +1,19 @@
 const { model, Schema } = require('mongoose');
 
 const charitySchema = new Schema({
+    ID:{type:Number},
     charityName: String,
     projectDetails: String,
     currentVotes: {type:Number},
     addedBy: String,
     lifeTimeVotes: {type:Number},    
     lifeTimeWins: {type:Number},    
-    Status:String
+    Status:String,
+    Years: String,
+    watchURL:String,
+    watchGrade: String,
+    Impact:String,
+    webURL: String
 });
 
 module.exports = model('Charity', charitySchema);
