@@ -102,6 +102,13 @@ impl Processor {
             msg!("Ticket Data account does not have the correct program id");
             return Err(ProgramError::IncorrectProgramId);
         }
+        let rent = &Rent::from_account_info(next_account_info(accounts_iter)?)?;
+        if !rent.is_exempt(
+            lottery_data_account.lamports(),
+            lottery_data_account.data_len(),
+        ) {
+            return Err(LotteryError::NotRentExempt.into());
+        }
         // Add data to account
         let mut lottery_data = LotteryData::try_from_slice(&lottery_data_account.data.borrow())?;
         lottery_data.is_lottery_initialised = is_lottery_initialised;
@@ -147,15 +154,16 @@ impl Processor {
                 msg!("Ticket Data account does not have the correct program id");
                 return Err(ProgramError::IncorrectProgramId);
             }
-            //Check if rent expempt
             let rent = &Rent::from_account_info(next_account_info(accounts_iter)?)?;
             if !rent.is_exempt(
                 lottery_data_account.lamports(),
                 lottery_data_account.data_len(),
+            ) && !rent.is_exempt(
+                ticket_data_account.lamports(),
+                ticket_data_account.data_len(),
             ) {
                 return Err(LotteryError::NotRentExempt.into());
             }
-            // Add data to ticket account
             let mut ticket_data = TicketData::try_from_slice(&ticket_data_account.data.borrow())?;
             ticket_data.charity_id = charity_id;
             ticket_data.user_wallet_pk = user_wallet_pk;
@@ -164,11 +172,29 @@ impl Processor {
             lottery_data.total_pool_value =
                 lottery_data.total_pool_value + lottery_data.ticket_price;
             lottery_data.total_registrations += 1;
-            // for (pos, id) in lottery_data.charity_ids.iter().enumerate() {
-            //     if *id == charity_id {
-            //         lottery_data.charity_vote_counts[pos] += 1;
-            //     }
-            // }
+            let charity_arr = [
+                lottery_data.charity_1_id,
+                lottery_data.charity_2_id,
+                lottery_data.charity_3_id,
+                lottery_data.charity_4_id,
+            ];
+            msg!("Charity Ids: {:?}", charity_arr);
+            for (pos, id) in charity_arr.iter().enumerate() {
+                msg!("Entered Loop");
+                if *id == charity_id {
+                    msg!("Matched ID Loop");
+                    match pos {
+                        0 => lottery_data.charity_1_vc += 1,
+                        1 => lottery_data.charity_2_vc += 1,
+                        2 => lottery_data.charity_3_vc += 1,
+                        3 => lottery_data.charity_4_vc += 1,
+                        _ => return Err(LotteryError::InvalidCharity.into()),
+                    }
+                    break;
+                } else {
+                    return Err(LotteryError::InvalidCharity.into());
+                }
+            }
             lottery_data.serialize(&mut &mut lottery_data_account.data.borrow_mut()[..])?;
         } else {
             msg!("Lottery Not yet started, please wait!");

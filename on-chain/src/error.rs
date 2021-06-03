@@ -4,6 +4,9 @@ use solana_program::program_error::ProgramError;
 
 #[derive(Error, Debug, Copy, Clone)]
 pub enum LotteryError {
+    /// Invalid charity id
+    #[error("Invalid Charity")]
+    InvalidCharity,
     /// Invalid instruction
     #[error("Invalid Instruction")]
     InvalidInstruction,
