@@ -181,6 +181,8 @@ impl Processor {
             msg!("Charity Ids: {:?}", charity_arr);
             for (pos, id) in charity_arr.iter().enumerate() {
                 msg!("Entered Loop");
+                msg!("Current Charity: {}", *id);
+                msg!("Receieved Charity: {}", charity_id);
                 if *id == charity_id {
                     msg!("Matched ID Loop");
                     match pos {
@@ -191,8 +193,6 @@ impl Processor {
                         _ => return Err(LotteryError::InvalidCharity.into()),
                     }
                     break;
-                } else {
-                    return Err(LotteryError::InvalidCharity.into());
                 }
             }
             lottery_data.serialize(&mut &mut lottery_data_account.data.borrow_mut()[..])?;
