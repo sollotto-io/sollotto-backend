@@ -2,22 +2,19 @@ const Ticket = require("../models/ticket");
 
 module.exports = {
   Mutation: {
-    async addTicket(_,{  ticketInput: { walletID, ticketArray, charityName ,DataWallet }}, context, info) {       
+    async addTicket(_,{   walletID, ticketArray, charityId ,DataWallet }, context, info) {       
       
 
       
       const newTicket = new Ticket({                                              
         walletID,
         ticketArray,
-        charityName,
+        charityId,
         DataWallet
       });
 
       const res = await newTicket.save();                            
-      return {
-        ...res._doc,
-        id: res._id,
-      };
+      return "Ticket Saved Successfully"
     },
 
   },
