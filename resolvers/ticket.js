@@ -28,7 +28,6 @@ module.exports = {
         },
         { new: true }
       );
-      console.log(updateLottery);
       const res = await newTicket.save();
       return "Ticket Saved Successfully";
     },

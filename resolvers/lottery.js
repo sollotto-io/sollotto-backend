@@ -33,7 +33,7 @@ module.exports = {
     async getupcomingLottery(_, args, context, info) {
       const Lotteries = await Lottery.find();
       const upcomingLottery = Lotteries.find(
-        (l) => moment(l.StartDate).format("L") === moment().format("L")
+        (l) => l.isActive === true
       );
       return upcomingLottery;
     },
