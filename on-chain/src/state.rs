@@ -18,7 +18,6 @@ pub struct LotteryData {
     pub charity_2_vc: u32,
     pub charity_3_vc: u32,
     pub charity_4_vc: u32,
-    pub winner_user_wallet_pk: [u8; 32],
     pub total_pool_value: u32,
     pub total_registrations: u32,
     pub ticket_price: u32,

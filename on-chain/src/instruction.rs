@@ -15,7 +15,6 @@ pub enum LotteryInstruction {
         charity_2_vc: u32,
         charity_3_vc: u32,
         charity_4_vc: u32,
-        winner_user_wallet_pk: [u8; 32],
         total_pool_value: u32,
         total_registrations: u32,
         ticket_price: u32,
@@ -52,10 +51,6 @@ impl LotteryInstruction {
                 charity_2_vc: 0,
                 charity_3_vc: 0,
                 charity_4_vc: 0,
-                winner_user_wallet_pk: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0,
-                ],
                 total_pool_value: 0,
                 total_registrations: 0,
                 ticket_price: IncomingLotteryData::try_from_slice(&rest)

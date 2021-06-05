@@ -35,7 +35,6 @@ impl Processor {
                 charity_2_vc,
                 charity_3_vc,
                 charity_4_vc,
-                winner_user_wallet_pk,
                 total_pool_value,
                 total_registrations,
                 ticket_price,
@@ -54,7 +53,6 @@ impl Processor {
                     charity_2_vc,
                     charity_3_vc,
                     charity_4_vc,
-                    winner_user_wallet_pk,
                     total_pool_value,
                     total_registrations,
                     ticket_price,
@@ -89,7 +87,6 @@ impl Processor {
         charity_2_vc: u32,
         charity_3_vc: u32,
         charity_4_vc: u32,
-        winner_user_wallet_pk: [u8; 32],
         total_pool_value: u32,
         total_registrations: u32,
         ticket_price: u32,
@@ -121,7 +118,6 @@ impl Processor {
         lottery_data.charity_2_vc = charity_2_vc;
         lottery_data.charity_3_vc = charity_3_vc;
         lottery_data.charity_4_vc = charity_4_vc;
-        lottery_data.winner_user_wallet_pk = winner_user_wallet_pk;
         lottery_data.total_pool_value = total_pool_value;
         lottery_data.total_registrations = total_registrations;
         lottery_data.ticket_price = ticket_price;
