@@ -11,6 +11,7 @@ const lotterySchema = new Schema({
   TotalRegistrations: {type: Number},
   OnGoing: {type:Schema.Types.Boolean},
   LotteryDataAccount:{type:[Number]},
+  isActive:{type:Schema.Types.Boolean},
   CharityVoteCount:[{
       charityId:{type:Schema.Types.Number},
       votes:{type:Schema.Types.Number}

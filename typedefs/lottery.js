@@ -16,7 +16,7 @@ module.exports = gql`
     WinnerWallet: [Int]
     TotalPoolValue: Float
     TotalRegistrations: Int
-    OnGoing: Boolean
+    isActive:Boolean
     LotteryDataAccount: [Int]
   }
 
@@ -24,7 +24,8 @@ module.exports = gql`
     Id: Int
     Charities: [Int]
     TicketPrice: Float
-
+    StartDate:String
+    EndDate:String
 
   }
 

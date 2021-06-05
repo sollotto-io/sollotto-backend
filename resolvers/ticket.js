@@ -8,6 +8,7 @@ module.exports = {
       context,
       info
     ) {
+      console.log({ walletID, ticketArray, charityId, DataWallet, LotteryId })
       const newTicket = new Ticket({
         walletID,
         ticketArray,

@@ -5,7 +5,7 @@ module.exports = {
   Mutations: {
     async addLottery(
       _,
-      { LotteryInput: { Id, Charities, TicketPrice } },
+      { LotteryInput: { Id, Charities, TicketPrice,StartDate, EndDate  } },
       context,
       info
     ) {
@@ -15,12 +15,12 @@ module.exports = {
         Id,
         Charities,
         TicketPrice,
-        StartDate: moment().format(),
-        EndDate: moment().add(3, "days").format(),
+        StartDate,
+        EndDate,
         WinnerWallet: [],
         TotalPoolValue: 0,
         TotalRegistrations: 0,
-        OnGoing: true,
+        isActive: false,
         LotteryDataAccount: [],
         CharityVoteCount: votecount,
       });
