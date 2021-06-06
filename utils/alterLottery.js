@@ -25,8 +25,8 @@ const closePreviousLottery = async (i) => {
 		{ new: true }
 	);
 	const drawData = lotteryDraw(lottoremove);
-	drawData.then(async (d)=>{
-		await Lottery.findOneAndUpdate({Id:i},{
+	drawData.then( (d)=>{
+		 Lottery.findOneAndUpdate({Id:i},{
 			WinningCharity:d.winningCharities,
 			WinningNumbers:d.winningNumberArr,
 			})
