@@ -8,11 +8,7 @@ const startNextLottery = async (i) => {
 		{ isActive: true },
 		{ new: true }
 	);
-	let lotteryData = {
-		lotteryId: lot.Id,
-		charities: lot.Charities,
-		ticketPrice: lot.TicketPrice,
-	};
+
 	// initLottery(lotteryData)
 	return lot;
 };

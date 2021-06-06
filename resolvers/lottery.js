@@ -5,7 +5,7 @@ module.exports = {
   Mutations: {
     async addLottery(
       _,
-      { LotteryInput: { Id, Charities, TicketPrice,StartDate, EndDate   } },
+      { LotteryInput: { Id, Charities, TicketPrice, StartDate, EndDate } },
       context,
       info
     ) {
@@ -17,15 +17,19 @@ module.exports = {
         TicketPrice,
         StartDate,
         EndDate,
-        WinnerWallet:[],
+        WinnerWallet: [],
         TotalPoolValue: 0,
         TotalRegistrations: 0,
         isActive: false,
-        LotteryDataAccount: [],
+        LotteryDataAccount: [
+          107, 137, 21, 229, 174, 33, 93, 169, 125, 138, 22, 103, 244, 240, 45,
+          120, 136, 154, 66, 111, 9, 128, 23, 194, 96, 144, 119, 247, 131, 169,
+          138, 100,
+        ],
         CharityVoteCount: votecount,
-        WinningCharityName:""
+        WinningCharityName: "",
       });
-      console.log(newLottery)
+      console.log(newLottery);
       await newLottery.save();
       return "Lottery Added Succesfully";
     },
@@ -33,22 +37,19 @@ module.exports = {
   Query: {
     async getupcomingLottery(_, args, context, info) {
       const Lotteries = await Lottery.find();
-      const upcomingLottery = Lotteries.find(
-        (l) => l.isActive === true
-      );
+      const upcomingLottery = Lotteries.find((l) => l.isActive === true);
       return upcomingLottery;
     },
-    async getAllLotteries(_,args,context, info){
+    async getAllLotteries(_, args, context, info) {
       const Lotteries = await Lottery.find();
       return Lotteries;
     },
 
+    async getLotteryById(_, { Id }, context, info) {
+      console.log(Id);
+      const lottery = await Lottery.findOne({ Id: Id });
 
-    async getLotteryById(_,{Id},context,info){
-      console.log(Id)
-      const lottery = await Lottery.findOne({Id:Id})
-       
-        return lottery
-    }
+      return lottery;
+    },
   },
 };

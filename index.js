@@ -22,18 +22,18 @@ mongoose
       .then((res) => {
         console.log(`Server running on ${res.url}`);
       })
-      // .then(() => {
-      //   var an = 1;
-      //   console.log("inside cron then");
-      //   cron.schedule("*/1 * * * *", () => {
-      //     const result = chooseLottery(an)
+      .then(() => {
+        var an = 1;
+        console.log("inside cron then");
+        cron.schedule("*/1 * * * *", () => {
+          const result = chooseLottery(an)
          
-      //     result.then((a) => {
-      //       an = a;
-      //     });
+          result.then((a) => {
+            an = a;
+          });
          
-      //   });
-      // })
+        });
+      })
       .catch((err) => {
         console.log(err);
       });

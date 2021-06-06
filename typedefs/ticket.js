@@ -11,7 +11,6 @@ module.exports = gql`
   }
 
   extend type Query{
-    getDataWallets: [Ticket]! 
     getUserTickets( walletID: [Int!], LotteryId:Int! ) : [Ticket]!
   }
 

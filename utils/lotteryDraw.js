@@ -51,8 +51,8 @@ const lotteryDraw = async (data) => {
 			TicketDataAccount,
 			encodedTicketDataState.data
 		);
-
-		return decodedTicketDataState.data.charity_id.ticket_number_arr;
+			console.log(decodedTicketDataState)
+		return decodedTicketDataState.charity_id.ticket_number_arr;
 	});
 	usersTicketNumberArr.forEach((numberArr, index) => {
 		if (numberArr === winningNumberArr) {
@@ -81,11 +81,11 @@ const lotteryDraw = async (data) => {
 		if(index>0){
 			if(value > charityVC[winningLotteryIndexes[0]]){
 				winningLotteryIndex = [index];
-				break;
+				// break;
 			}
 			else if (value === charityVC[winningLotteryIndexes[0]]){
 				winningLotteryIndex.push(index);
-				break;
+				// break;
 			}
 		}
 	});
