@@ -20,8 +20,7 @@ const setDataBase = async (i,winningCharities, winningNumberArr) => {
       WinningNumbers: winningNumberArr,
     }
   );
-  console.log(winningCharities);
-  console.log(winningNumberArr);
+ 
 };
 
 const setWinningUsers = async (
@@ -38,9 +37,6 @@ const setWinningUsers = async (
       WinnerWallet: winnerUserWalletsPK,
     }
   );
-  console.log(d.winningCharities);
-  console.log(d.winningNumberArr);
-  console.log(d.winnerUserWalletsPK);
 };
 
 const closePreviousLottery = async (i) => {

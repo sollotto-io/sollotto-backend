@@ -27,7 +27,7 @@ module.exports = {
         CharityVoteCount: votecount,
         WinningCharityName: "",
       });
-      console.log(newLottery);
+     
       await newLottery.save();
       return "Lottery Added Succesfully";
     },

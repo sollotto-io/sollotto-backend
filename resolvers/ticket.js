@@ -8,7 +8,7 @@ module.exports = {
       context,
       info
     ) {
-      console.log({ walletID, ticketArray, charityId, DataWallet, LotteryId })
+     
       const newTicket = new Ticket({
         walletID,
         ticketArray,
@@ -37,7 +37,7 @@ module.exports = {
       
       const tickets = await Ticket.find({walletID:walletID, LotteryId:LotteryId})
      return tickets
-      // console.log(tickets)
+      
     }
   },
 };
