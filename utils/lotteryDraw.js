@@ -125,9 +125,9 @@ const lotteryDraw = async (data) => {
 				decodedWinnerTicketDataState.charity_id.user_wallet_pk
 			);
 		});
-		return { winningNumberArr, winnerUserWalletsPK, winningCharities };
+		return {winFlag, winningNumberArr, winnerUserWalletsPK, winningCharities };
 	} else if (winFlag === false) {
-		return { winningNumberArr, winningCharities };
+		return {winFlag, winningNumberArr, winningCharities };
 	}
 };
 

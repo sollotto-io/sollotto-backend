@@ -4,50 +4,54 @@ const { initLottery } = require("./initLottery");
 const { lotteryDraw } = require("./lotteryDraw");
 
 const startNextLottery = async (i) => {
-  const lot = await Lottery.findOneAndUpdate(
-    { Id: i },
-    { isActive: true },
-    { new: true }
-  );
-  // let lotteryData = {
-  // 	lotteryId: lot.Id,
-  // 	charities: lot.Charities,
-  // 	ticketPrice: lot.TicketPrice,
-  // };
-  // initLottery(lotteryData)
-  return lot;
+	const lot = await Lottery.findOneAndUpdate(
+		{ Id: i },
+		{ isActive: true },
+		{ new: true }
+	);
+	// let lotteryData = {
+	// 	lotteryId: lot.Id,
+	// 	charities: lot.Charities,
+	// 	ticketPrice: lot.TicketPrice,
+	// };
+	// initLottery(lotteryData)
+	return lot;
 };
 
 const closePreviousLottery = async (i) => {
-  const lottoremove = await Lottery.findOneAndUpdate(
-    { Id: i },
-    { isActive: false },
-    { new: true }
-  );
-  const drawData = lotteryDraw(lottoremove);
-  drawData.then((d) => {
-    if (d.winnerUserWalletsPK === null || undefined) {
-      Lottery.findOneAndUpdate(
-        { Id: i },
-        {
-          WinningCharity: d.winningCharities,
-          WinningNumbers: d.winningNumberArr,
-        }
-      );
-    } else {
-      Lottery.findOneAndUpdate(
-        { Id: i },
-        {
-          WinningCharity: d.winningCharities,
-          WinningNumbers: d.winningNumberArr,
-          WinnerWallet: d.winnerUserWalletsPK,
-        }
-      );
-    }
-  });
+	const lottoremove = await Lottery.findOneAndUpdate(
+		{ Id: i },
+		{ isActive: false },
+		{ new: true }
+	);
+	const drawData = lotteryDraw(lottoremove);
+	drawData.then( (d)=>{
+		if(d.winFlag === false){
+			Lottery.findOneAndUpdate({Id:i},{
+				WinningCharity:d.winningCharities,
+				WinningNumbers:d.winningNumberArr,
+				})
+				console.log(d.winningCharities)
+				console.log(d.winningNumberArr)
+		
+		}
+		else{
+				Lottery.findOneAndUpdate({Id:i},{
+				WinningCharity:d.winningCharities,
+				WinningNumbers:d.winningNumberArr,
+				WinnerWallet: d.winnerUserWalletsPK
+				})
+				console.log(d.winningCharities)
+				console.log(d.winningNumberArr)
+				console.log(d.winnerUserWalletsPK)
+		
+		}
+		
+
+	})
 };
 
 module.exports = {
-  startNextLottery,
-  closePreviousLottery,
+	startNextLottery,
+	closePreviousLottery,
 };
