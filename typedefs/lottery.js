@@ -29,7 +29,7 @@ module.exports = gql`
     TicketPrice: Float
     StartDate:String
     EndDate:String
-   
+    LotteryDataAccount:[Int]
 
 
   }
