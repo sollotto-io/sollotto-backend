@@ -75,7 +75,7 @@ const lotteryDraw = async (data) => {
 	charityVC.push(decodedLotteryDataState.is_lottery_initialised.charity_2_vc);
 	charityVC.push(decodedLotteryDataState.is_lottery_initialised.charity_3_vc);
 	charityVC.push(decodedLotteryDataState.is_lottery_initialised.charity_4_vc);
-	console.log(charityVC)
+
 	let winningLotteryIndexes = [0];
 	charityVC.forEach((value, index) => {
 		if (index > 0) {

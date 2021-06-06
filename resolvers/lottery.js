@@ -17,6 +17,8 @@ module.exports = {
         TicketPrice,
         StartDate,
         EndDate,
+        WinningNumbers:[],
+        WinningCharity:[],
         WinnerWallet: [],
         TotalPoolValue: 0,
         TotalRegistrations: 0,

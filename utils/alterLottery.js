@@ -1,3 +1,4 @@
+const lottery = require("../models/lottery");
 const Lottery = require("../models/lottery");
 const { initLottery } = require("./initLottery");
 const { lotteryDraw } = require("./lotteryDraw");
@@ -24,10 +25,12 @@ const closePreviousLottery = async (i) => {
 		{ new: true }
 	);
 	const drawData = lotteryDraw(lottoremove);
-	drawData.then((d)=>{
-		console.log(d.winnerUserWalletsPK)
-		console.log(d.winningCharities)
-		console.log(d.winningNumberArr)
+	drawData.then(async (d)=>{
+		await Lottery.findOneAndUpdate({Id:i},{
+			WinningCharity:d.winningCharities,
+			WinningNumbers:d.winningNumberArr,
+			})
+
 	})
 };
 

@@ -18,9 +18,9 @@ module.exports = gql`
     TotalRegistrations: Int
     isActive:Boolean
     LotteryDataAccount: [Int]
-    WinningCharity:Int
+    WinningCharity:[Int]
     WinningCharityName:String
-    WinningNumbers:[String]
+    WinningNumbers:[Int]
   }
 
   input LotteryInput {

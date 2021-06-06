@@ -6,7 +6,7 @@ const lotterySchema = new Schema({
   TicketPrice: {type:Number},
   StartDate: String,
   EndDate: String,
-  WinningCharity:Number,
+  WinningCharity:{type:[Number]},
   WinningCharityName:String,
   WinnerWallet: {type:[[Number]]},
   TotalPoolValue: {type: Number},
@@ -18,7 +18,7 @@ const lotterySchema = new Schema({
       charityId:{type:Schema.Types.Number},
       votes:{type:Schema.Types.Number}
   }],
-  WinningNumbers:{type:[String]}
+  WinningNumbers:{type:[Number]}
 });
 
 module.exports = model("Lottery", lotterySchema);
