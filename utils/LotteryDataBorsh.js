@@ -19,7 +19,7 @@ const boolMapper = {
 	decode: intToBool,
 };
 
-export class IncomingLotteryDataAccount {
+class IncomingLotteryDataAccount {
 	constructor(
 		lottery_id,
 		charity_id_1,
@@ -37,7 +37,7 @@ export class IncomingLotteryDataAccount {
 	}
 }
 
-export const IncomingLotteryDataSchema = new Map([
+const IncomingLotteryDataSchema = new Map([
 	[
 		IncomingLotteryDataAccount,
 		{
@@ -53,7 +53,7 @@ export const IncomingLotteryDataSchema = new Map([
 		},
 	],
 ]);
-export class LotteryDataAccount {
+class LotteryDataAccount {
 	constructor(
 		is_lottery_initialised,
 		lottery_id,
@@ -86,7 +86,7 @@ export class LotteryDataAccount {
 		this.ticket_price = ticket_price;
 	}
 }
-export const LotteryDataSchema = new Map([
+const LotteryDataSchema = new Map([
 	[
 		LotteryDataAccount,
 		{
@@ -110,3 +110,11 @@ export const LotteryDataSchema = new Map([
 		},
 	],
 ]);
+
+
+module.exports = {
+	IncomingLotteryDataAccount,
+	IncomingLotteryDataSchema,
+	LotteryDataAccount,
+	LotteryDataSchema
+}

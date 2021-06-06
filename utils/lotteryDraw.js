@@ -1,4 +1,4 @@
-import {
+const {
 	SystemProgram,
 	PublicKey,
 	Transaction,
@@ -6,15 +6,16 @@ import {
 	Account,
 	SYSVAR_RENT_PUBKEY,
 	LAMPORTS_PER_SOL,
-} from "@solana/web3.js";
-import * as borsh from "borsh";
-import { TicketDataAccount, TicketDataSchema } from "./TicketDataBorsh";
-import { LotteryDataAccount, LotteryDataSchema } from "./LotteryDataBorsh";
-import random from "random";
+	Connection
+} = require("@solana/web3.js");
+var borsh = require("borsh");
+const { TicketDataAccount,TicketDataSchema } = require("./TicketDataBorsh.js");
+const { LotteryDataAccount, LotteryDataSchema } = require("./LotteryDataBorsh.js");
+var random = require("random");
 
-export const lotteryDraw = async (data) => {
-	console.log(data.getDataWallets);
-	let connection = new Connection(process.env.SOLANA_NETWORK);
+const lotteryDraw = async (data) => {
+	
+	let connection = new Connection("https://devnet.solana.com");
 	let holdingWalletAccount = new Account(
 		Buffer.from([
 			143, 209, 242, 241, 76, 148, 73, 213, 127, 35, 252, 134, 149, 170, 105,
@@ -60,7 +61,7 @@ export const lotteryDraw = async (data) => {
 			winFlag = true;
 		}
 	});
-	winnerUserLotteryDataWalletsPK.forEach((publicKey) => {
+	winnerUserLotteryDataWalletsPK.forEach( async(publicKey) => {
 		let encodedWinnerTicketDataState = await connection.getAccountInfo(
 			new PublicKey(publicKey),
 			"singleGossip"
@@ -95,7 +96,7 @@ export const lotteryDraw = async (data) => {
 	// if (signers.length > 0) {
 	// 	transaction.partialSign(...signers);
 	// }
-	let signedTx = await holdingWalletAccount.publicKey.signTransaction(
+	let signedTx = await holdingWalletAccount.signTransaction(
 		transaction
 	);
 	let signature = await connection.sendRawTransaction(signedTx.serialize());
@@ -108,3 +109,7 @@ export const lotteryDraw = async (data) => {
 		} \n`
 	);
 };
+
+module.exports = {
+	lotteryDraw
+}

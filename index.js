@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const typeDefs = require("./typedefs/index");
 const resolvers = require("./resolvers/index");
 const { MONGODB } = require("./config");
-const { chooseLottery } = require("./utils/chooseLottery");
+const { chooseLottery } = require("./utils/chooseLottery.js");
 const cron = require("node-cron");
 
 const server = new ApolloServer({

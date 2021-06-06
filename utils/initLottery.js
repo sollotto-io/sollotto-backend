@@ -1,21 +1,22 @@
-import {
+const {
 	SystemProgram,
 	PublicKey,
 	Transaction,
 	TransactionInstruction,
 	Account,
 	SYSVAR_RENT_PUBKEY,
-} from "@solana/web3.js";
-import * as borsh from "borsh";
-import {
+	Connection
+} = require("@solana/web3.js");
+var borsh = require("borsh");
+const {
 	IncomingLotteryDataAccount,
 	LotteryDataAccount,
 	IncomingLotteryDataSchema,
 	LotteryDataSchema,
-} from "./LotteryDataBorsh";
+} =  require("./LotteryDataBorsh.js");
 
-export const initLottery = async (lotteryData) => {
-	let connection = new Connection(process.env.SOLANA_NETWORK);
+const initLottery = async (lotteryData) => {
+	let connection = new Connection("https://devnet.solana.com");
 
 	let holdingWalletAccount = new Account(
 		Buffer.from([
@@ -26,7 +27,7 @@ export const initLottery = async (lotteryData) => {
 			203, 59,
 		])
 	);
-	let solanaProgramId = new PublicKey(process.env.SOLANA_INIT_LOTTERY_PROGRAM);
+	let solanaProgramId = new PublicKey("Gg6CiqYhSsqh86H4cTQkoPoKtiMtwTWryPpLxeDPQzTS");
 
 	try {
 		const lotteryDataAccount = new Account();
@@ -114,3 +115,7 @@ export const initLottery = async (lotteryData) => {
 		console.log("Error: " + e.message);
 	}
 };
+
+module.exports = {
+	initLottery
+}
