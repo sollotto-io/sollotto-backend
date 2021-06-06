@@ -8,7 +8,6 @@ const startNextLottery = async (i) => {
 		{ isActive: true },
 		{ new: true }
 	);
-	console.log(lot);
 	let lotteryData = {
 		lotteryId: lot.Id,
 		charities: lot.Charities,
@@ -24,8 +23,7 @@ const closePreviousLottery = async (i) => {
 		{ isActive: false },
 		{ new: true }
 	);
-	console.log(lottoremove);
-	lotteryDraw();
+	lotteryDraw(lottoremove);
 };
 
 module.exports = {

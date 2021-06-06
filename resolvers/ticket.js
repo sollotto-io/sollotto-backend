@@ -37,5 +37,11 @@ module.exports = {
       const tickets = await Ticket.find();
       return tickets;
     },
+    async getUserTickets(_,{walletID,LotteryId},context,info){
+      console.log({walletID,LotteryId})
+      const tickets = await Ticket.find({walletID:walletID, LotteryId:LotteryId})
+     return tickets
+      // console.log(tickets)
+    }
   },
 };

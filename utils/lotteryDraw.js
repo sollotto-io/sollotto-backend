@@ -15,13 +15,19 @@ const {
 	LotteryDataSchema,
 } = require("./LotteryDataBorsh.js");
 var random = require("random");
+const ticket = require("../models/ticket.js");
 
 const lotteryDraw = async (data) => {
+	const tickets = await ticket.find({LotteryId: data.Id});
+	var lotteryDataAcc = []
+	tickets.map((t)=>{
+		lotteryDataAcc.push(t.DataWallet)
+	})
 	let connection = new Connection("https://devnet.solana.com");
 	
 	let totalPool = null; // fetch total pool of draw lottery
-	let lotteryDataAccountPK = []; //Fetch ticketDataAccountPK of draw lottery
-	let ticketDataAccountPKArr = []; // fetch all user ticketDataAccountPK of draw lottery
+	let lotteryDataAccountPK = data.LotteryDataAccount; //Fetch ticketDataAccountPK of draw lottery
+	let ticketDataAccountPKArr = lotteryDataAcc;// fetch all user ticketDataAccountPK of draw lottery
 	let winnerUserTicketDataWalletsPK = [];
 	let winnerUserWalletsPK = [];
 	let winningNumberArr = [

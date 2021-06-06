@@ -13,11 +13,14 @@ module.exports = gql`
     TicketPrice: Float
     StartDate: String
     EndDate: String
-    WinnerWallet: [Int]
+    WinnerWallet: [[Int]]
     TotalPoolValue: Float
     TotalRegistrations: Int
     isActive:Boolean
     LotteryDataAccount: [Int]
+    WinningCharity:Int
+    WinningCharityName:String
+    WinningNumbers:[String]
   }
 
   input LotteryInput {
@@ -26,11 +29,15 @@ module.exports = gql`
     TicketPrice: Float
     StartDate:String
     EndDate:String
+   
+
 
   }
 
   extend type Query{
     getupcomingLottery : Lottery
+    getAllLotteries : [Lottery]
+    getLotteryById(Id:Int): Lottery
   }
   extend type Mutation {
     addLottery(LotteryInput: LotteryInput): String

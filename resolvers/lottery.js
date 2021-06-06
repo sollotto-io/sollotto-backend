@@ -5,7 +5,7 @@ module.exports = {
   Mutations: {
     async addLottery(
       _,
-      { LotteryInput: { Id, Charities, TicketPrice,StartDate, EndDate  } },
+      { LotteryInput: { Id, Charities, TicketPrice,StartDate, EndDate   } },
       context,
       info
     ) {
@@ -17,12 +17,13 @@ module.exports = {
         TicketPrice,
         StartDate,
         EndDate,
-        WinnerWallet: [],
+        WinnerWallet:[],
         TotalPoolValue: 0,
         TotalRegistrations: 0,
         isActive: false,
         LotteryDataAccount: [],
         CharityVoteCount: votecount,
+        WinningCharityName:""
       });
       console.log(newLottery)
       await newLottery.save();
@@ -37,5 +38,17 @@ module.exports = {
       );
       return upcomingLottery;
     },
+    async getAllLotteries(_,args,context, info){
+      const Lotteries = await Lottery.find();
+      return Lotteries;
+    },
+
+
+    async getLotteryById(_,{Id},context,info){
+      console.log(Id)
+      const lottery = await Lottery.findOne({Id:Id})
+       
+        return lottery
+    }
   },
 };
