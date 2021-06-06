@@ -22,18 +22,21 @@ mongoose
       .then((res) => {
         console.log(`Server running on ${res.url}`);
       })
-        // .then(() => {
-        //   var an = 1;
-        //   console.log("inside cron then");
-        //   cron.schedule("*/1 * * * *", () => {
-        //     const result = chooseLottery(an)
+        .then(() => {
+          var an = 1;
+          console.log("inside cron then");
+          cron.schedule("0 0 * * WED,SAT", () => {
+            const result = chooseLottery(an)
           
-        //     result.then((a) => {
-        //       an = a;
-        //     });
+            result.then((a) => {
+              an = a;
+            });
           
-        //   });
-        // })
+          },{
+            scheduled: true,
+            timezone: "America/Danmarkshavn"
+          });
+        })
       .catch((err) => {
         console.log(err);
       });
