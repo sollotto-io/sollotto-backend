@@ -18,9 +18,7 @@ pub struct LotteryData {
     pub charity_2_vc: u32,
     pub charity_3_vc: u32,
     pub charity_4_vc: u32,
-    pub total_pool_value: u32,
     pub total_registrations: u32,
-    pub ticket_price: u32,
 }
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct IncomingLotteryData {
@@ -29,5 +27,4 @@ pub struct IncomingLotteryData {
     pub charity_2_id: u32,
     pub charity_3_id: u32,
     pub charity_4_id: u32,
-    pub ticket_price: u32,
 }

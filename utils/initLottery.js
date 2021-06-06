@@ -5,7 +5,7 @@ const {
 	TransactionInstruction,
 	Account,
 	SYSVAR_RENT_PUBKEY,
-	Connection
+	Connection,
 } = require("@solana/web3.js");
 var borsh = require("borsh");
 const {
@@ -13,7 +13,7 @@ const {
 	LotteryDataAccount,
 	IncomingLotteryDataSchema,
 	LotteryDataSchema,
-} =  require("./LotteryDataBorsh.js");
+} = require("./LotteryDataBorsh.js");
 
 const initLottery = async (lotteryData) => {
 	let connection = new Connection("https://devnet.solana.com");
@@ -27,7 +27,9 @@ const initLottery = async (lotteryData) => {
 			203, 59,
 		])
 	);
-	let solanaProgramId = new PublicKey("Gg6CiqYhSsqh86H4cTQkoPoKtiMtwTWryPpLxeDPQzTS");
+	let solanaProgramId = new PublicKey(
+		"6B5Ysnn379zH9FbvS4cBPfRVCSTxMvG9HvPoAXmASWCR"
+	);
 
 	try {
 		const lotteryDataAccount = new Account();
@@ -109,6 +111,9 @@ const initLottery = async (lotteryData) => {
 		console.log(
 			`Lottery Data Account PK: ${lotteryDataAccount.publicKey.toBase58()}`
 		);
+		console.log(
+			`Lottery Data Account PKBytes: ${lotteryDataAccount.publicKey.toBytes()}`
+		);
 		console.log("Transaction " + signature + " confirmed");
 	} catch (e) {
 		console.warn(e);
@@ -117,5 +122,5 @@ const initLottery = async (lotteryData) => {
 };
 
 module.exports = {
-	initLottery
-}
+	initLottery,
+};

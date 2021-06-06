@@ -35,9 +35,7 @@ impl Processor {
                 charity_2_vc,
                 charity_3_vc,
                 charity_4_vc,
-                total_pool_value,
                 total_registrations,
-                ticket_price,
             } => {
                 msg!("Instruction: InitLottery");
                 Self::process_init_lottery(
@@ -53,9 +51,7 @@ impl Processor {
                     charity_2_vc,
                     charity_3_vc,
                     charity_4_vc,
-                    total_pool_value,
                     total_registrations,
-                    ticket_price,
                 )
             }
             LotteryInstruction::PurchaseTicket {
@@ -87,18 +83,19 @@ impl Processor {
         charity_2_vc: u32,
         charity_3_vc: u32,
         charity_4_vc: u32,
-        total_pool_value: u32,
         total_registrations: u32,
-        ticket_price: u32,
     ) -> ProgramResult {
         let accounts_iter = &mut accounts.iter();
+        msg!("1");
         // lottery data account
         let lottery_data_account = next_account_info(accounts_iter)?;
+        msg!("2");
         // Check if program owns data account
         if lottery_data_account.owner != program_id {
             msg!("Ticket Data account does not have the correct program id");
             return Err(ProgramError::IncorrectProgramId);
         }
+        msg!("3");
         let rent = &Rent::from_account_info(next_account_info(accounts_iter)?)?;
         if !rent.is_exempt(
             lottery_data_account.lamports(),
@@ -106,8 +103,15 @@ impl Processor {
         ) {
             return Err(LotteryError::NotRentExempt.into());
         }
+        msg!("4");
+        msg!("test");
         // Add data to account
+        msg!(
+            "Error: {:?}",
+            LotteryData::try_from_slice(&lottery_data_account.data.borrow())
+        );
         let mut lottery_data = LotteryData::try_from_slice(&lottery_data_account.data.borrow())?;
+        msg!("5");
         lottery_data.is_lottery_initialised = is_lottery_initialised;
         lottery_data.lottery_id = lottery_id;
         lottery_data.charity_1_id = charity_1_id;
@@ -118,9 +122,7 @@ impl Processor {
         lottery_data.charity_2_vc = charity_2_vc;
         lottery_data.charity_3_vc = charity_3_vc;
         lottery_data.charity_4_vc = charity_4_vc;
-        lottery_data.total_pool_value = total_pool_value;
         lottery_data.total_registrations = total_registrations;
-        lottery_data.ticket_price = ticket_price;
         lottery_data.serialize(&mut &mut lottery_data_account.data.borrow_mut()[..])?;
         msg!("data stored");
         Ok(())
@@ -165,8 +167,6 @@ impl Processor {
             ticket_data.user_wallet_pk = user_wallet_pk;
             ticket_data.ticket_number_arr = ticket_number_arr;
             ticket_data.serialize(&mut &mut ticket_data_account.data.borrow_mut()[..])?;
-            lottery_data.total_pool_value =
-                lottery_data.total_pool_value + lottery_data.ticket_price;
             lottery_data.total_registrations += 1;
             let charity_arr = [
                 lottery_data.charity_1_id,
