@@ -18,10 +18,15 @@
   },
   "homepage": "https://github.com/leaddev-sollotto/sollotto-backend#readme",
   "dependencies": {
+    "@solana/web3.js": "^1.17.0",
     "apollo-server": "^2.24.0",
+    "borsh": "^0.4.0",
+    "dotenv": "^10.0.0",
     "graphql": "^15.5.0",
     "moment": "^2.29.1",
-    "mongoose": "^5.12.9"
+    "mongoose": "^5.12.10",
+    "node-cron": "^3.0.0",
+    "random": "^3.0.6"
   },
   "devDependencies": {
     "nodemon": "^2.0.7"

@@ -1,0 +1,114 @@
+# Query: console
+# ContextLines: 1
+
+31 results - 9 files
+
+index.js:
+  18    .then(() => {
+  19:     console.log(`MongoDb Connected`);
+  20      return server
+
+  22        .then((res) => {
+  23:         console.log(`Server running on ${res.url}`);
+  24        })
+
+  26          //   var an = 1;
+  27:         //   console.log("inside cron then");
+  28          //   cron.schedule("*/1 * * * *", () => {
+
+  37        .catch((err) => {
+  38:         console.log(err);
+  39        });
+
+  41    .catch((err) => {
+  42:     console.log(err);
+  43    });
+  44  
+  45: // console.log("hello")
+  46  
+
+on-chain\Cargo.lock:
+   617  [[package]]
+   618: name = "console"
+   619  version = "0.11.3"
+
+   634  [[package]]
+   635: name = "console"
+   636  version = "0.14.1"
+
+   936  dependencies = [
+   937:  "console 0.11.3",
+   938   "lazy_static",
+
+  1822  dependencies = [
+  1823:  "console 0.14.1",
+  1824   "lazy_static",
+
+  3966   "bzip2",
+  3967:  "console 0.11.3",
+  3968   "indicatif",
+
+  4256   "base32",
+  4257:  "console 0.11.3",
+  4258   "dialoguer",
+
+  4535   "clap",
+  4536:  "console 0.11.3",
+  4537   "core_affinity",
+
+resolvers\lottery.js:
+  29        });
+  30:      
+  31        await newLottery.save();
+
+resolvers\ticket.js:
+  10      ) {
+  11:      
+  12        const newTicket = new Ticket({
+
+  39       return tickets
+  40:       // console.log(tickets)
+  41      }
+
+utils\alterLottery.js:
+  22    );
+  23:   
+  25  };
+
+  40    );
+  41: 
+  44  };
+
+utils\checkWindowStatus.js:
+   9            // check if the window is in opened or closed state
+  10:           // false
+  11      }
+
+utils\chooseLottery.js:
+  3  exports.chooseLottery = async (a) => {
+  4: console.log("cron excecuted at", a);
+  5    if (a === 1) {
+
+utils\initLottery.js:
+   93  		let signature = await connection.sendRawTransaction(signedTx.serialize());
+   94: 		console.log(
+   95  			"Submitted transaction " + signature + ", awaiting confirmation"
+
+  109  
+  110: 		console.log(`Lottery Data: ${JSON.stringify(decodedLotteryState)}`);
+  111: 		console.log(
+  112  			`Lottery Data Account PK: ${lotteryDataAccount.publicKey.toBase58()}`
+  113  		);
+  114: 		console.log(
+  115  			`Lottery Data Account PKBytes: ${lotteryDataAccount.publicKey.toBytes()}`
+  116  		);
+  117: 		console.log("Transaction " + signature + " confirmed");
+  118  	} catch (e) {
+  119: 		console.warn(e);
+  120: 		console.log("Error: " + e.message);
+  121  	}
+
+utils\lotteryDraw.js:
+  53  		);
+  54: 		// console.log(decodedTicketDataState.data);
+  55  		return decodedTicketDataState.charity_id.ticket_number_arr;

@@ -1,9 +1,12 @@
 
 const root = require('./root')
-const user = require('./user')
+const charity = require('./charity')
+const ticket = require('./ticket')
+const pool = require('./pool')
+const lottery = require('./lottery')
 
 
-const typedef = [root,user]
+const typedefs = [root,charity, ticket,pool,lottery]
 
 
-module.exports = typedef;
+module.exports = typedefs;
