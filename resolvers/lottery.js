@@ -48,7 +48,7 @@ module.exports = {
     },
 
     async getLotteryById(_, { Id }, context, info) {
-      console.log(Id);
+    
       const lottery = await Lottery.findOne({ Id: Id });
 
       return lottery;
