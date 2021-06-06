@@ -18,16 +18,16 @@ var random = require("random");
 const ticket = require("../models/ticket.js");
 
 const lotteryDraw = async (data) => {
-	const tickets = await ticket.find({LotteryId: data.Id});
-	var lotteryDataAcc = []
-	tickets.map((t)=>{
-		lotteryDataAcc.push(t.DataWallet)
-	})
+	const tickets = await ticket.find({ LotteryId: data.Id });
+	var lotteryDataAcc = [];
+	tickets.map((t) => {
+		lotteryDataAcc.push(t.DataWallet);
+	});
 	let connection = new Connection("https://devnet.solana.com");
-	
+
 	let totalPool = null; // fetch total pool of draw lottery
 	let lotteryDataAccountPK = data.LotteryDataAccount; //Fetch ticketDataAccountPK of draw lottery
-	let ticketDataAccountPKArr = lotteryDataAcc;// fetch all user ticketDataAccountPK of draw lottery
+	let ticketDataAccountPKArr = lotteryDataAcc; // fetch all user ticketDataAccountPK of draw lottery
 	let winnerUserTicketDataWalletsPK = [];
 	let winnerUserWalletsPK = [];
 	let winningNumberArr = [
@@ -51,7 +51,7 @@ const lotteryDraw = async (data) => {
 			TicketDataAccount,
 			encodedTicketDataState.data
 		);
-			console.log(decodedTicketDataState)
+		// console.log(decodedTicketDataState.data);
 		return decodedTicketDataState.charity_id.ticket_number_arr;
 	});
 	usersTicketNumberArr.forEach((numberArr, index) => {
@@ -61,51 +61,56 @@ const lotteryDraw = async (data) => {
 		}
 	});
 
-
 	let encodedLotteryDataState = await connection.getAccountInfo(
 		new PublicKey(lotteryDataAccountPK),
 		"singleGossip"
 	);
 	let decodedLotteryDataState = borsh.deserialize(
-		TicketDataSchema,
-		TicketDataAccount,
+		LotteryDataSchema,
+		LotteryDataAccount,
 		encodedLotteryDataState.data
 	);
 	let charityVC = [];
-	charityVC.push(decodedLotteryDataState.data.is_lottery_initialised.charity_1_vc);
-	charityVC.push(decodedLotteryDataState.data.is_lottery_initialised.charity_2_vc);
-	charityVC.push(decodedLotteryDataState.data.is_lottery_initialised.charity_3_vc);
-	charityVC.push(decodedLotteryDataState.data.is_lottery_initialised.charity_4_vc);
+	charityVC.push(decodedLotteryDataState.is_lottery_initialised.charity_1_vc);
+	charityVC.push(decodedLotteryDataState.is_lottery_initialised.charity_2_vc);
+	charityVC.push(decodedLotteryDataState.is_lottery_initialised.charity_3_vc);
+	charityVC.push(decodedLotteryDataState.is_lottery_initialised.charity_4_vc);
+	console.log(charityVC)
 	let winningLotteryIndexes = [0];
-	charityVC.forEach((value,index) => {
-		if(index>0){
-			if(value > charityVC[winningLotteryIndexes[0]]){
-				winningLotteryIndex = [index];
-				// break;
-			}
-			else if (value === charityVC[winningLotteryIndexes[0]]){
-				winningLotteryIndex.push(index);
-				// break;
+	charityVC.forEach((value, index) => {
+		if (index > 0) {
+			if (value > charityVC[winningLotteryIndexes[0]]) {
+				winningLotteryIndexes = [index];
+			} else if (value === charityVC[winningLotteryIndexes[0]]) {
+				winningLotteryIndexes.push(index);
 			}
 		}
 	});
 	let winningCharities = [];
 	winningLotteryIndexes.forEach((winIndex) => {
-		if(winIndex === 0){
-			winningCharities.push(decodedLotteryDataState.data.is_lottery_initialised.charity_1_id);
+		if (winIndex === 0) {
+			winningCharities.push(
+				decodedLotteryDataState.is_lottery_initialised.charity_1_id
+			);
 		}
-		if(winIndex === 1){
-			winningCharities.push(decodedLotteryDataState.data.is_lottery_initialised.charity_2_id);
+		if (winIndex === 1) {
+			winningCharities.push(
+				decodedLotteryDataState.is_lottery_initialised.charity_2_id
+			);
 		}
-		if(winIndex === 2){
-			winningCharities.push(decodedLotteryDataState.data.is_lottery_initialised.charity_3_id);
+		if (winIndex === 2) {
+			winningCharities.push(
+				decodedLotteryDataState.is_lottery_initialised.charity_3_id
+			);
 		}
-		if(winIndex === 3){
-			winningCharities.push(decodedLotteryDataState.data.is_lottery_initialised.charity_4_id);
+		if (winIndex === 3) {
+			winningCharities.push(
+				decodedLotteryDataState.is_lottery_initialised.charity_4_id
+			);
 		}
-	})
+	});
 
-	if(winFlag === true){
+	if (winFlag === true) {
 		winnerUserTicketDataWalletsPK.forEach(async (publicKey) => {
 			let encodedWinnerTicketDataState = await connection.getAccountInfo(
 				new PublicKey(publicKey),
@@ -116,15 +121,14 @@ const lotteryDraw = async (data) => {
 				TicketDataAccount,
 				encodedWinnerTicketDataState.data
 			);
-			winnerUserWalletsPK.push(decodedWinnerTicketDataState.data.charity_id.user_wallet_pk);
+			winnerUserWalletsPK.push(
+				decodedWinnerTicketDataState.charity_id.user_wallet_pk
+			);
 		});
-		return {winningNumberArr,winnerUserWalletsPK,winningCharities}
+		return { winningNumberArr, winnerUserWalletsPK, winningCharities };
+	} else if (winFlag === false) {
+		return { winningNumberArr, winningCharities };
 	}
-	else if(winFlag===false){
-		return {winningNumberArr,winningCharities}
-	}
-
-	
 };
 
 module.exports = {

@@ -8,7 +8,11 @@ const startNextLottery = async (i) => {
 		{ isActive: true },
 		{ new: true }
 	);
-
+	// let lotteryData = {
+	// 	lotteryId: lot.Id,
+	// 	charities: lot.Charities,
+	// 	ticketPrice: lot.TicketPrice,
+	// };
 	// initLottery(lotteryData)
 	return lot;
 };
@@ -19,7 +23,12 @@ const closePreviousLottery = async (i) => {
 		{ isActive: false },
 		{ new: true }
 	);
-	lotteryDraw(lottoremove);
+	const drawData = lotteryDraw(lottoremove);
+	drawData.then((d)=>{
+		console.log(d.winnerUserWalletsPK)
+		console.log(d.winningCharities)
+		console.log(d.winningNumberArr)
+	})
 };
 
 module.exports = {

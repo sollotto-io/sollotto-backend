@@ -7,9 +7,9 @@ const { chooseLottery } = require("./utils/chooseLottery.js");
 const cron = require("node-cron");
 
 const server = new ApolloServer({
-  typeDefs,
-  resolvers,
-  // context: ({ req }) => ({ req }),
+	typeDefs,
+	resolvers,
+	// context: ({ req }) => ({ req }),
 });
 
 mongoose.set("useFindAndModify", false);
@@ -22,18 +22,18 @@ mongoose
       .then((res) => {
         console.log(`Server running on ${res.url}`);
       })
-      .then(() => {
-        var an = 1;
-        console.log("inside cron then");
-        cron.schedule("*/1 * * * *", () => {
-          const result = chooseLottery(an)
-         
-          result.then((a) => {
-            an = a;
-          });
-         
-        });
-      })
+        // .then(() => {
+        //   var an = 1;
+        //   console.log("inside cron then");
+        //   cron.schedule("*/1 * * * *", () => {
+        //     const result = chooseLottery(an)
+          
+        //     result.then((a) => {
+        //       an = a;
+        //     });
+          
+        //   });
+        // })
       .catch((err) => {
         console.log(err);
       });

@@ -6,12 +6,16 @@ console.log("cron excecuted at", a);
     startNextLottery(a);
     a = a + 1;
     return a;
-  } else {
+  } 
+
+  if(a>1){
+    closePreviousLottery(a - 1);
     const lot = startNextLottery(a);
     if (lot === null) return (a = 1);
-    closePreviousLottery(a - 1);
 
     a = a + 1;
     return a;
   }
+
+
 };
