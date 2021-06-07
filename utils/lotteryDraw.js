@@ -1,9 +1,5 @@
 const {
-	SystemProgram,
 	PublicKey,
-	Transaction,
-	TransactionInstruction,
-	Account,
 	SYSVAR_RENT_PUBKEY,
 	LAMPORTS_PER_SOL,
 	Connection,
@@ -16,18 +12,17 @@ const {
 } = require("./LotteryDataBorsh.js");
 var random = require("random");
 const ticket = require("../models/ticket.js");
-
+const dotenv = require("dotenv");
+dotenv.config();
 const lotteryDraw = async (data) => {
 	const tickets = await ticket.find({ LotteryId: data.Id });
 	var lotteryDataAcc = [];
 	tickets.map((t) => {
 		lotteryDataAcc.push(t.DataWallet);
 	});
-	let connection = new Connection("https://devnet.solana.com");
-
-	let totalPool = null; // fetch total pool of draw lottery
-	let lotteryDataAccountPK = data.LotteryDataAccount; //Fetch ticketDataAccountPK of draw lottery
-	let ticketDataAccountPKArr = lotteryDataAcc; // fetch all user ticketDataAccountPK of draw lottery
+	let connection = new Connection(process.env.SOLANA_NETWORK);
+	let lotteryDataAccountPK = data.LotteryDataAccount;
+	let ticketDataAccountPKArr = lotteryDataAcc;
 	let winnerUserTicketDataWalletsPK = [];
 	let winnerUserWalletsPK = [];
 	let winningNumberArr = [
@@ -40,7 +35,6 @@ const lotteryDraw = async (data) => {
 	];
 	let winFlag = false;
 
-	// Fetch DataWallet
 	let usersTicketNumberArr = ticketDataAccountPKArr.map(async (publicKey) => {
 		const encodedTicketDataState = await connection.getAccountInfo(
 			new PublicKey(publicKey),
@@ -51,7 +45,6 @@ const lotteryDraw = async (data) => {
 			TicketDataAccount,
 			encodedTicketDataState.data
 		);
-		// console.log(decodedTicketDataState.data);
 		return decodedTicketDataState.charity_id.ticket_number_arr;
 	});
 	usersTicketNumberArr.forEach((numberArr, index) => {
@@ -125,9 +118,9 @@ const lotteryDraw = async (data) => {
 				decodedWinnerTicketDataState.charity_id.user_wallet_pk
 			);
 		});
-		return {winFlag, winningNumberArr, winnerUserWalletsPK, winningCharities };
+		return { winFlag, winningNumberArr, winnerUserWalletsPK, winningCharities };
 	} else if (winFlag === false) {
-		return {winFlag, winningNumberArr, winningCharities };
+		return { winFlag, winningNumberArr, winningCharities };
 	}
 };
 
