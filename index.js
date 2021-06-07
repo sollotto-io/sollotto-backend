@@ -15,6 +15,8 @@ app.all('/', function(req, res, next) {
   res.header("Access-Control-Allow-Headers", "X-Requested-With");
   next()
 });
+res.setHeader("Access-Control-Allow-Methods",  
+    "GET, POST, PATCH, DELETE, OPTIONS");  
 app.use(cors()) // not having cors enabled will cause an access control error
 const server = new ApolloServer({
 	typeDefs,
