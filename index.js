@@ -45,4 +45,20 @@ mongoose
     console.log(err);
   });
 
-// console.log("hello")
+						result.then((a) => {
+							an = a;
+						});
+					},
+					{
+						scheduled: true,
+						timezone: "America/Danmarkshavn",
+					}
+				);
+			})
+			.catch((err) => {
+				console.log(err);
+			});
+	})
+	.catch((err) => {
+		console.log(err);
+	});

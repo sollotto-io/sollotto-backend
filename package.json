@@ -1,34 +1,32 @@
 {
-  "name": "sollotto-backend",
-  "version": "1.0.0",
-  "description": "��#\u0000 \u0000s\u0000o\u0000l\u0000l\u0000o\u0000t\u0000t\u0000o\u0000-\u0000b\u0000a\u0000c\u0000k\u0000e\u0000n\u0000d\u0000\r\u0000 \u0000",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon index.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/leaddev-sollotto/sollotto-backend.git"
-  },
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/leaddev-sollotto/sollotto-backend/issues"
-  },
-  "homepage": "https://github.com/leaddev-sollotto/sollotto-backend#readme",
-  "dependencies": {
-    "@solana/web3.js": "^1.17.0",
-    "apollo-server": "^2.24.0",
-    "borsh": "^0.4.0",
-    "dotenv": "^10.0.0",
-    "graphql": "^15.5.0",
-    "moment": "^2.29.1",
-    "mongoose": "^5.12.10",
-    "node-cron": "^3.0.0",
-    "random": "^3.0.6"
-  },
-  "devDependencies": {
-    "nodemon": "^2.0.7"
-  }
+	"name": "sollotto-backend",
+	"version": "1.0.0",
+	"description": "��#\u0000 \u0000s\u0000o\u0000l\u0000l\u0000o\u0000t\u0000t\u0000o\u0000-\u0000b\u0000a\u0000c\u0000k\u0000e\u0000n\u0000d\u0000\r\u0000 \u0000",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"start": "nodemon index.js"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/leaddev-sollotto/sollotto-backend.git"
+	},
+	"author": "",
+	"license": "ISC",
+	"bugs": {
+		"url": "https://github.com/leaddev-sollotto/sollotto-backend/issues"
+	},
+	"homepage": "https://github.com/leaddev-sollotto/sollotto-backend#readme",
+	"dependencies": {
+		"@solana/web3.js": "^1.17.0",
+		"apollo-server": "^2.24.0",
+		"borsh": "^0.4.0",
+		"dotenv": "^10.0.0",
+		"graphql": "^15.5.0",
+		"moment": "^2.29.1",
+		"mongoose": "^5.12.10",
+		"node-cron": "^3.0.0",
+		"random": "^3.0.6",
+		"nodemon": "^2.0.7"
+	}
 }
