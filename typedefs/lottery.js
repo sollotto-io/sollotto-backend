@@ -30,6 +30,7 @@ module.exports = gql`
     StartDate:String
     EndDate:String
     LotteryDataAccount:[Int]
+    isActive:Boolean
 
 
   }

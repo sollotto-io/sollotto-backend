@@ -23,7 +23,7 @@ mongoose
         console.log(`Server running on ${res.url}`);
       })
         .then(() => {
-          var an = 1;
+          var an = 2;
           console.log("inside cron then");
           cron.schedule("0 0 * * WED,SAT", () => {
             const result = chooseLottery(an)
