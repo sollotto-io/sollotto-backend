@@ -6,6 +6,7 @@ module.exports = gql`
     ID:Int!,
     charityName: String!
     projectDetails: String!
+    fundUse:String!
     currentVotes: Int
     addedBy: String!
     lifeTimeVotes: Int
@@ -21,6 +22,7 @@ module.exports = gql`
     ID:Int!
     charityName: String!
     projectDetails: String!
+    fundUse:String!
     addedBy: String!
     Status:String!
     Years: String!
