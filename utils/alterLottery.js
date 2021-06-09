@@ -40,11 +40,13 @@ const setWinningUsers = async (
 const closePreviousLottery = async (i) => {
 	const lottoremove = await Lottery.findOneAndUpdate(
 		{ Id: i },
-		{ isActive: false },
-		{ new: true }
+		{isActive:false},
+		{new:true}
 	);
 	const drawData = lotteryDraw(lottoremove);
+	
 	drawData.then((d) => {
+		console.log(d)
 		if (d.winFlag === false) {
 			setDataBase(i, d.winningCharities, d.winningNumberArr);
 		} else {

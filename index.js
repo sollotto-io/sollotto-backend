@@ -36,7 +36,7 @@ mongoose
         .then(() => {
           var an = 2;
           console.log("inside cron then");
-          cron.schedule("0 0 * * WED,SAT", () => {
+          cron.schedule("0 0 * * wed,sat", () => {
             const result = chooseLottery(an)
           
             result.then((a) => {
@@ -45,7 +45,7 @@ mongoose
           
           },{
             scheduled: true,
-            timezone: "America/Danmarkshavn"
+            timezone: "Atlantic/Azores"
           });
         })
       .catch((err) => {
