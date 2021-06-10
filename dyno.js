@@ -1,7 +1,7 @@
 var http = require('http'); //importing http
 
 var options = {
-    host: 'XXX.herokuapp.com',
+    host: 'https://sollotto-backend.herokuapp.com/',
     port: 80,
     path: '/WAKEUP_DYNO'
 };
