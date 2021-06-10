@@ -7,10 +7,10 @@ var options = {
 };
 console.log("======WAKUP DYNO START");
 http.get(options, function(res) {
-    res.on('data', function(chunk) {
+    res.on('data', function() {
         try {
             // optional logging... disable after it's working
-            console.log("======WAKUP DYNO: HEROKU RESPONSE: " + chunk);
+            console.log("======WAKUP DYNO: HEROKU RESPONSE:");
         } catch (err) {
             console.log(err.message);
         }
