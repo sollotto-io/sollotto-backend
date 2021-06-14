@@ -1,11 +1,23 @@
 const { ApolloServer } = require("apollo-server");
+const express = require('express')
 const mongoose = require("mongoose");
 const typeDefs = require("./typedefs/index");
 const resolvers = require("./resolvers/index");
 const { MONGODB } = require("./config");
-const { chooseLottery } = require("./utils/chooseLottery.js");
 const cron = require("node-cron");
+const cors = require('cors')
+const path=require('path');
+const {changeDraw} = require('./utils/changeDraw')
 
+const app = express()
+app.use('/static', express.static(path.join(__dirname, 'public')))
+app.all('/', function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "X-Requested-With");
+  next()
+});
+  
+app.use(cors()) // not having cors enabled will cause an access control error
 const server = new ApolloServer({
 	typeDefs,
 	resolvers,
@@ -18,25 +30,15 @@ mongoose
   .then(() => {
     console.log(`MongoDb Connected`);
     return server
-      .listen({ port: 5000 })
+      .listen({ port: process.env.PORT || 5000 })
       .then((res) => {
         console.log(`Server running on ${res.url}`);
       })
-        .then(() => {
-          var an = 2;
-          console.log("inside cron then");
-          cron.schedule("0 0 * * WED,SAT", () => {
-            const result = chooseLottery(an)
+        // .then(() => {
           
-            result.then((a) => {
-              an = a;
-            });
-          
-          },{
-            scheduled: true,
-            timezone: "America/Danmarkshavn"
-          });
-        })
+        //   console.log("inside cron then");
+        //   cron.schedule("*/1 * * * *", ()=> changeDraw());
+        // })
       .catch((err) => {
         console.log(err);
       });
@@ -45,4 +47,4 @@ mongoose
     console.log(err);
   });
 
-// console.log("hello")
+				

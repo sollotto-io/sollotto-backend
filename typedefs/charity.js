@@ -3,9 +3,9 @@ const gql = require("graphql-tag");
 module.exports = gql`
   type Charity {
     id: ID!
-    ID:Int!,
     charityName: String!
     projectDetails: String!
+    fundUse:String!
     currentVotes: Int
     addedBy: String!
     lifeTimeVotes: Int
@@ -18,9 +18,9 @@ module.exports = gql`
     webURL: String!
   }
   input charityInput {
-    ID:Int!
     charityName: String!
     projectDetails: String!
+    fundUse:String!
     addedBy: String!
     Status:String!
     Years: String!

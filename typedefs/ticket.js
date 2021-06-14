@@ -4,23 +4,16 @@ module.exports = gql`
   type Ticket {
     id: ID!
     walletID: [Int]
-    ticketArray: [String]
+    ticketArray: [Int]
     DataWallet: [Int]
-    charityId: Int!
-    LotteryId:Int!
+    charityId: Charity!
   }
 
-  extend type Query{
-    getUserTickets( walletID: [Int!], LotteryId:Int! ) : [Ticket]!
-  }
+  # extend type Query{
+  #
+  # }
 
   extend type Mutation {
-    addTicket(
-      walletID: [Int]
-      ticketArray: [String]
-      DataWallet: [Int]
-      charityId: Int  
-    LotteryId:Int
-    ): String!
+    addTicket( walletID: [Int] ,ticketArray: [Int], DataWallet: [Int], charityId: String!, drawingId: String!): String
   }
 `;

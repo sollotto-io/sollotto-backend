@@ -1,22 +1,22 @@
 
 const charityResolvers = require("./charity")
 const ticketResolvers = require('./ticket')
-const poolResolvers = require('./pool')
 const lotteryResolvers = require('./lottery')
+const drawingResolvers = require('./drawing')
 module.exports = {
    
     Mutation: {
         
         ...charityResolvers.Mutation,
         ...ticketResolvers.Mutation,
-        ...poolResolvers.Mutation,
+      ...drawingResolvers.Mutation,
         ...lotteryResolvers.Mutations
 
     },
     Query:{
         ...charityResolvers.Query,
-        ...poolResolvers.Query,
-        ...ticketResolvers.Query,
+        ...drawingResolvers.Query,
+        // ...ticketResolvers.Query,
         ...lotteryResolvers.Query
     }
 
