@@ -135,67 +135,25 @@ impl Processor {
         ticket_number_arr: [u8; 6],
     ) -> ProgramResult {
         let accounts_iter = &mut accounts.iter();
-        // lottery data account
-        let lottery_data_account = next_account_info(accounts_iter)?;
-        // Check if program owns lottery data account
-        if lottery_data_account.owner != program_id {
-            msg!("Lottery Data account does not have the correct program id");
+        // Ticket data account
+        let ticket_data_account = next_account_info(accounts_iter)?;
+        // Check if program owns ticket data account
+        if ticket_data_account.owner != program_id {
+            msg!("Ticket Data account does not have the correct program id");
             return Err(ProgramError::IncorrectProgramId);
         }
-        let mut lottery_data = LotteryData::try_from_slice(&lottery_data_account.data.borrow())?;
-        //Check if lottery initisalised
-        if lottery_data.is_lottery_initialised == true {
-            // Ticket data account
-            let ticket_data_account = next_account_info(accounts_iter)?;
-            // Check if program owns ticket data account
-            if ticket_data_account.owner != program_id {
-                msg!("Ticket Data account does not have the correct program id");
-                return Err(ProgramError::IncorrectProgramId);
-            }
-            let rent = &Rent::from_account_info(next_account_info(accounts_iter)?)?;
-            if !rent.is_exempt(
-                lottery_data_account.lamports(),
-                lottery_data_account.data_len(),
-            ) && !rent.is_exempt(
-                ticket_data_account.lamports(),
-                ticket_data_account.data_len(),
-            ) {
-                return Err(LotteryError::NotRentExempt.into());
-            }
-            let mut ticket_data = TicketData::try_from_slice(&ticket_data_account.data.borrow())?;
-            ticket_data.charity_id = charity_id;
-            ticket_data.user_wallet_pk = user_wallet_pk;
-            ticket_data.ticket_number_arr = ticket_number_arr;
-            ticket_data.serialize(&mut &mut ticket_data_account.data.borrow_mut()[..])?;
-            lottery_data.total_registrations += 1;
-            let charity_arr = [
-                lottery_data.charity_1_id,
-                lottery_data.charity_2_id,
-                lottery_data.charity_3_id,
-                lottery_data.charity_4_id,
-            ];
-            msg!("Charity Ids: {:?}", charity_arr);
-            for (pos, id) in charity_arr.iter().enumerate() {
-                msg!("Entered Loop");
-                msg!("Current Charity: {}", *id);
-                msg!("Receieved Charity: {}", charity_id);
-                if *id == charity_id {
-                    msg!("Matched ID Loop");
-                    match pos {
-                        0 => lottery_data.charity_1_vc += 1,
-                        1 => lottery_data.charity_2_vc += 1,
-                        2 => lottery_data.charity_3_vc += 1,
-                        3 => lottery_data.charity_4_vc += 1,
-                        _ => return Err(LotteryError::InvalidCharity.into()),
-                    }
-                    break;
-                }
-            }
-            lottery_data.serialize(&mut &mut lottery_data_account.data.borrow_mut()[..])?;
-        } else {
-            msg!("Lottery Not yet started, please wait!");
-            return Err(ProgramError::IncorrectProgramId);
+        let rent = &Rent::from_account_info(next_account_info(accounts_iter)?)?;
+        if !rent.is_exempt(
+            ticket_data_account.lamports(),
+            ticket_data_account.data_len(),
+        ) {
+            return Err(LotteryError::NotRentExempt.into());
         }
+        let mut ticket_data = TicketData::try_from_slice(&ticket_data_account.data.borrow())?;
+        ticket_data.charity_id = charity_id;
+        ticket_data.user_wallet_pk = user_wallet_pk;
+        ticket_data.ticket_number_arr = ticket_number_arr;
+        ticket_data.serialize(&mut &mut ticket_data_account.data.borrow_mut()[..])?;
         Ok(())
     }
 }
