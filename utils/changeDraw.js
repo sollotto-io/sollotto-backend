@@ -31,7 +31,7 @@ const closeDrawing = async (drawing) => {
     await Drawing.findByIdAndUpdate(
       drawing._id,
       {
-        // isActive: false,
+        isActive: false,
         $set: {
           WinningNumbers: result.winningNumberArr,
           WinningCharity: winningCharity,
@@ -50,7 +50,7 @@ const closeDrawing = async (drawing) => {
     await Drawing.findByIdAndUpdate(
       drawing._id,
       {
-        // isActive: false,
+        isActive: false,
         $set: {
           WinningNumbers: result.winningNumberArr,
           WinningCharity: winningCharity,
@@ -68,7 +68,7 @@ exports.changeDraw = async () => {
   
   if (activeDrawing) {
     await closeDrawing(activeDrawing);
-    // await openDrawing(activeDrawing);
+    await openDrawing(activeDrawing);
   } else {
    console.log("no active")
   }

@@ -22,38 +22,49 @@ const lotteryDraw = async (data) => {
   let winnerUserTicketDataWalletsPK = [];
   let winnerUserWalletsPK = [];
   let winningNumberArr = [
-    1,2,3,4,5,6
-    // random.int(1, 69),
-    // random.int(1, 69),
-    // random.int(1, 69),
-    // random.int(1, 69),
-    // random.int(1, 69),
-    // random.int(1, 26),
+    random.int(1, 69),
+    random.int(1, 69),
+    random.int(1, 69),
+    random.int(1, 69),
+    random.int(1, 69),
+    random.int(1, 26),
   ];
   let winFlag = false;
- 
-  await ticketDataAccountPKArr.forEach(async function (publicKey,i) {
-      setTimeout(async()=>{
-        const encodedTicketDataState = await connection.getAccountInfo(
-          		new PublicKey(publicKey),
-          		"singleGossip"
-          	);
-          	const decodedTicketDataState = await borsh.deserialize(
-          		TicketDataSchema,
-          		TicketDataAccount,
-          		encodedTicketDataState.data
-          	);
-            if (_.isEqual(Buffer.from(decodedTicketDataState.charity_id.ticket_number_arr).toJSON().data, winningNumberArr)) {
-              await winnerUserTicketDataWalletsPK.push(ticketDataAccountPKArr[i]);
-              winFlag = true;
-            }
-            
-            console.log(winnerUserTicketDataWalletsPK, winFlag)
-      }, i *1000 )
-  });
+  const waitFor = (ms) => new Promise(r => setTimeout(r, ms));
 
+  async function asyncForEach(array, callback) {
+    for (let index = 0; index < array.length; index++) {
+      await callback(array[index], index, array);
+    }
+  }
+
+  const start = async() =>{
+    await asyncForEach(ticketDataAccountPKArr, async (publicKey, i) => {
+      await waitFor(1000);
+
+      const encodedTicketDataState = await connection.getAccountInfo(
+        new PublicKey(publicKey),
+        "singleGossip"
+      );
+      const decodedTicketDataState = await borsh.deserialize(
+        TicketDataSchema,
+        TicketDataAccount,
+        encodedTicketDataState.data
+      );
+
+      if (_.isEqual(Buffer.from(decodedTicketDataState.charity_id.ticket_number_arr).toJSON().data, winningNumberArr)) {
+        // console.log("1")
+        await winnerUserTicketDataWalletsPK.push(ticketDataAccountPKArr[i]);
+        winFlag = true;
+      }
+     
+    })
+   
+  } 
+  
  
- 
+ await start()
+ console.log(winnerUserTicketDataWalletsPK)
 
   // let usersTicketNumberArr = ticketDataAccountPKArr.map( async (publicKey) => {
   // 	const encodedTicketDataState = await connection.getAccountInfo(
@@ -69,29 +80,46 @@ const lotteryDraw = async (data) => {
 
   // });
 
- 
-   
-  if (winFlag === true) {
-    await winnerUserTicketDataWalletsPK.forEach(async (publicKey) => {
+  
+  const start2 =async()=>{
+
+     await asyncForEach(winnerUserTicketDataWalletsPK, async (publicKey, i) => {
+      console.log("helo")
       let encodedWinnerTicketDataState = await connection.getAccountInfo(
         new PublicKey(publicKey),
         "singleGossip"
       );
-      let decodedWinnerTicketDataState = borsh.deserialize(
+      
+      let decodedWinnerTicketDataState =await borsh.deserialize(
         TicketDataSchema,
         TicketDataAccount,
         encodedWinnerTicketDataState.data
       );
-      winnerUserWalletsPK.push(
-        decodedWinnerTicketDataState.charity_id.user_wallet_pk
+      
+
+      console.log( Buffer.from(decodedWinnerTicketDataState.charity_id.user_wallet_pk).toJSON().data)
+     await winnerUserWalletsPK.push(
+        Buffer.from(decodedWinnerTicketDataState.charity_id.user_wallet_pk).toJSON().data
       );
     });
-  
-    return { winFlag, winningNumberArr, winnerUserWalletsPK };
-  } else if (winFlag === false) {
-    return { winFlag, winningNumberArr };
+    
+
+    console.log(winnerUserWalletsPK)
   }
-};
+
+  if (winFlag === true) {
+    await start2()
+    return { winFlag, winningNumberArr, winnerUserWalletsPK };
+  }else{
+    return { winFlag, winningNumberArr };
+  
+  }
+    
+  }
+
+ 
+   
+  
 
 module.exports = {
   lotteryDraw,
