@@ -7,7 +7,7 @@ const {
 var borsh = require("borsh");
 const sleep = require("util").promisify(setTimeout);
 const { TicketDataAccount, TicketDataSchema } = require("./TicketDataBorsh.js");
-
+const _  = require('lodash')
 var random = require("random");
 const dotenv = require("dotenv");
 dotenv.config();
@@ -22,46 +22,37 @@ const lotteryDraw = async (data) => {
   let winnerUserTicketDataWalletsPK = [];
   let winnerUserWalletsPK = [];
   let winningNumberArr = [
-    random.int(1, 69),
-    random.int(1, 69),
-    random.int(1, 69),
-    random.int(1, 69),
-    random.int(1, 69),
-    random.int(1, 26),
+    1,2,3,4,5,6
+    // random.int(1, 69),
+    // random.int(1, 69),
+    // random.int(1, 69),
+    // random.int(1, 69),
+    // random.int(1, 69),
+    // random.int(1, 26),
   ];
   let winFlag = false;
-  var usersTicketNumberArr = [];
-  var interval = 250;
-  var promise = Promise.resolve();
+ 
   await ticketDataAccountPKArr.forEach(async function (publicKey,i) {
-    promise = promise.then(async function () {
-
-      const encodedTicketDataState = await connection.getAccountInfo(
-        new PublicKey(publicKey),
-        "singleGossip"
-      );
-      const decodedTicketDataState = borsh.deserialize(
-        TicketDataSchema,
-        TicketDataAccount,
-        encodedTicketDataState.data
-      );
-      usersTicketNumberArr.push(
-        decodedTicketDataState.charity_id.ticket_number_arr
-      );
-      return new Promise(function (resolve) {
-        setTimeout(resolve, interval);
-      });
-    });
+      setTimeout(async()=>{
+        const encodedTicketDataState = await connection.getAccountInfo(
+          		new PublicKey(publicKey),
+          		"singleGossip"
+          	);
+          	const decodedTicketDataState = await borsh.deserialize(
+          		TicketDataSchema,
+          		TicketDataAccount,
+          		encodedTicketDataState.data
+          	);
+            if (_.isEqual(Buffer.from(decodedTicketDataState.charity_id.ticket_number_arr).toJSON().data, winningNumberArr)) {
+              await winnerUserTicketDataWalletsPK.push(ticketDataAccountPKArr[i]);
+              winFlag = true;
+            }
+            
+            console.log(winnerUserTicketDataWalletsPK, winFlag)
+      }, i *1000 )
   });
 
-  promise.then(async function () {
-	await usersTicketNumberArr.forEach((numberArr, index) => {
-		if (numberArr === winningNumberArr) {
-		  winnerUserTicketDataWalletsPK.push(ticketDataAccountPKArr[index]);
-		  winFlag = true;
-		}
-	  });
-  });
+ 
  
 
   // let usersTicketNumberArr = ticketDataAccountPKArr.map( async (publicKey) => {

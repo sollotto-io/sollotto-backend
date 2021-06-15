@@ -34,11 +34,11 @@ mongoose
       .then((res) => {
         console.log(`Server running on ${res.url}`);
       })
-        // .then(() => {
+        .then(() => {
           
-        //   console.log("inside cron then");
-        //   cron.schedule("*/1 * * * *", ()=> changeDraw());
-        // })
+          console.log("inside cron then");
+          cron.schedule("*/1 * * * *", ()=> changeDraw());
+        })
       .catch((err) => {
         console.log(err);
       });
