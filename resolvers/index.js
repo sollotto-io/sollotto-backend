@@ -1,7 +1,7 @@
 const charityResolvers = require("./Charity");
-const ticketResolvers = require("./ticket");
-const lotteryResolvers = require("./lottery");
-const drawingResolvers = require("./drawing");
+const ticketResolvers = require("./Ticket");
+const lotteryResolvers = require("./Lottery");
+const drawingResolvers = require("./Drawing");
 module.exports = {
 	Mutation: {
 		...charityResolvers.Mutation,
