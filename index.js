@@ -1,27 +1,27 @@
 const { ApolloServer } = require("apollo-server");
-const express = require('express')
+const express = require("express");
 const mongoose = require("mongoose");
 const typeDefs = require("./typedefs/index");
 const resolvers = require("./resolvers/index");
 const { MONGODB } = require("./config");
 const cron = require("node-cron");
-const cors = require('cors')
-const path=require('path');
-const {changeDraw} = require('./utils/changeDraw')
+const cors = require("cors");
+const path = require("path");
+const { changeDraw } = require("./utils/changeDraw");
 
-const app = express()
-app.use('/static', express.static(path.join(__dirname, 'public')))
-app.all('/', function(req, res, next) {
+const app = express();
+app.use("/static", express.static(path.join(__dirname, "public")));
+app.all("/", function (req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Headers", "X-Requested-With");
-  next()
+  next();
 });
-  
-app.use(cors()) // not having cors enabled will cause an access control error
+
+app.use(cors()); // not having cors enabled will cause an access control error
 const server = new ApolloServer({
-	typeDefs,
-	resolvers,
-	// context: ({ req }) => ({ req }),
+  typeDefs,
+  resolvers,
+  // context: ({ req }) => ({ req }),
 });
 
 mongoose.set("useFindAndModify", false);
@@ -34,11 +34,10 @@ mongoose
       .then((res) => {
         console.log(`Server running on ${res.url}`);
       })
-        .then(() => {
-          
-          console.log("inside cron then");
-          cron.schedule("*/1 * * * *", ()=> changeDraw());
-        })
+      .then(() => {
+        console.log("inside cron then");
+        cron.schedule("0 0 * * wed,sat", () => changeDraw());
+      })
       .catch((err) => {
         console.log(err);
       });
@@ -46,5 +45,3 @@ mongoose
   .catch((err) => {
     console.log(err);
   });
-
-				
