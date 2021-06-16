@@ -1,23 +1,18 @@
-
-const charityResolvers = require("./charity")
-const ticketResolvers = require('./ticket')
-const poolResolvers = require('./pool')
-const lotteryResolvers = require('./lottery')
+const charityResolvers = require("./Charity");
+const ticketResolvers = require("./Ticket");
+const lotteryResolvers = require("./Lottery");
+const drawingResolvers = require("./Drawing");
 module.exports = {
-   
-    Mutation: {
-        
-        ...charityResolvers.Mutation,
-        ...ticketResolvers.Mutation,
-        ...poolResolvers.Mutation,
-        ...lotteryResolvers.Mutations
-
-    },
-    Query:{
-        ...charityResolvers.Query,
-        ...poolResolvers.Query,
-        ...ticketResolvers.Query,
-        ...lotteryResolvers.Query
-    }
-
-}
+	Mutation: {
+		...charityResolvers.Mutation,
+		...ticketResolvers.Mutation,
+		...drawingResolvers.Mutation,
+		...lotteryResolvers.Mutations,
+	},
+	Query: {
+		...charityResolvers.Query,
+		...drawingResolvers.Query,
+		// ...ticketResolvers.Query,
+		...lotteryResolvers.Query,
+	},
+};

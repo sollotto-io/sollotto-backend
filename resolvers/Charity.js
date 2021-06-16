@@ -1,4 +1,4 @@
-const Charity = require("../models/charity");
+const Charity = require("../models/Charity");
 const { CHARITY_STATUS } = require("../config");
 module.exports = {
   Mutation: {
@@ -6,7 +6,7 @@ module.exports = {
       _,
       {
         charityInput: {
-          ID,
+        
           charityName,
           projectDetails,
           fundUse,
@@ -23,7 +23,7 @@ module.exports = {
       info
     ) {
       const newCharity = new Charity({
-        ID,
+    
         charityName,
         projectDetails,
         fundUse,
