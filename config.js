@@ -8,3 +8,4 @@ module.exports = {
 		NOT_ELIGIBLE: "NOT ELIGIBLE",
 	},
 };
+
