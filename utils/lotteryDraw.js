@@ -14,7 +14,7 @@ const lotteryDraw = async (data) => {
 		lotteryDataAcc.push(t.DataWallet);
 	});
 
-	let connection = new Connection("https://api.devnet.solana.com");
+	let connection = new Connection(process.env.SOLANA_NETWORK);
 	let ticketDataAccountPKArr = lotteryDataAcc;
 	let winnerUserTicketDataWalletsPK = [];
 	let winnerUserWalletsPK = [];
@@ -53,13 +53,14 @@ const lotteryDraw = async (data) => {
 
 			if (
 				_.isEqual(
-					Buffer.from(
-						decodedTicketDataState.charity_id.ticket_number_arr
-					).toJSON().data,
+					sortTicketNumber(
+						Buffer.from(
+							decodedTicketDataState.charity_id.ticket_number_arr
+						).toJSON().data
+					),
 					winningNumberArr
 				)
 			) {
-				// console.log("1")
 				await winnerUserTicketDataWalletsPK.push(ticketDataAccountPKArr[i]);
 				winFlag = true;
 			}
@@ -67,8 +68,6 @@ const lotteryDraw = async (data) => {
 	};
 
 	await start();
-	console.log(winnerUserTicketDataWalletsPK);
-
 	// let usersTicketNumberArr = ticketDataAccountPKArr.map( async (publicKey) => {
 	// 	const encodedTicketDataState = await connection.getAccountInfo(
 	// 		new PublicKey(publicKey),
@@ -85,7 +84,6 @@ const lotteryDraw = async (data) => {
 
 	const start2 = async () => {
 		await asyncForEach(winnerUserTicketDataWalletsPK, async (publicKey, i) => {
-			console.log("helo");
 			let encodedWinnerTicketDataState = await connection.getAccountInfo(
 				new PublicKey(publicKey),
 				"singleGossip"
@@ -96,20 +94,12 @@ const lotteryDraw = async (data) => {
 				TicketDataAccount,
 				encodedWinnerTicketDataState.data
 			);
-
-			console.log(
-				Buffer.from(
-					decodedWinnerTicketDataState.charity_id.user_wallet_pk
-				).toJSON().data
-			);
 			await winnerUserWalletsPK.push(
 				Buffer.from(
 					decodedWinnerTicketDataState.charity_id.user_wallet_pk
 				).toJSON().data
 			);
 		});
-
-		console.log(winnerUserWalletsPK);
 	};
 
 	if (winFlag === true) {
