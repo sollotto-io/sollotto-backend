@@ -64,7 +64,6 @@ const lotteryDraw = async (data) => {
   
  
  await start()
- console.log(winnerUserTicketDataWalletsPK)
 
   // let usersTicketNumberArr = ticketDataAccountPKArr.map( async (publicKey) => {
   // 	const encodedTicketDataState = await connection.getAccountInfo(
