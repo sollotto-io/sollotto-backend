@@ -16,6 +16,7 @@ module.exports = gql`
     watchGrade: String!
     Impact:String!
     webURL: String!
+    socialMedia:String
   }
   input charityInput {
     charityName: String!
@@ -28,6 +29,7 @@ module.exports = gql`
     watchGrade: String!
     Impact:String!
     webURL: String
+    socialMedia:String
   }
 
   extend type Query{
