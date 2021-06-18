@@ -33,11 +33,12 @@ module.exports = {
       const drawing = await Drawing.findOne({ isActive: true })
         .populate("Charities")
         .populate({ path: "CharityVoteCount", populate: "charityId" })
+        .populate('Tickets')
         .exec();
       return drawing;
     },
     async getAllDrawing(_, args, context, info) {
-      const drawings = await Drawing.find()
+      const drawings = await Drawing.find() 
         .populate("WinningCharity")
         .exec();
 

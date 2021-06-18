@@ -14,7 +14,8 @@ const charitySchema = new Schema({
     watchURL:String,
     watchGrade: String,
     Impact:String,
-    webURL: String
+    webURL: String,
+    socialMedia:String
 });
 
 module.exports = model('Charity', charitySchema);

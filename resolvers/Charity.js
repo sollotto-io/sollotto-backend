@@ -17,6 +17,7 @@ module.exports = {
           watchGrade,
           Impact,
           webURL,
+          socialMedia
         },
       },
       context,
@@ -34,6 +35,7 @@ module.exports = {
         watchGrade,
         Impact,
         webURL,
+        socialMedia
       });
       const res = await newCharity.save();
       return {
