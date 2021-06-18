@@ -12,16 +12,16 @@ const { changeDraw } = require("./utils/changeDraw");
 const app = express();
 app.use("/static", express.static(path.join(__dirname, "public")));
 app.all("/", function (req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "X-Requested-With");
-  next();
+	res.header("Access-Control-Allow-Origin", "*");
+	res.header("Access-Control-Allow-Headers", "X-Requested-With");
+	next();
 });
 
 app.use(cors()); // not having cors enabled will cause an access control error
 const server = new ApolloServer({
-  typeDefs,
-  resolvers,
-  // context: ({ req }) => ({ req }),
+	typeDefs,
+	resolvers,
+	// context: ({ req }) => ({ req }),
 });
 
 mongoose.set("useFindAndModify", false);
@@ -50,3 +50,4 @@ mongoose
   .catch((err) => {
     console.log(err);
   });
+
