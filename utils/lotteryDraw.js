@@ -41,7 +41,7 @@ const lotteryDraw = async (data) => {
   const start = async() =>{
     await asyncForEach(ticketDataAccountPKArr, async (publicKey, i) => {
       await waitFor(1000);
-
+      
       const encodedTicketDataState = await connection.getAccountInfo(
         new PublicKey(publicKey),
         "singleGossip"
