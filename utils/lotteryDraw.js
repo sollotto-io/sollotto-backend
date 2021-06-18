@@ -14,6 +14,21 @@ const lotteryDraw = async (data) => {
 		lotteryDataAcc.push(t.DataWallet);
 	});
 
+	let connection = new Connection(process.env.SOLANA_NETWORK);
+	let ticketDataAccountPKArr = lotteryDataAcc;
+	let winnerUserTicketDataWalletsPK = [];
+	let winnerUserWalletsPK = [];
+	let winningNumberArr = [
+		random.int(1, 69),
+		random.int(1, 69),
+		random.int(1, 69),
+		random.int(1, 69),
+		random.int(1, 69),
+		random.int(1, 26),
+	];
+	winningNumberArr = sortTicketNumber(winningNumberArr);
+
+	let winFlag = false;
 	const waitFor = (ms) => new Promise((r) => setTimeout(r, ms));
 
 	async function asyncForEach(array, callback) {
@@ -30,6 +45,7 @@ const lotteryDraw = async (data) => {
 				new PublicKey(publicKey),
 				"singleGossip"
 			);
+			const decodedTicketDataState = await borsh.deserialize(
 				TicketDataSchema,
 				TicketDataAccount,
 				encodedTicketDataState.data
