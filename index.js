@@ -26,31 +26,28 @@ const server = new ApolloServer({
 
 mongoose.set("useFindAndModify", false);
 mongoose
-	.connect(MONGODB, { useNewUrlParser: true, useUnifiedTopology: true })
-	.then(() => {
-		console.log(`MongoDb Connected`);
-		return server
-			.listen({ port: process.env.PORT || 5000 })
-			.then((res) => {
-				console.log(`Server running on ${res.url}`);
-			})
-			.then(() => {
-				console.log("inside cron then");
-				cron.schedule(
-					"0 0 * * wed,sat",
-					() => {
-						changeDraw();
-					}
-					// {
-					//   scheduled: true,
-					//   timezone: "Atlantic/Azores"
-					// }
-				);
-			})
-			.catch((err) => {
-				console.log(err);
-			});
-	})
-	.catch((err) => {
-		console.log(err);
-	});
+  .connect(MONGODB, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => {
+    console.log(`MongoDb Connected`);
+    return server
+      .listen({ port: process.env.PORT || 5000 })
+      .then((res) => {
+        console.log(`Server running on ${res.url}`);
+      })
+      .then(() => {
+        console.log("inside cron then");
+        cron.schedule("0 0 * * wed,sat", () => {changeDraw()},
+        {
+          scheduled: true,
+          timezone: "Atlantic/Azores"
+        }
+        );
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  })
+  .catch((err) => {
+    console.log(err);
+  });
+
