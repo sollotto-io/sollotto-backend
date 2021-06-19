@@ -76,7 +76,6 @@ exports.changeDraw = async () => {
 
 const openDrawing = async (activeDrawing) => {
   const lottery = await Lottery.findById("60c447da624b8a3d5095baa8")
-  console.log(lottery)
   var day = moment(activeDrawing.EndDate).format("dddd");
   const charityVote = [];
   activeDrawing.Charities.map((t) => {
@@ -90,7 +89,7 @@ const openDrawing = async (activeDrawing) => {
     const newDraw = new Drawing({
       Charities: activeDrawing.Charities,
       StartDate: activeDrawing.EndDate,
-      EndDate: moment().day(6).utc().format(),
+      EndDate: moment(activeDrawing.EndDate).add(3,'days').utc().format(),
       isActive: true,
       CharityVoteCount: charityVote,
       TotalPoolValue:lottery.TotalPoolValue
@@ -102,13 +101,13 @@ const openDrawing = async (activeDrawing) => {
     const newDraw = new Drawing({
       Charities: activeDrawing.Charities,
       StartDate: activeDrawing.EndDate,
-      EndDate: moment().day(10).utc().format(),
+      EndDate: moment(activeDrawing.EndDate).add(4,'days').utc().format(),
       isActive: true,
       CharityVoteCount: charityVote,
       TotalPoolValue:lottery.TotalPoolValue
 
     });
    await newDraw.save();
-    
   }
+  
 };
