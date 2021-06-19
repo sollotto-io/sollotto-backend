@@ -120,4 +120,5 @@ const openDrawing = async (activeDrawing) => {
     });
     await newDraw.save();
   }
+  console.log("draw open")
 };
