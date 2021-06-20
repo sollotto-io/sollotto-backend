@@ -7,13 +7,13 @@ const sortTicketNumber = (ticketNumber) => [
 
 const winningTicketGenerator = () => {
   let winningNumber = [];
-  for (i = 0; i < 7; i++) {
+  for (let i = 0; i < 6; i++) {
     let randomNumber;
-    if (i <= 5) {
+    if (i < 5) {
       let invalidNumber = true;
       while (invalidNumber) {
         randomNumber = random.int(1, 69);
-        if (winningNumber.indexOf(randomNumber) == -1) {
+        if (winningNumber.indexOf(randomNumber) === -1) {
           winningNumber.push(randomNumber);
           invalidNumber = false;
         }
@@ -23,7 +23,6 @@ const winningTicketGenerator = () => {
       winningNumber.push(randomNumber);
     }
   }
-
   return sortTicketNumber(winningNumber);
 };
 module.exports = {
