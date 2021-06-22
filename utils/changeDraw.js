@@ -35,7 +35,7 @@ const closeDrawing = async (drawing) => {
   });
   if (result.winFlag === false) {
     await Lottery.findByIdAndUpdate(
-      "60c9be158676ea0799255ee4",
+      "60c447da624b8a3d5095baa8",
       { $inc: { TotalPoolValue: drawing.TotalPoolValue * 0.65 } },
       { new: true }
     );
@@ -53,7 +53,7 @@ const closeDrawing = async (drawing) => {
     );
   } else {
     await Lottery.findByIdAndUpdate(
-      "60c9be158676ea0799255ee4",
+      "60c447da624b8a3d5095baa8",
       { TotalPoolValue: 0 },
       { new: true }
     );
@@ -87,7 +87,7 @@ exports.changeDraw = async () => {
 };
 
 const openDrawing = async (activeDrawing) => {
-  const lottery = await Lottery.findById("60c9be158676ea0799255ee4");
+  const lottery = await Lottery.findById("60c447da624b8a3d5095baa8");
   var day = moment(activeDrawing.EndDate).format("dddd");
   
   const charityVote = [];
@@ -97,7 +97,7 @@ const openDrawing = async (activeDrawing) => {
       votes: 0,
     });
   });
-  if (day === "Wednesday") {
+  if (day === "Tuesday") {
     const newDraw = new Drawing({
       Charities: activeDrawing.Charities,
       StartDate: activeDrawing.EndDate,
@@ -115,8 +115,10 @@ const openDrawing = async (activeDrawing) => {
       isActive: true,
       CharityVoteCount: charityVote,
       TotalPoolValue: lottery.TotalPoolValue,
-    });
+    })
     await newDraw.save();
+  }else{
+    console.log("no new lot")
   }
   console.log("draw open")
 };
