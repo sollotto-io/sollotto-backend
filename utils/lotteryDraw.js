@@ -40,30 +40,38 @@ const lotteryDraw = async (data) => {
 	const start = async () => {
 		await asyncForEach(ticketDataAccountPKArr, async (publicKey, i) => {
 			await waitFor(300);
-
+			
 			const encodedTicketDataState = await connection.getAccountInfo(
 				new PublicKey(publicKey),
 				"singleGossip"
 			);
-			const decodedTicketDataState = await borsh.deserialize(
-				TicketDataSchema,
-				TicketDataAccount,
-				encodedTicketDataState.data
-			);
+			if(
+				encodedTicketDataState ===null
+			){
+				console.log("null")
+			}else{
+				const decodedTicketDataState = await borsh.deserialize(
+					TicketDataSchema,
+					TicketDataAccount,
+					encodedTicketDataState.data
+				);
+	
+				if (
+					_.isEqual(
+						sortTicketNumber(
+							Buffer.from(
+								decodedTicketDataState.charity_id.ticket_number_arr
+							).toJSON().data
+						),
+						winningNumberArr
+					)
+				) {
+					await winnerUserTicketDataWalletsPK.push(ticketDataAccountPKArr[i]);
+					winFlag = true;
+				}
 
-			if (
-				_.isEqual(
-					sortTicketNumber(
-						Buffer.from(
-							decodedTicketDataState.charity_id.ticket_number_arr
-						).toJSON().data
-					),
-					winningNumberArr
-				)
-			) {
-				await winnerUserTicketDataWalletsPK.push(ticketDataAccountPKArr[i]);
-				winFlag = true;
 			}
+			
 		});
 	};
 
