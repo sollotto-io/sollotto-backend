@@ -33,13 +33,13 @@ module.exports = {
       const drawing = await Drawing.findOne({ isActive: true })
         .populate("Charities")
         .populate({ path: "CharityVoteCount", populate: "charityId" })
+        .populate("Tickets")
+        .populate({ path: "Tickets", populate: "charityId" })
         .exec();
       return drawing;
     },
     async getAllDrawing(_, args, context, info) {
-      const drawings = await Drawing.find()
-        .populate("WinningCharity")
-        .exec();
+      const drawings = await Drawing.find().populate("WinningCharity").exec();
 
       return drawings;
     },
@@ -47,9 +47,9 @@ module.exports = {
       const drawing = await Drawing.findById(id)
         .populate("WinningCharity")
         .populate("Tickets")
-        .populate({path:'Tickets',populate:"charityId"})
+        .populate({ path: "Tickets", populate: "charityId" })
         .exec();
-      
+
       return drawing;
     },
   },

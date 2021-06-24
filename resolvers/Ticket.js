@@ -1,6 +1,6 @@
 const Ticket = require("../models/Ticket");
 const Drawing  = require("../models/Drawing");
-const Lottery  = require("../models/Lottery");
+const Charity  = require("../models/Charity")
 module.exports = {
   Mutation: {
     async addTicket(_, { walletID,
@@ -22,7 +22,7 @@ module.exports = {
           { _id: drawingId, "CharityVoteCount.charityId": charityId },
           {
             $push:{
-Tickets: res._id
+      Tickets: res._id
             },
             $inc: {
               TotalPoolValue: 0.1,
@@ -32,7 +32,11 @@ Tickets: res._id
           },
           { new: true }
         );
-        
+
+ await Charity.findByIdAndUpdate(charityId,{  $inc: {
+          currentVotes: 1,
+          lifeTimeVotes:1
+        }, },{new:true})
         return "Ticket Saved Successfully";
 
 
