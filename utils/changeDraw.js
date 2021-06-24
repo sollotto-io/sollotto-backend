@@ -19,7 +19,6 @@ const closeDrawing = async (drawing) => {
      winningCharity.push(charity.charityId.toString());
     } else {
       await Charity.findByIdAndUpdate(charity.charityId, {
-        lifeTimeWins:0,
         currentVotes: 0,
       });
     }
@@ -88,6 +87,8 @@ exports.changeDraw = async () => {
 
 const openDrawing = async (activeDrawing) => {
   const lottery = await Lottery.findById("60c9be158676ea0799255ee4");
+  //60c9be158676ea0799255ee4
+  //60c9be158676ea0799255ee4
   var day = moment(activeDrawing.EndDate).format("dddd");
   
   const charityVote = [];
@@ -115,8 +116,10 @@ const openDrawing = async (activeDrawing) => {
       isActive: true,
       CharityVoteCount: charityVote,
       TotalPoolValue: lottery.TotalPoolValue,
-    });
+    })
     await newDraw.save();
+  }else{
+    console.log("no new lot")
   }
   console.log("draw open")
 };
