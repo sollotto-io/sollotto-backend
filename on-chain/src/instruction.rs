@@ -1,8 +1,10 @@
+//! Instruction types
 use crate::error::LotteryError::InvalidInstruction;
 use crate::state::{IncomingLotteryData, TicketData};
 use borsh::BorshDeserialize;
 use solana_program::program_error::ProgramError;
 
+/// Instructions supported by the Lottery program.
 pub enum LotteryInstruction {
     InitLottery {
         is_lottery_initialised: bool,

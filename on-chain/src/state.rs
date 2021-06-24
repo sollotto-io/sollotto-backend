@@ -1,3 +1,4 @@
+//! State transition types
 use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
@@ -6,6 +7,7 @@ pub struct TicketData {
     pub user_wallet_pk: [u8; 32],
     pub ticket_number_arr: [u8; 6],
 }
+
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct LotteryData {
     pub is_lottery_initialised: bool,
@@ -20,6 +22,7 @@ pub struct LotteryData {
     pub charity_4_vc: u32,
     pub total_registrations: u32,
 }
+
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct IncomingLotteryData {
     pub lottery_id: u32,

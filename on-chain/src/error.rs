@@ -1,7 +1,8 @@
+//! Error types
+use solana_program::program_error::ProgramError;
 use thiserror::Error;
 
-use solana_program::program_error::ProgramError;
-
+/// Errors that may be returned by the Lottery program.
 #[derive(Error, Debug, Copy, Clone)]
 pub enum LotteryError {
     /// Invalid charity id

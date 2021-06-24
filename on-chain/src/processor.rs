@@ -1,3 +1,9 @@
+//! Program state processor
+use crate::{
+    error::LotteryError,
+    instruction::LotteryInstruction,
+    state::{LotteryData, TicketData},
+};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -8,12 +14,7 @@ use solana_program::{
     sysvar::{rent::Rent, Sysvar},
 };
 
-use crate::{
-    error::LotteryError,
-    instruction::LotteryInstruction,
-    state::{LotteryData, TicketData},
-};
-
+/// Program state handler.
 pub struct Processor;
 impl Processor {
     pub fn process(
@@ -70,6 +71,7 @@ impl Processor {
             }
         }
     }
+
     fn process_init_lottery(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
@@ -127,6 +129,7 @@ impl Processor {
         msg!("data stored");
         Ok(())
     }
+
     fn process_ticket_purchase(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
