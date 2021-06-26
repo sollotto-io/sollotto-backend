@@ -46,6 +46,7 @@ module.exports = {
     async getDrawingById(_, { id }, context, info) {
       const drawing = await Drawing.findById(id)
         .populate("WinningCharity")
+        .populate({path:"CharityVoteCount", populate:"charityId"})
         .populate("Tickets")
         .populate({ path: "Tickets", populate: "charityId" })
         .exec();
