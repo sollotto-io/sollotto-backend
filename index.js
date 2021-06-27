@@ -43,15 +43,7 @@ mongoose
         }
         );
       })
-      // .then(() => {
-      //   console.log("inside cron then");
-      //   cron.schedule("*/3 * * * *", () => {changeDraw()},
-      //   {
-      //     scheduled: true,
-      //     timezone: "Atlantic/Azores"
-      //   }
-      //   );
-      // })
+    
       .catch((err) => {
         console.log(err);
       });
