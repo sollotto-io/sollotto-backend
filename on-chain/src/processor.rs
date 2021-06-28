@@ -250,7 +250,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let mut lottery_data = LotteryData::unpack(&lottery_data_account.data.borrow())?;
+        let mut lottery_data = LotteryData::unpack_unchecked(&lottery_data_account.data.borrow())?;
         if !lottery_data.is_initialized {
             msg!("Lottery Data account is not initialized");
             return Err(LotteryError::NotInitialized.into());
@@ -278,7 +278,10 @@ impl Processor {
 mod test {
     use super::*;
     use solana_program::{instruction::Instruction, program_pack::Pack};
-    use solana_sdk::account::{Account as SolanaAccount, ReadableAccount, create_account_for_test, create_is_signer_account_infos};
+    use solana_sdk::account::{
+        create_account_for_test, create_is_signer_account_infos, Account as SolanaAccount,
+        ReadableAccount,
+    };
 
     fn lottery_minimum_balance() -> u64 {
         Rent::default().minimum_balance(LotteryData::get_packed_len())
@@ -518,5 +521,106 @@ mod test {
         let lottery = LotteryData::unpack(&lottery_acc.data()).unwrap();
         assert_eq!(lottery.charity_1_vc, 1);
         assert_eq!(lottery.total_registrations, 1);
+    }
+
+    #[test]
+    fn test_store_winning_numbers() {
+        let program_id = id();
+        let lottery_id = 112233;
+        let lottery_key = Pubkey::new_unique();
+        let mut lottery_acc = SolanaAccount::new(
+            lottery_minimum_balance(),
+            LotteryData::get_packed_len(),
+            &program_id,
+        );
+        let mut rent_sysvar_acc = create_account_for_test(&Rent::default());
+
+        // BadCase: Lottery is not initialized
+        assert_eq!(
+            Err(LotteryError::NotInitialized.into()),
+            do_process(
+                crate::instruction::store_winning_numbers(
+                    &program_id,
+                    &[10, 20, 30, 40, 50, 29],
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![&mut lottery_acc]
+            )
+        );
+
+        do_process(
+            crate::instruction::initialize_lottery(
+                &program_id,
+                lottery_id,
+                1,
+                2,
+                3,
+                4,
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![&mut lottery_acc, &mut rent_sysvar_acc],
+        )
+        .unwrap();
+
+        // BadCase: Bad numbers
+        assert_eq!(
+            Err(LotteryError::InvalidNumber.into()),
+            do_process(
+                crate::instruction::store_winning_numbers(
+                    &program_id,
+                    &[70, 20, 30, 40, 50, 29],
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![&mut lottery_acc]
+            )
+        );
+
+        assert_eq!(
+            Err(LotteryError::InvalidNumber.into()),
+            do_process(
+                crate::instruction::store_winning_numbers(
+                    &program_id,
+                    &[10, 20, 30, 40, 0, 29],
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![&mut lottery_acc]
+            )
+        );
+
+        assert_eq!(
+            Err(LotteryError::InvalidNumber.into()),
+            do_process(
+                crate::instruction::store_winning_numbers(
+                    &program_id,
+                    &[10, 20, 30, 40, 50, 30],
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![&mut lottery_acc]
+            )
+        );
+
+        do_process(
+            crate::instruction::store_winning_numbers(
+                &program_id,
+                &[10, 20, 30, 40, 50, 29],
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![&mut lottery_acc],
+        )
+        .unwrap();
+
+        let lottery = LotteryData::unpack(&lottery_acc.data()).unwrap();
+        assert_eq!(lottery.winning_numbers[0], 10);
+        assert_eq!(lottery.winning_numbers[1], 20);
+        assert_eq!(lottery.winning_numbers[2], 30);
+        assert_eq!(lottery.winning_numbers[3], 40);
+        assert_eq!(lottery.winning_numbers[4], 50);
+        assert_eq!(lottery.winning_numbers[5], 29);
     }
 }

@@ -243,3 +243,25 @@ pub fn purchase_ticket(
         data,
     })
 }
+
+/// Creates a `StoreWinningNumbers` instruction
+pub fn store_winning_numbers(
+    program_id: &Pubkey,
+    winning_numbers_arr: &[u8; 6],
+    lottery_authority: &Pubkey,
+) -> Result<Instruction, ProgramError> {
+    check_program_account(program_id)?;
+    let data = LotteryInstruction::StoreWinningNumbers {
+        winning_numbers_arr: *winning_numbers_arr,
+    }
+    .pack();
+
+    let mut accounts = Vec::with_capacity(1);
+    accounts.push(AccountMeta::new(*lottery_authority, true));
+
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
