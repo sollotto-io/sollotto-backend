@@ -17,7 +17,7 @@ pub enum LotteryInstruction {
     /// Initialize new lottery data
     /// Accounts expected by this instruction:
     ///
-    /// 0. `[writable]` Lottery data account
+    /// 0. `[writable, signer]` Lottery data account
     /// 1. `[]` Rent sysvar
     InitLottery {
         lottery_id: u32,
@@ -31,7 +31,7 @@ pub enum LotteryInstruction {
     /// Accounts expected by this instruction:
     ///
     /// 0. `[writable]` Users ticket data account
-    /// 1. `[writable]` Lottery data account
+    /// 1. `[writable, signer]` Lottery data account
     /// 2. `[]` Rent sysvar
     PurchaseTicket {
         charity_id: u32,

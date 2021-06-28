@@ -101,6 +101,10 @@ impl Processor {
             return Err(ProgramError::IncorrectProgramId);
         }
 
+        if !lottery_data_account.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
         let rent = &Rent::from_account_info(next_account_info(accounts_iter)?)?;
         if !rent.is_exempt(
             lottery_data_account.lamports(),
@@ -149,6 +153,10 @@ impl Processor {
         if lottery_data_account.owner != program_id {
             msg!("Lottery Data account does not have the correct program id");
             return Err(ProgramError::IncorrectProgramId);
+        }
+
+        if !lottery_data_account.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
         }
 
         let mut lottery_data = LotteryData::unpack_unchecked(&lottery_data_account.data.borrow())?;
@@ -225,6 +233,10 @@ impl Processor {
             return Err(ProgramError::IncorrectProgramId);
         }
 
+        if !lottery_data_account.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
         let mut lottery_data = LotteryData::unpack(&lottery_data_account.data.borrow())?;
         if !lottery_data.is_initialized {
             msg!("Lottery Data account is not initialized");
@@ -257,7 +269,7 @@ mod test {
         create_account_for_test, create_is_signer_account_infos, Account as SolanaAccount,
     };
 
-    fn init_acc_minimum_balance() -> u64 {
+    fn lottery_minimum_balance() -> u64 {
         Rent::default().minimum_balance(LotteryData::get_packed_len())
     }
 
@@ -276,28 +288,85 @@ mod test {
     #[test]
     fn test_init_lottery() {
         let program_id = id();
+        let lottery_id = 112233;
         let lottery_key = Pubkey::new_unique();
-        let mut lottery_account = SolanaAccount::new(
-            init_acc_minimum_balance(),
+        let mut lottery_acc = SolanaAccount::new(
+            lottery_minimum_balance(),
             LotteryData::get_packed_len(),
             &program_id,
         );
-        let mut rent_sysvar_account = create_account_for_test(&Rent::default());
-        let collateral_key = Pubkey::new_unique();
-        let oracles = vec![Pubkey::new_unique(), Pubkey::new_unique()];
+        let mut rent_sysvar_acc = create_account_for_test(&Rent::default());
 
-        let mut bad_sync_acc = SolanaAccount::new(
-            init_acc_minimum_balance() - 100,
+        // BadCase: rent NotRentExempt
+        let mut bad_lottery_acc = SolanaAccount::new(
+            lottery_minimum_balance() - 100,
             LotteryData::get_packed_len(),
             &program_id,
         );
         assert_eq!(
             Err(LotteryError::NotRentExempt.into()),
             do_process(
-                crate::instruction::initialize_lottery(&id(), 1, 1, 2, 3, 4, &lottery_key,)
-                    .unwrap(),
-                vec![&mut bad_sync_acc, &mut rent_sysvar_account]
+                crate::instruction::initialize_lottery(
+                    &program_id,
+                    lottery_id,
+                    1,
+                    2,
+                    3,
+                    4,
+                    &lottery_key
+                )
+                .unwrap(),
+                vec![&mut bad_lottery_acc, &mut rent_sysvar_acc]
             )
         );
+
+        do_process(
+            crate::instruction::initialize_lottery(
+                &program_id,
+                lottery_id,
+                1,
+                2,
+                3,
+                4,
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![&mut lottery_acc, &mut rent_sysvar_acc],
+        )
+        .unwrap();
+
+        // BadCase: Lottery Already initialized
+        assert_eq!(
+            Err(LotteryError::Initialized.into()),
+            do_process(
+                crate::instruction::initialize_lottery(
+                    &program_id,
+                    lottery_id,
+                    1,
+                    2,
+                    3,
+                    4,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![&mut lottery_acc, &mut rent_sysvar_acc]
+            )
+        );
+
+        let lottery = LotteryData::unpack(&lottery_acc.data).unwrap();
+        assert_eq!(lottery.is_initialized, true);
+        assert_eq!(lottery.lottery_id, lottery_id);
+        assert_eq!(lottery.charity_1_id, 1);
+        assert_eq!(lottery.charity_2_id, 2);
+        assert_eq!(lottery.charity_3_id, 3);
+        assert_eq!(lottery.charity_4_id, 4);
+        assert_eq!(lottery.charity_1_vc, 0);
+        assert_eq!(lottery.charity_2_vc, 0);
+        assert_eq!(lottery.charity_3_vc, 0);
+        assert_eq!(lottery.charity_4_vc, 0);
+        assert_eq!(lottery.total_registrations, 0);
+        for number in &lottery.winning_numbers {
+            assert_eq!(*number, 0);
+        }
     }
 }
