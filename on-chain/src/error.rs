@@ -14,6 +14,12 @@ pub enum LotteryError {
     /// Not Rent Exempt
     #[error("Not Rent Exempt")]
     NotRentExempt,
+    /// Lottery account is not initialized
+    #[error("Lottery account is not initialized")]
+    NotInitialized,
+    /// Lottery account is initialized
+    #[error("Lottery account is initialized")]
+    Initialized,
 }
 
 impl From<LotteryError> for ProgramError {
