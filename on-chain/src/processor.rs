@@ -15,6 +15,17 @@ use solana_program::{
     sysvar::Sysvar,
 };
 
+// Sollotto program_id
+solana_program::declare_id!("urNhxed8ocNiFApoooLSAJ1xnWSMUiC9S6fKcRon1rk");
+
+/// Checks that the supplied program ID is the correct
+pub fn check_program_account(program_id: &Pubkey) -> ProgramResult {
+    if program_id != &id() {
+        return Err(ProgramError::IncorrectProgramId);
+    }
+    Ok(())
+}
+
 /// Program state handler.
 pub struct Processor;
 impl Processor {
@@ -23,8 +34,9 @@ impl Processor {
         accounts: &[AccountInfo],
         instruction_data: &[u8],
     ) -> ProgramResult {
-        let instruction = LotteryInstruction::unpack(instruction_data)?;
+        check_program_account(program_id)?;
 
+        let instruction = LotteryInstruction::unpack(instruction_data)?;
         match instruction {
             LotteryInstruction::InitLottery {
                 lottery_id,
@@ -58,6 +70,13 @@ impl Processor {
                     user_wallet_pk,
                     ticket_number_arr,
                 )
+            }
+
+            LotteryInstruction::StoreWinningNumbers {
+                winning_numbers_arr,
+            } => {
+                msg!("Instruction: store winning numbers");
+                Self::process_store_winning_numbers(program_id, accounts, winning_numbers_arr)
             }
         }
     }
@@ -192,15 +211,48 @@ impl Processor {
 
         Ok(())
     }
+
+    pub fn process_store_winning_numbers(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        winning_numbers_arr: [u8; 6],
+    ) -> ProgramResult {
+        let accounts_iter = &mut accounts.iter();
+        let lottery_data_account = next_account_info(accounts_iter)?;
+
+        if lottery_data_account.owner != program_id {
+            msg!("Lottery Data account does not have the correct program id");
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        let mut lottery_data = LotteryData::unpack(&lottery_data_account.data.borrow())?;
+        if !lottery_data.is_initialized {
+            msg!("Lottery Data account is not initialized");
+            return Err(LotteryError::NotInitialized.into());
+        }
+
+        for i in 0..5 {
+            if winning_numbers_arr[i] < 1 || winning_numbers_arr[i] > 69 {
+                return Err(LotteryError::InvalidNumber.into());
+            }
+        }
+        if winning_numbers_arr[5] < 1 || winning_numbers_arr[5] > 29 {
+            return Err(LotteryError::InvalidNumber.into());
+        }
+
+        lottery_data.winning_numbers = winning_numbers_arr;
+
+        LotteryData::pack(lottery_data, &mut lottery_data_account.data.borrow_mut())?;
+
+        Ok(())
+    }
 }
 
 // Unit tests
 #[cfg(test)]
 mod test {
     use super::*;
-    use solana_program::{
-        instruction::Instruction, program_pack::Pack,
-    };
+    use solana_program::{instruction::Instruction, program_pack::Pack};
     use solana_sdk::account::{
         create_account_for_test, create_is_signer_account_infos, Account as SolanaAccount,
     };

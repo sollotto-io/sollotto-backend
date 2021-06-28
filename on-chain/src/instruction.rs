@@ -1,5 +1,6 @@
 //! Instruction types
-use crate::{check_program_account, error::LotteryError::InvalidInstruction};
+use crate::error::LotteryError::InvalidInstruction;
+use crate::processor::check_program_account;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     msg,
@@ -13,6 +14,11 @@ use std::{convert::TryInto, mem::size_of};
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum LotteryInstruction {
+    /// Initialize new lottery data
+    /// Accounts expected by this instruction:
+    ///
+    /// 0. `[writable]` Lottery data account
+    /// 1. `[]` Rent sysvar
     InitLottery {
         lottery_id: u32,
         charity_1_id: u32,
@@ -21,11 +27,23 @@ pub enum LotteryInstruction {
         charity_4_id: u32,
     },
 
+    /// User purchases new ticket for lottery
+    /// Accounts expected by this instruction:
+    ///
+    /// 0. `[writable]` Users ticket data account
+    /// 1. `[writable]` Lottery data account
+    /// 2. `[]` Rent sysvar
     PurchaseTicket {
         charity_id: u32,
         user_wallet_pk: Pubkey,
         ticket_number_arr: [u8; 6],
     },
+
+    /// Store the winning combination into lottery data account
+    /// Accounts expected by this instruction:
+    ///
+    /// 0. `[writable, signer]` Lottery data account
+    StoreWinningNumbers { winning_numbers_arr: [u8; 6] },
 }
 
 impl LotteryInstruction {
@@ -76,6 +94,7 @@ impl LotteryInstruction {
                     charity_4_id,
                 }
             }
+
             1 => {
                 let (charity_id, rest) = rest.split_at(4);
                 let charity_id = charity_id
@@ -94,6 +113,14 @@ impl LotteryInstruction {
                     ticket_number_arr: *ticket_number_arr,
                 }
             }
+
+            2 => {
+                let (winning_numbers_arr, _) = Self::unpack_ticket_number_arr(rest).unwrap();
+                Self::StoreWinningNumbers {
+                    winning_numbers_arr: *winning_numbers_arr,
+                }
+            }
+
             _ => return Err(InvalidInstruction.into()),
         })
     }
@@ -126,6 +153,13 @@ impl LotteryInstruction {
                 buf.extend_from_slice(&charity_id.to_le_bytes());
                 buf.extend_from_slice(user_wallet_pk.as_ref());
                 buf.extend_from_slice(&ticket_number_arr.as_ref());
+            }
+
+            Self::StoreWinningNumbers {
+                winning_numbers_arr,
+            } => {
+                buf.push(2);
+                buf.extend_from_slice(&winning_numbers_arr.as_ref());
             }
         };
         buf

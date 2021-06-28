@@ -20,6 +20,7 @@ pub struct LotteryData {
     pub charity_3_vc: u32,
     pub charity_4_vc: u32,
     pub total_registrations: u32,
+    pub winning_numbers: [u8; 6],
 }
 
 impl Sealed for LotteryData {}
@@ -31,11 +32,11 @@ impl IsInitialized for LotteryData {
 }
 
 impl Pack for LotteryData {
-    /// 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 = 41
-    const LEN: usize = 41;
+    /// 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 6 = 47
+    const LEN: usize = 47;
 
     fn unpack_from_slice(src: &[u8]) -> Result<Self, ProgramError> {
-        let src = array_ref![src, 0, 41];
+        let src = array_ref![src, 0, 47];
         let (
             is_initialized,
             lottery_id,
@@ -48,7 +49,8 @@ impl Pack for LotteryData {
             charity_3_vc,
             charity_4_vc,
             total_registrations,
-        ) = array_refs![src, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+            winning_numbers,
+        ) = array_refs![src, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 6];
 
         let is_initialized = match is_initialized {
             [0] => false,
@@ -68,13 +70,14 @@ impl Pack for LotteryData {
             charity_3_vc: u32::from_le_bytes(*charity_3_vc),
             charity_4_vc: u32::from_le_bytes(*charity_4_vc),
             total_registrations: u32::from_le_bytes(*total_registrations),
+            winning_numbers: *winning_numbers,
         };
 
         Ok(result)
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
-        let dst = array_mut_ref![dst, 0, 41];
+        let dst = array_mut_ref![dst, 0, 47];
         let (
             is_initialized_dst,
             lottery_id_dst,
@@ -87,8 +90,9 @@ impl Pack for LotteryData {
             charity_3_vc_dst,
             charity_4_vc_dst,
             total_registrations_dst,
-        ) = mut_array_refs![dst, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
-        
+            winning_numbers_dst,
+        ) = mut_array_refs![dst, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 6];
+
         is_initialized_dst[0] = self.is_initialized as u8;
         *lottery_id_dst = self.lottery_id.to_le_bytes();
         *charity_1_id_dst = self.charity_1_id.to_le_bytes();
@@ -100,7 +104,7 @@ impl Pack for LotteryData {
         *charity_3_vc_dst = self.charity_3_vc.to_le_bytes();
         *charity_4_vc_dst = self.charity_4_vc.to_le_bytes();
         *total_registrations_dst = self.total_registrations.to_le_bytes();
-
+        *winning_numbers_dst = self.winning_numbers;
     }
 }
 
@@ -120,11 +124,7 @@ impl Pack for TicketData {
 
     fn unpack_from_slice(src: &[u8]) -> Result<Self, ProgramError> {
         let src = array_ref![src, 0, 42];
-        let (
-            charity_id,
-            user_wallet_pk,
-            ticket_number_arr,
-        ) = array_refs![src, 4, 32, 6];
+        let (charity_id, user_wallet_pk, ticket_number_arr) = array_refs![src, 4, 32, 6];
 
         let result = TicketData {
             charity_id: u32::from_le_bytes(*charity_id),
@@ -137,11 +137,8 @@ impl Pack for TicketData {
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
         let dst = array_mut_ref![dst, 0, 42];
-        let (
-            charity_id_dst,
-            user_wallet_pk_dst,
-            ticket_number_arr_dst,
-        ) = mut_array_refs![dst, 4, 32, 6];
+        let (charity_id_dst, user_wallet_pk_dst, ticket_number_arr_dst) =
+            mut_array_refs![dst, 4, 32, 6];
 
         *charity_id_dst = self.charity_id.to_le_bytes();
         user_wallet_pk_dst.copy_from_slice(self.user_wallet_pk.as_ref());

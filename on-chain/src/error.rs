@@ -20,6 +20,9 @@ pub enum LotteryError {
     /// Lottery account is initialized
     #[error("Lottery account is initialized")]
     Initialized,
+    /// Number is invalid
+    #[error("Number is invalid")]
+    InvalidNumber,
 }
 
 impl From<LotteryError> for ProgramError {
