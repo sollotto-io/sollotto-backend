@@ -30,8 +30,8 @@ pub enum LotteryInstruction {
     /// User purchases new ticket for lottery
     /// Accounts expected by this instruction:
     ///
-    /// 0. `[writable]` Users ticket data account
-    /// 1. `[writable, signer]` Lottery data account
+    /// 0. `[writable, signer]` Lottery data account
+    /// 1. `[writable]` Users ticket data account
     /// 2. `[]` Rent sysvar
     PurchaseTicket {
         charity_id: u32,
@@ -207,6 +207,34 @@ pub fn initialize_lottery(
 
     let mut accounts = Vec::with_capacity(2);
     accounts.push(AccountMeta::new(*lottery_authority, true));
+    accounts.push(AccountMeta::new_readonly(sysvar::rent::id(), false));
+
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
+
+/// Creates a `PurchaseTicket` instruction
+pub fn purchase_ticket(
+    program_id: &Pubkey,
+    charity_id: u32,
+    user_wallet_pk: &Pubkey,
+    ticket_number_arr: &[u8; 6],
+    lottery_authority: &Pubkey,
+) -> Result<Instruction, ProgramError> {
+    check_program_account(program_id)?;
+    let data = LotteryInstruction::PurchaseTicket {
+        charity_id: charity_id,
+        user_wallet_pk: *user_wallet_pk,
+        ticket_number_arr: *ticket_number_arr,
+    }
+    .pack();
+
+    let mut accounts = Vec::with_capacity(3);
+    accounts.push(AccountMeta::new(*lottery_authority, true));
+    accounts.push(AccountMeta::new(*user_wallet_pk, false));
     accounts.push(AccountMeta::new_readonly(sysvar::rent::id(), false));
 
     Ok(Instruction {

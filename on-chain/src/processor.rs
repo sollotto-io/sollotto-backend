@@ -176,11 +176,24 @@ impl Processor {
         if !rent.is_exempt(
             lottery_data_account.lamports(),
             lottery_data_account.data_len(),
-        ) && !rent.is_exempt(
+        ) {
+            return Err(LotteryError::NotRentExempt.into());
+        }
+
+        if !rent.is_exempt(
             ticket_data_account.lamports(),
             ticket_data_account.data_len(),
         ) {
             return Err(LotteryError::NotRentExempt.into());
+        }
+
+        for i in 0..5 {
+            if ticket_number_arr[i] < 1 || ticket_number_arr[i] > 69 {
+                return Err(LotteryError::InvalidNumber.into());
+            }
+        }
+        if ticket_number_arr[5] < 1 || ticket_number_arr[5] > 29 {
+            return Err(LotteryError::InvalidNumber.into());
         }
 
         let mut ticket_data = TicketData::unpack_unchecked(&ticket_data_account.data.borrow())?;
@@ -265,12 +278,14 @@ impl Processor {
 mod test {
     use super::*;
     use solana_program::{instruction::Instruction, program_pack::Pack};
-    use solana_sdk::account::{
-        create_account_for_test, create_is_signer_account_infos, Account as SolanaAccount,
-    };
+    use solana_sdk::account::{Account as SolanaAccount, ReadableAccount, create_account_for_test, create_is_signer_account_infos};
 
     fn lottery_minimum_balance() -> u64 {
         Rent::default().minimum_balance(LotteryData::get_packed_len())
+    }
+
+    fn ticket_minimum_balance() -> u64 {
+        Rent::default().minimum_balance(TicketData::get_packed_len())
     }
 
     fn do_process(instruction: Instruction, accounts: Vec<&mut SolanaAccount>) -> ProgramResult {
@@ -368,5 +383,140 @@ mod test {
         for number in &lottery.winning_numbers {
             assert_eq!(*number, 0);
         }
+    }
+
+    #[test]
+    fn test_ticket_purchase() {
+        let program_id = id();
+        let lottery_id = 112233;
+        let lottery_key = Pubkey::new_unique();
+        let mut lottery_acc = SolanaAccount::new(
+            lottery_minimum_balance(),
+            LotteryData::get_packed_len(),
+            &program_id,
+        );
+        let user_key = Pubkey::new_unique();
+        let mut user_ticket_acc = SolanaAccount::new(
+            ticket_minimum_balance(),
+            TicketData::get_packed_len(),
+            &program_id,
+        );
+        let mut rent_sysvar_acc = create_account_for_test(&Rent::default());
+        let charity_id = 1;
+
+        // BadCase: Lottery is not initialized
+        assert_eq!(
+            Err(LotteryError::NotInitialized.into()),
+            do_process(
+                crate::instruction::purchase_ticket(
+                    &program_id,
+                    charity_id,
+                    &user_key,
+                    &[10, 20, 30, 40, 50, 15],
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![&mut lottery_acc, &mut user_ticket_acc, &mut rent_sysvar_acc]
+            )
+        );
+
+        do_process(
+            crate::instruction::initialize_lottery(
+                &program_id,
+                lottery_id,
+                1,
+                2,
+                3,
+                4,
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![&mut lottery_acc, &mut rent_sysvar_acc],
+        )
+        .unwrap();
+
+        // BadCase: rent NotRentExempt
+        let mut bad_ticket_acc = SolanaAccount::new(
+            ticket_minimum_balance() - 100,
+            TicketData::get_packed_len(),
+            &program_id,
+        );
+        assert_eq!(
+            Err(LotteryError::NotRentExempt.into()),
+            do_process(
+                crate::instruction::purchase_ticket(
+                    &program_id,
+                    charity_id,
+                    &user_key,
+                    &[10, 20, 30, 40, 50, 15],
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![&mut lottery_acc, &mut bad_ticket_acc, &mut rent_sysvar_acc]
+            )
+        );
+
+        // BadCase: bad numbers
+        assert_eq!(
+            Err(LotteryError::InvalidNumber.into()),
+            do_process(
+                crate::instruction::purchase_ticket(
+                    &program_id,
+                    charity_id,
+                    &user_key,
+                    &[70, 20, 30, 40, 50, 15],
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![&mut lottery_acc, &mut user_ticket_acc, &mut rent_sysvar_acc]
+            )
+        );
+
+        assert_eq!(
+            Err(LotteryError::InvalidNumber.into()),
+            do_process(
+                crate::instruction::purchase_ticket(
+                    &program_id,
+                    charity_id,
+                    &user_key,
+                    &[10, 20, 30, 40, 0, 15],
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![&mut lottery_acc, &mut user_ticket_acc, &mut rent_sysvar_acc]
+            )
+        );
+
+        assert_eq!(
+            Err(LotteryError::InvalidNumber.into()),
+            do_process(
+                crate::instruction::purchase_ticket(
+                    &program_id,
+                    charity_id,
+                    &user_key,
+                    &[10, 20, 30, 40, 50, 30],
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![&mut lottery_acc, &mut user_ticket_acc, &mut rent_sysvar_acc]
+            )
+        );
+
+        do_process(
+            crate::instruction::purchase_ticket(
+                &program_id,
+                charity_id,
+                &user_key,
+                &[10, 20, 30, 40, 50, 29],
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![&mut lottery_acc, &mut user_ticket_acc, &mut rent_sysvar_acc],
+        )
+        .unwrap();
+
+        let lottery = LotteryData::unpack(&lottery_acc.data()).unwrap();
+        assert_eq!(lottery.charity_1_vc, 1);
+        assert_eq!(lottery.total_registrations, 1);
     }
 }
