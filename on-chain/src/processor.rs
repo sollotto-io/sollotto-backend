@@ -369,6 +369,10 @@ impl Processor {
                 msg!("Ticket Data account does not have the correct program id");
                 return Err(ProgramError::IncorrectProgramId);
             }
+            if !TicketData::unpack_unchecked(&participant_ticket.data.borrow())?.is_purchased {
+                msg!("Ticket data account is not purchased");
+                return Err(LotteryError::NotInitialized.into());
+            }
         }
 
         let mut lottery_data = LotteryData::unpack_unchecked(&lottery_data_account.data.borrow())?;
@@ -379,31 +383,74 @@ impl Processor {
 
         // TODO: more than 1 winner
         // Check winning numbers and find winner
-        let mut winner = Pubkey::default();
+        let mut winners = Vec::new();
         for participant_ticket in participants_tickets_accounts {
             let ticket = TicketData::unpack_unchecked(&participant_ticket.data.borrow())?;
             if ticket.ticket_number_arr == lottery_data.winning_numbers {
-                winner = ticket.user_wallet_pk;
+                winners.push(ticket.user_wallet_pk);
             }
         }
 
-        // TODO: Reward winner and pay fee
+        // TODO: Reward winners and pay fee
+        let prize_pool = lottery_data.prize_pool_amount as f64;
         // 6. The charity with the most votes is transferred 30% of the total prize pool
-        // 7. 4% of the prize pool is transferred to the "Sollotto Rewards" wallet address
-        // 8. 0.6% of the prize pool is transferred to a "SLOT Holder Rewards" wallet address
-        // 9. 0.4% of the prize pool is transferred to a "Sollotto Labs" wallet address
-        // 14. If there is just one winner, transfer the remaining portion (64%) of the prize pool to the
-        // winner
+        let charity_pool = prize_pool * 0.3;
+        let mut win_charities = Vec::new();
+        let charity_arr = [
+            lottery_data.charity_1_vc,
+            lottery_data.charity_2_vc,
+            lottery_data.charity_3_vc,
+            lottery_data.charity_4_vc,
+        ];
+        let max_vc = charity_arr.iter().max().unwrap();
+        for (pos, charity_vc) in charity_arr.iter().enumerate() {
+            if charity_vc == max_vc {
+                match pos {
+                    0 => win_charities.push(lottery_data.charity_1),
+                    1 => win_charities.push(lottery_data.charity_2),
+                    2 => win_charities.push(lottery_data.charity_3),
+                    3 => win_charities.push(lottery_data.charity_4),
+                    _ => return Err(LotteryError::InvalidCharity.into()),
+                }
+            }
+        }
 
+        let charity_reward = charity_pool / win_charities.len() as f64;
+        for charity in &win_charities {
+            // TODO: transfer from lottery_data.holding_wallet to charity_wallet
+        }
+
+        // 7. 4% of the prize pool is transferred to the "Sollotto Rewards" wallet address
+        let solloto_rewards_pool = prize_pool * 0.04;
+        // TODO: transfer from lottery_data.holding_wallet to solloto_rewards_wallet
+
+        // 8. 0.6% of the prize pool is transferred to a "SLOT Holder Rewards" wallet address
+        let slot_holders_rewards_pool = prize_pool * 0.006;
+        // TODO: transfer from lottery_data.holding_wallet to slot_holders_wallet
+
+        // 9. 0.4% of the prize pool is transferred to a "Sollotto Labs" wallet address
+        let sollotto_labs_pool = prize_pool * 0.004;
+        // TODO: transfer from lottery_data.holding_wallet to solloto_labs_wallet
+
+        // 14. If there is just one winner, transfer the remaining portion (64%) of the prize pool to the
+        let winners_pool = prize_pool * 0.65;
+        let winner_reward = winners_pool / winners.len() as f64;
+        for winner in &winners {
+            // TODO: transfer from lottery_data.holding_wallet to winner_wallet
+        }
+
+        // TODO: only one winner writing in LotteryResult for now
         // Create lottery result acc info
-        let mut lottery_result =
-            LotteryResultData::unpack_unchecked(&lottery_result_account.data.borrow())?;
-        lottery_result.lottery_id = lottery_data.lottery_id;
-        lottery_result.winner = winner;
-        LotteryResultData::pack(
-            lottery_result,
-            &mut lottery_result_account.data.borrow_mut(),
-        )?;
+        if !winners.is_empty() {
+            let lottery_result = LotteryResultData {
+                lottery_id: lottery_data.lottery_id,
+                winner: winners[0],
+            };
+            LotteryResultData::pack(
+                lottery_result,
+                &mut lottery_result_account.data.borrow_mut(),
+            )?;
+        }
 
         // Clear lottery acc for new lottery
         lottery_data.is_initialized = false;
