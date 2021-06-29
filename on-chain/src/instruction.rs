@@ -44,6 +44,15 @@ pub enum LotteryInstruction {
     ///
     /// 0. `[writable, signer]` Lottery data account
     StoreWinningNumbers { winning_numbers_arr: [u8; 6] },
+
+    /// Check users number combinations and find the lottery winner.
+    /// Information obout winner sotored in LotteryResultData account,
+    /// Accounts expected by this instruction:
+    ///
+    /// 0. `[writable, signer]` Lottery data account
+    /// 1. `[writable]` Lottery result data account
+    /// 3 + N. `[]` N readonly percipients accounts
+    RewardWinners {},
 }
 
 impl LotteryInstruction {
@@ -121,6 +130,8 @@ impl LotteryInstruction {
                 }
             }
 
+            3 => Self::RewardWinners {},
+
             _ => return Err(InvalidInstruction.into()),
         })
     }
@@ -160,6 +171,10 @@ impl LotteryInstruction {
             } => {
                 buf.push(2);
                 buf.extend_from_slice(&winning_numbers_arr.as_ref());
+            }
+
+            Self::RewardWinners {} => {
+                buf.push(3);
             }
         };
         buf
@@ -258,6 +273,30 @@ pub fn store_winning_numbers(
 
     let mut accounts = Vec::with_capacity(1);
     accounts.push(AccountMeta::new(*lottery_authority, true));
+
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
+
+/// Creates a `RewardWinners` instruction
+pub fn reward_winners(
+    program_id: &Pubkey,
+    participants: &Vec<Pubkey>,
+    lottery_result: &Pubkey,
+    lottery_authority: &Pubkey,
+) -> Result<Instruction, ProgramError> {
+    check_program_account(program_id)?;
+    let data = LotteryInstruction::RewardWinners {}.pack();
+
+    let mut accounts = Vec::with_capacity(3 + participants.len());
+    accounts.push(AccountMeta::new(*lottery_authority, true));
+    accounts.push(AccountMeta::new(*lottery_result, false));
+    for participant in participants {
+        accounts.push(AccountMeta::new_readonly(*participant, false));
+    }
 
     Ok(Instruction {
         program_id: *program_id,

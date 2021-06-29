@@ -1,9 +1,5 @@
 //! Program state processor
-use crate::{
-    error::LotteryError,
-    instruction::LotteryInstruction,
-    state::{LotteryData, TicketData},
-};
+use crate::{error::LotteryError, instruction::LotteryInstruction, state::{LotteryData, LotteryResultData, TicketData}};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -78,6 +74,11 @@ impl Processor {
                 msg!("Instruction: store winning numbers");
                 Self::process_store_winning_numbers(program_id, accounts, winning_numbers_arr)
             }
+
+            LotteryInstruction::RewardWinners {} => {
+                msg!("Instruction: reward winners");
+                Self::process_reward_winners(program_id, accounts)
+            }
         }
     }
 
@@ -97,7 +98,7 @@ impl Processor {
 
         // Check if program owns data account
         if lottery_data_account.owner != program_id {
-            msg!("Ticket Data account does not have the correct program id");
+            msg!("Lottery Data account does not have the correct program id");
             return Err(ProgramError::IncorrectProgramId);
         }
 
@@ -267,6 +268,76 @@ impl Processor {
 
         lottery_data.winning_numbers = winning_numbers_arr;
 
+        LotteryData::pack(lottery_data, &mut lottery_data_account.data.borrow_mut())?;
+
+        Ok(())
+    }
+
+    pub fn process_reward_winners(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        let accounts_iter = &mut accounts.iter();
+        let lottery_data_account = next_account_info(accounts_iter)?;
+        let lottery_result_account = next_account_info(accounts_iter)?;
+        let participants_tickets_accounts = accounts_iter.as_slice();
+
+        if lottery_data_account.owner != program_id {
+            msg!("Lottery Data account does not have the correct program id");
+            return Err(ProgramError::IncorrectProgramId);
+        }
+        if lottery_result_account.owner != program_id {
+            msg!("Lottery Result Data account does not have the correct program id");
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        if !lottery_data_account.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        for participant_ticket in participants_tickets_accounts {
+            if participant_ticket.owner != program_id {
+                msg!("Ticket Data account does not have the correct program id");
+                return Err(ProgramError::IncorrectProgramId);
+            }
+        }
+
+        let mut lottery_data = LotteryData::unpack_unchecked(&lottery_data_account.data.borrow())?;
+        if !lottery_data.is_initialized {
+            msg!("Lottery Data account is not initialized");
+            return Err(LotteryError::NotInitialized.into());
+        }
+
+        // TODO: more than 1 winner
+        // Check winning numbers and find winner
+        let mut winner = Pubkey::default();
+        for participant_ticket in participants_tickets_accounts {
+            let ticket = TicketData::unpack_unchecked(&participant_ticket.data.borrow())?;
+            if ticket.ticket_number_arr == lottery_data.winning_numbers {
+                winner = ticket.user_wallet_pk;
+            }
+        }
+
+        // TODO: Reward winner and pay fee
+        // 6. The charity with the most votes is transferred 30% of the total prize pool
+        // 7. 4% of the prize pool is transferred to the "Sollotto Rewards" wallet address
+        // 8. 0.6% of the prize pool is transferred to a "SLOT Holder Rewards" wallet address
+        // 9. 0.4% of the prize pool is transferred to a "Sollotto Labs" wallet address
+        // 14. If there is just one winner, transfer the remaining portion (64%) of the prize pool to the
+        // winner
+
+        // Create lottery result acc info
+        let mut lottery_result = LotteryResultData::unpack_unchecked(&lottery_result_account.data.borrow())?;
+        lottery_result.lottery_id = lottery_data.lottery_id;
+        lottery_result.winner = winner;
+        LotteryResultData::pack(lottery_result, &mut lottery_result_account.data.borrow_mut())?;
+
+        // Clear lottery acc for new lottery
+        lottery_data.is_initialized = false;
+        lottery_data.charity_1_vc = 0;
+        lottery_data.charity_2_vc = 0;
+        lottery_data.charity_3_vc = 0;
+        lottery_data.charity_4_vc = 0;
+        lottery_data.winning_numbers = [0, 0, 0, 0, 0, 0];
+        lottery_data.total_registrations = 0;
+        lottery_data.lottery_id = 0;
         LotteryData::pack(lottery_data, &mut lottery_data_account.data.borrow_mut())?;
 
         Ok(())
