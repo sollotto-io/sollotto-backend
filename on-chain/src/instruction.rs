@@ -60,6 +60,28 @@ pub enum LotteryInstruction {
     /// 1. `[writable]` Lottery result data account
     /// 3 + N. `[]` N readonly percipients accounts
     RewardWinners {},
+
+    /// Update charity wallets in lottery data account
+    /// Accounts expected by this instruction:
+    ///
+    /// 0. `[writable, signer]` Lottery data account
+    UpdateCharity {
+        charity_1: Pubkey,
+        charity_2: Pubkey,
+        charity_3: Pubkey,
+        charity_4: Pubkey,
+    },
+
+    /// Update sollotto wallets in lottery data account
+    /// Accounts expected by this instruction:
+    ///
+    /// 0. `[writable, signer]` Lottery data account
+    UpdateSollottoWallets {
+        holding_wallet: Pubkey,
+        rewards_wallet: Pubkey,
+        slot_holders_rewards_wallet: Pubkey,
+        sollotto_labs_wallet: Pubkey,
+    },
 }
 
 impl LotteryInstruction {
@@ -117,6 +139,34 @@ impl LotteryInstruction {
 
             3 => Self::RewardWinners {},
 
+            4 => {
+                let (charity_1, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (charity_2, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (charity_3, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (charity_4, _) = Self::unpack_pubkey(rest).unwrap();
+
+                Self::UpdateCharity {
+                    charity_1,
+                    charity_2,
+                    charity_3,
+                    charity_4,
+                }
+            }
+
+            5 => {
+                let (holding_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (rewards_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (slot_holders_rewards_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (sollotto_labs_wallet, _) = Self::unpack_pubkey(rest).unwrap();
+
+                Self::UpdateSollottoWallets {
+                    holding_wallet,
+                    rewards_wallet,
+                    slot_holders_rewards_wallet,
+                    sollotto_labs_wallet,
+                }
+            }
+
             _ => return Err(InvalidInstruction.into()),
         })
     }
@@ -168,6 +218,32 @@ impl LotteryInstruction {
 
             Self::RewardWinners {} => {
                 buf.push(3);
+            }
+
+            Self::UpdateCharity {
+                charity_1,
+                charity_2,
+                charity_3,
+                charity_4,
+            } => {
+                buf.push(4);
+                buf.extend_from_slice(charity_1.as_ref());
+                buf.extend_from_slice(charity_2.as_ref());
+                buf.extend_from_slice(charity_3.as_ref());
+                buf.extend_from_slice(charity_4.as_ref());
+            }
+
+            Self::UpdateSollottoWallets {
+                holding_wallet,
+                rewards_wallet,
+                slot_holders_rewards_wallet,
+                sollotto_labs_wallet,
+            } => {
+                buf.push(5);
+                buf.extend_from_slice(holding_wallet.as_ref());
+                buf.extend_from_slice(rewards_wallet.as_ref());
+                buf.extend_from_slice(slot_holders_rewards_wallet.as_ref());
+                buf.extend_from_slice(sollotto_labs_wallet.as_ref());
             }
         };
         buf
@@ -306,6 +382,62 @@ pub fn reward_winners(
     for participant in participants {
         accounts.push(AccountMeta::new_readonly(*participant, false));
     }
+
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
+
+/// Creates a `UpdateCharity` instruction
+pub fn update_charity(
+    program_id: &Pubkey,
+    charity_1: &Pubkey,
+    charity_2: &Pubkey,
+    charity_3: &Pubkey,
+    charity_4: &Pubkey,
+    lottery_authority: &Pubkey,
+) -> Result<Instruction, ProgramError> {
+    check_program_account(program_id)?;
+    let data = LotteryInstruction::UpdateCharity {
+        charity_1: *charity_1,
+        charity_2: *charity_2,
+        charity_3: *charity_3,
+        charity_4: *charity_4,
+    }
+    .pack();
+
+    let mut accounts = Vec::with_capacity(1);
+    accounts.push(AccountMeta::new(*lottery_authority, true));
+
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
+
+/// Creates a `UpdateSollottoWallets` instruction
+pub fn update_sollotto_wallets(
+    program_id: &Pubkey,
+    holding_wallet: &Pubkey,
+    rewards_wallet: &Pubkey,
+    slot_holders_rewards_wallet: &Pubkey,
+    sollotto_labs_wallet: &Pubkey,
+    lottery_authority: &Pubkey,
+) -> Result<Instruction, ProgramError> {
+    check_program_account(program_id)?;
+    let data = LotteryInstruction::UpdateSollottoWallets {
+        holding_wallet: *holding_wallet,
+        rewards_wallet: *rewards_wallet,
+        slot_holders_rewards_wallet: *slot_holders_rewards_wallet,
+        sollotto_labs_wallet: *sollotto_labs_wallet,
+    }
+    .pack();
+
+    let mut accounts = Vec::with_capacity(1);
+    accounts.push(AccountMeta::new(*lottery_authority, true));
 
     Ok(Instruction {
         program_id: *program_id,

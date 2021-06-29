@@ -94,6 +94,35 @@ impl Processor {
                 msg!("Instruction: reward winners");
                 Self::process_reward_winners(program_id, accounts)
             }
+
+            LotteryInstruction::UpdateCharity {
+                charity_1,
+                charity_2,
+                charity_3,
+                charity_4,
+            } => {
+                msg!("Instrction: update charity");
+                Self::process_update_charity(
+                    program_id, accounts, charity_1, charity_2, charity_3, charity_4,
+                )
+            }
+
+            LotteryInstruction::UpdateSollottoWallets {
+                holding_wallet,
+                rewards_wallet,
+                slot_holders_rewards_wallet,
+                sollotto_labs_wallet,
+            } => {
+                msg!("Instruction: update sollotto wallets");
+                Self::process_update_sollotto_wallets(
+                    program_id,
+                    accounts,
+                    holding_wallet,
+                    rewards_wallet,
+                    slot_holders_rewards_wallet,
+                    sollotto_labs_wallet,
+                )
+            }
         }
     }
 
@@ -385,6 +414,78 @@ impl Processor {
         lottery_data.winning_numbers = [0, 0, 0, 0, 0, 0];
         lottery_data.total_registrations = 0;
         lottery_data.lottery_id = 0;
+        LotteryData::pack(lottery_data, &mut lottery_data_account.data.borrow_mut())?;
+
+        Ok(())
+    }
+
+    pub fn process_update_charity(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        charity_1: Pubkey,
+        charity_2: Pubkey,
+        charity_3: Pubkey,
+        charity_4: Pubkey,
+    ) -> ProgramResult {
+        let accounts_iter = &mut accounts.iter();
+        let lottery_data_account = next_account_info(accounts_iter)?;
+
+        if lottery_data_account.owner != program_id {
+            msg!("Lottery Data account does not have the correct program id");
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        if !lottery_data_account.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        let mut lottery_data = LotteryData::unpack_unchecked(&lottery_data_account.data.borrow())?;
+        if !lottery_data.is_initialized {
+            msg!("Lottery Data account is not initialized");
+            return Err(LotteryError::NotInitialized.into());
+        }
+
+        lottery_data.charity_1 = charity_1;
+        lottery_data.charity_2 = charity_2;
+        lottery_data.charity_3 = charity_3;
+        lottery_data.charity_4 = charity_4;
+
+        LotteryData::pack(lottery_data, &mut lottery_data_account.data.borrow_mut())?;
+
+        Ok(())
+    }
+
+    pub fn process_update_sollotto_wallets(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        holding_wallet: Pubkey,
+        rewards_wallet: Pubkey,
+        slot_holders_rewards_wallet: Pubkey,
+        sollotto_labs_wallet: Pubkey,
+    ) -> ProgramResult {
+        let accounts_iter = &mut accounts.iter();
+        let lottery_data_account = next_account_info(accounts_iter)?;
+
+        if lottery_data_account.owner != program_id {
+            msg!("Lottery Data account does not have the correct program id");
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        if !lottery_data_account.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        let mut lottery_data = LotteryData::unpack_unchecked(&lottery_data_account.data.borrow())?;
+        if !lottery_data.is_initialized {
+            msg!("Lottery Data account is not initialized");
+            return Err(LotteryError::NotInitialized.into());
+        }
+
+        lottery_data.holding_wallet = holding_wallet;
+        lottery_data.rewards_wallet = rewards_wallet;
+        lottery_data.slot_holders_rewards_wallet = slot_holders_rewards_wallet;
+        lottery_data.sollotto_labs_wallet = sollotto_labs_wallet;
+
         LotteryData::pack(lottery_data, &mut lottery_data_account.data.borrow_mut())?;
 
         Ok(())
@@ -874,5 +975,187 @@ mod test {
         assert_eq!(lottery.winning_numbers[3], 40);
         assert_eq!(lottery.winning_numbers[4], 50);
         assert_eq!(lottery.winning_numbers[5], 29);
+    }
+
+    #[test]
+    fn test_update_charity() {
+        let program_id = id();
+        let lottery_id = 112233;
+        let lottery_key = Pubkey::new_unique();
+        let mut lottery_acc = SolanaAccount::new(
+            lottery_minimum_balance(),
+            LotteryData::get_packed_len(),
+            &program_id,
+        );
+        let mut rent_sysvar_acc = create_account_for_test(&Rent::default());
+        let charity_1 = Pubkey::new_unique();
+        let charity_2 = Pubkey::new_unique();
+        let charity_3 = Pubkey::new_unique();
+        let charity_4 = Pubkey::new_unique();
+        let holding_wallet = Pubkey::new_unique();
+        let rewards_wallet = Pubkey::new_unique();
+        let slot_holders_rewards_wallet = Pubkey::new_unique();
+        let sollotto_labs_wallet = Pubkey::new_unique();
+
+        let new_charity_1 = Pubkey::new_unique();
+        let new_charity_2 = charity_1;
+        let new_charity_3 = Pubkey::new_unique();
+        let new_charity_4 = charity_4;
+
+        // BadCase: Lottery is not initialized
+        assert_eq!(
+            Err(LotteryError::NotInitialized.into()),
+            do_process(
+                crate::instruction::update_charity(
+                    &program_id,
+                    &new_charity_1,
+                    &new_charity_2,
+                    &new_charity_3,
+                    &new_charity_4,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![&mut lottery_acc]
+            )
+        );
+
+        do_process(
+            crate::instruction::initialize_lottery(
+                &program_id,
+                lottery_id,
+                &charity_1,
+                &charity_2,
+                &charity_3,
+                &charity_4,
+                &holding_wallet,
+                &rewards_wallet,
+                &slot_holders_rewards_wallet,
+                &sollotto_labs_wallet,
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![&mut lottery_acc, &mut rent_sysvar_acc],
+        )
+        .unwrap();
+
+        let lottery = LotteryData::unpack(&lottery_acc.data()).unwrap();
+        assert_eq!(lottery.charity_1, charity_1);
+        assert_eq!(lottery.charity_2, charity_2);
+        assert_eq!(lottery.charity_3, charity_3);
+        assert_eq!(lottery.charity_4, charity_4);
+
+        do_process(
+            crate::instruction::update_charity(
+                &program_id,
+                &new_charity_1,
+                &new_charity_2,
+                &new_charity_3,
+                &new_charity_4,
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![&mut lottery_acc],
+        )
+        .unwrap();
+
+        let lottery = LotteryData::unpack(&lottery_acc.data()).unwrap();
+        assert_eq!(lottery.charity_1, new_charity_1);
+        assert_eq!(lottery.charity_2, new_charity_2);
+        assert_eq!(lottery.charity_3, new_charity_3);
+        assert_eq!(lottery.charity_4, new_charity_4);
+    }
+
+    #[test]
+    fn test_update_sollotto_wallets() {
+        let program_id = id();
+        let lottery_id = 112233;
+        let lottery_key = Pubkey::new_unique();
+        let mut lottery_acc = SolanaAccount::new(
+            lottery_minimum_balance(),
+            LotteryData::get_packed_len(),
+            &program_id,
+        );
+        let mut rent_sysvar_acc = create_account_for_test(&Rent::default());
+        let charity_1 = Pubkey::new_unique();
+        let charity_2 = Pubkey::new_unique();
+        let charity_3 = Pubkey::new_unique();
+        let charity_4 = Pubkey::new_unique();
+        let holding_wallet = Pubkey::new_unique();
+        let rewards_wallet = Pubkey::new_unique();
+        let slot_holders_rewards_wallet = Pubkey::new_unique();
+        let sollotto_labs_wallet = Pubkey::new_unique();
+
+        let new_holding_wallet = Pubkey::new_unique();
+        let new_rewards_wallet = rewards_wallet;
+        let new_slot_holders_rewards_wallet = Pubkey::new_unique();
+        let new_sollotto_labs_wallet = sollotto_labs_wallet;
+
+        // BadCase: Lottery is not initialized
+        assert_eq!(
+            Err(LotteryError::NotInitialized.into()),
+            do_process(
+                crate::instruction::update_sollotto_wallets(
+                    &program_id,
+                    &new_holding_wallet,
+                    &new_rewards_wallet,
+                    &new_slot_holders_rewards_wallet,
+                    &new_sollotto_labs_wallet,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![&mut lottery_acc]
+            )
+        );
+
+        do_process(
+            crate::instruction::initialize_lottery(
+                &program_id,
+                lottery_id,
+                &charity_1,
+                &charity_2,
+                &charity_3,
+                &charity_4,
+                &holding_wallet,
+                &rewards_wallet,
+                &slot_holders_rewards_wallet,
+                &sollotto_labs_wallet,
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![&mut lottery_acc, &mut rent_sysvar_acc],
+        )
+        .unwrap();
+
+        let lottery = LotteryData::unpack(&lottery_acc.data()).unwrap();
+        assert_eq!(lottery.holding_wallet, holding_wallet);
+        assert_eq!(lottery.rewards_wallet, rewards_wallet);
+        assert_eq!(
+            lottery.slot_holders_rewards_wallet,
+            slot_holders_rewards_wallet
+        );
+        assert_eq!(lottery.sollotto_labs_wallet, sollotto_labs_wallet);
+
+        do_process(
+            crate::instruction::update_sollotto_wallets(
+                &program_id,
+                &new_holding_wallet,
+                &new_rewards_wallet,
+                &new_slot_holders_rewards_wallet,
+                &new_sollotto_labs_wallet,
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![&mut lottery_acc],
+        )
+        .unwrap();
+
+        let lottery = LotteryData::unpack(&lottery_acc.data()).unwrap();
+        assert_eq!(lottery.holding_wallet, new_holding_wallet);
+        assert_eq!(lottery.rewards_wallet, new_rewards_wallet);
+        assert_eq!(
+            lottery.slot_holders_rewards_wallet,
+            new_slot_holders_rewards_wallet
+        );
+        assert_eq!(lottery.sollotto_labs_wallet, new_sollotto_labs_wallet);
     }
 }
