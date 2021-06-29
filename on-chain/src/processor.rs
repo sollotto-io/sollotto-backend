@@ -1,13 +1,20 @@
 //! Program state processor
-use crate::{error::LotteryError, instruction::LotteryInstruction, state::{LotteryData, LotteryResultData, TicketData}};
+use crate::{
+    error::LotteryError,
+    instruction::LotteryInstruction,
+    state::{LotteryData, LotteryResultData, TicketData},
+};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
+    native_token::sol_to_lamports,
+    program::invoke,
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
     rent::Rent,
+    system_instruction,
     sysvar::Sysvar,
 };
 
@@ -36,25 +43,33 @@ impl Processor {
         match instruction {
             LotteryInstruction::InitLottery {
                 lottery_id,
-                charity_1_id,
-                charity_2_id,
-                charity_3_id,
-                charity_4_id,
+                charity_1,
+                charity_2,
+                charity_3,
+                charity_4,
+                holding_wallet,
+                rewards_wallet,
+                slot_holders_rewards_wallet,
+                sollotto_labs_wallet,
             } => {
                 msg!("Instruction: InitLottery");
                 Self::process_init_lottery(
                     program_id,
                     accounts,
                     lottery_id,
-                    charity_1_id,
-                    charity_2_id,
-                    charity_3_id,
-                    charity_4_id,
+                    charity_1,
+                    charity_2,
+                    charity_3,
+                    charity_4,
+                    holding_wallet,
+                    rewards_wallet,
+                    slot_holders_rewards_wallet,
+                    sollotto_labs_wallet,
                 )
             }
 
             LotteryInstruction::PurchaseTicket {
-                charity_id,
+                charity,
                 user_wallet_pk,
                 ticket_number_arr,
             } => {
@@ -62,7 +77,7 @@ impl Processor {
                 Self::process_ticket_purchase(
                     program_id,
                     accounts,
-                    charity_id,
+                    charity,
                     user_wallet_pk,
                     ticket_number_arr,
                 )
@@ -86,10 +101,14 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         lottery_id: u32,
-        charity_1_id: u32,
-        charity_2_id: u32,
-        charity_3_id: u32,
-        charity_4_id: u32,
+        charity_1: Pubkey,
+        charity_2: Pubkey,
+        charity_3: Pubkey,
+        charity_4: Pubkey,
+        holding_wallet: Pubkey,
+        rewards_wallet: Pubkey,
+        slot_holders_rewards_wallet: Pubkey,
+        sollotto_labs_wallet: Pubkey,
     ) -> ProgramResult {
         let accounts_iter = &mut accounts.iter();
 
@@ -122,14 +141,18 @@ impl Processor {
 
         lottery_data.is_initialized = true;
         lottery_data.lottery_id = lottery_id;
-        lottery_data.charity_1_id = charity_1_id;
-        lottery_data.charity_2_id = charity_2_id;
-        lottery_data.charity_3_id = charity_3_id;
-        lottery_data.charity_4_id = charity_4_id;
+        lottery_data.charity_1 = charity_1;
+        lottery_data.charity_2 = charity_2;
+        lottery_data.charity_3 = charity_3;
+        lottery_data.charity_4 = charity_4;
         lottery_data.charity_1_vc = 0;
         lottery_data.charity_2_vc = 0;
         lottery_data.charity_3_vc = 0;
         lottery_data.charity_4_vc = 0;
+        lottery_data.holding_wallet = holding_wallet;
+        lottery_data.rewards_wallet = rewards_wallet;
+        lottery_data.slot_holders_rewards_wallet = slot_holders_rewards_wallet;
+        lottery_data.sollotto_labs_wallet = sollotto_labs_wallet;
         lottery_data.total_registrations = 0;
         LotteryData::pack(lottery_data, &mut lottery_data_account.data.borrow_mut())?;
 
@@ -141,14 +164,17 @@ impl Processor {
     pub fn process_ticket_purchase(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        charity_id: u32,
+        charity: Pubkey,
         user_wallet_pk: Pubkey,
         ticket_number_arr: [u8; 6],
     ) -> ProgramResult {
         let accounts_iter = &mut accounts.iter();
-
-        // lottery data account
         let lottery_data_account = next_account_info(accounts_iter)?;
+        let ticket_data_account = next_account_info(accounts_iter)?;
+        let user_funding_account = next_account_info(accounts_iter)?;
+        let holding_wallet_account = next_account_info(accounts_iter)?;
+        let rent = &Rent::from_account_info(next_account_info(accounts_iter)?)?;
+        let system_program_info = next_account_info(accounts_iter)?;
 
         // Check if program owns lottery data account
         if lottery_data_account.owner != program_id {
@@ -166,14 +192,12 @@ impl Processor {
             return Err(LotteryError::NotInitialized.into());
         }
 
-        let ticket_data_account = next_account_info(accounts_iter)?;
         // Check if program owns ticket data account
         if ticket_data_account.owner != program_id {
             msg!("Ticket Data account does not have the correct program id");
             return Err(ProgramError::IncorrectProgramId);
         }
 
-        let rent = &Rent::from_account_info(next_account_info(accounts_iter)?)?;
         if !rent.is_exempt(
             lottery_data_account.lamports(),
             lottery_data_account.data_len(),
@@ -188,6 +212,11 @@ impl Processor {
             return Err(LotteryError::NotRentExempt.into());
         }
 
+        let mut ticket_data = TicketData::unpack_unchecked(&ticket_data_account.data.borrow())?;
+        if ticket_data.is_purchased {
+            return Err(LotteryError::AlreadyPurchased.into());
+        }
+
         for i in 0..5 {
             if ticket_number_arr[i] < 1 || ticket_number_arr[i] > 69 {
                 return Err(LotteryError::InvalidNumber.into());
@@ -197,26 +226,24 @@ impl Processor {
             return Err(LotteryError::InvalidNumber.into());
         }
 
-        let mut ticket_data = TicketData::unpack_unchecked(&ticket_data_account.data.borrow())?;
-        ticket_data.charity_id = charity_id;
+        ticket_data.is_purchased = true;
+        ticket_data.charity = charity;
         ticket_data.user_wallet_pk = user_wallet_pk;
         ticket_data.ticket_number_arr = ticket_number_arr;
 
-        TicketData::pack(ticket_data, &mut ticket_data_account.data.borrow_mut())?;
-
         lottery_data.total_registrations += 1;
         let charity_arr = [
-            lottery_data.charity_1_id,
-            lottery_data.charity_2_id,
-            lottery_data.charity_3_id,
-            lottery_data.charity_4_id,
+            lottery_data.charity_1,
+            lottery_data.charity_2,
+            lottery_data.charity_3,
+            lottery_data.charity_4,
         ];
         msg!("Charity Ids: {:?}", charity_arr);
-        for (pos, id) in charity_arr.iter().enumerate() {
+        for (pos, key) in charity_arr.iter().enumerate() {
             msg!("Entered Loop");
-            msg!("Current Charity: {}", *id);
-            msg!("Receieved Charity: {}", charity_id);
-            if *id == charity_id {
+            msg!("Current Charity: {}", *key);
+            msg!("Receieved Charity: {}", charity);
+            if *key == charity {
                 msg!("Matched ID Loop");
                 match pos {
                     0 => lottery_data.charity_1_vc += 1,
@@ -229,6 +256,22 @@ impl Processor {
             }
         }
 
+        // Transfer 0.1 SOL into holding wallet from user_wallet
+        let ticket_price = sol_to_lamports(0.01);
+        invoke(
+            &system_instruction::transfer(
+                &user_wallet_pk,
+                &lottery_data.holding_wallet,
+                ticket_price,
+            ),
+            &[
+                user_funding_account.clone(),
+                holding_wallet_account.clone(),
+                system_program_info.clone(),
+            ],
+        )?;
+
+        TicketData::pack(ticket_data, &mut ticket_data_account.data.borrow_mut())?;
         LotteryData::pack(lottery_data, &mut lottery_data_account.data.borrow_mut())?;
 
         Ok(())
@@ -324,10 +367,14 @@ impl Processor {
         // winner
 
         // Create lottery result acc info
-        let mut lottery_result = LotteryResultData::unpack_unchecked(&lottery_result_account.data.borrow())?;
+        let mut lottery_result =
+            LotteryResultData::unpack_unchecked(&lottery_result_account.data.borrow())?;
         lottery_result.lottery_id = lottery_data.lottery_id;
         lottery_result.winner = winner;
-        LotteryResultData::pack(lottery_result, &mut lottery_result_account.data.borrow_mut())?;
+        LotteryResultData::pack(
+            lottery_result,
+            &mut lottery_result_account.data.borrow_mut(),
+        )?;
 
         // Clear lottery acc for new lottery
         lottery_data.is_initialized = false;
@@ -385,6 +432,14 @@ mod test {
             &program_id,
         );
         let mut rent_sysvar_acc = create_account_for_test(&Rent::default());
+        let charity_1 = Pubkey::new_unique();
+        let charity_2 = Pubkey::new_unique();
+        let charity_3 = Pubkey::new_unique();
+        let charity_4 = Pubkey::new_unique();
+        let holding_wallet = Pubkey::new_unique();
+        let rewards_wallet = Pubkey::new_unique();
+        let slot_holders_rewards_wallet = Pubkey::new_unique();
+        let sollotto_labs_wallet = Pubkey::new_unique();
 
         // BadCase: rent NotRentExempt
         let mut bad_lottery_acc = SolanaAccount::new(
@@ -398,10 +453,14 @@ mod test {
                 crate::instruction::initialize_lottery(
                     &program_id,
                     lottery_id,
-                    1,
-                    2,
-                    3,
-                    4,
+                    &charity_1,
+                    &charity_2,
+                    &charity_3,
+                    &charity_4,
+                    &holding_wallet,
+                    &rewards_wallet,
+                    &slot_holders_rewards_wallet,
+                    &sollotto_labs_wallet,
                     &lottery_key
                 )
                 .unwrap(),
@@ -413,10 +472,14 @@ mod test {
             crate::instruction::initialize_lottery(
                 &program_id,
                 lottery_id,
-                1,
-                2,
-                3,
-                4,
+                &charity_1,
+                &charity_2,
+                &charity_3,
+                &charity_4,
+                &holding_wallet,
+                &rewards_wallet,
+                &slot_holders_rewards_wallet,
+                &sollotto_labs_wallet,
                 &lottery_key,
             )
             .unwrap(),
@@ -431,10 +494,14 @@ mod test {
                 crate::instruction::initialize_lottery(
                     &program_id,
                     lottery_id,
-                    1,
-                    2,
-                    3,
-                    4,
+                    &charity_1,
+                    &charity_2,
+                    &charity_3,
+                    &charity_4,
+                    &holding_wallet,
+                    &rewards_wallet,
+                    &slot_holders_rewards_wallet,
+                    &sollotto_labs_wallet,
                     &lottery_key,
                 )
                 .unwrap(),
@@ -445,14 +512,21 @@ mod test {
         let lottery = LotteryData::unpack(&lottery_acc.data).unwrap();
         assert_eq!(lottery.is_initialized, true);
         assert_eq!(lottery.lottery_id, lottery_id);
-        assert_eq!(lottery.charity_1_id, 1);
-        assert_eq!(lottery.charity_2_id, 2);
-        assert_eq!(lottery.charity_3_id, 3);
-        assert_eq!(lottery.charity_4_id, 4);
+        assert_eq!(lottery.charity_1, charity_1);
+        assert_eq!(lottery.charity_2, charity_2);
+        assert_eq!(lottery.charity_3, charity_3);
+        assert_eq!(lottery.charity_4, charity_4);
         assert_eq!(lottery.charity_1_vc, 0);
         assert_eq!(lottery.charity_2_vc, 0);
         assert_eq!(lottery.charity_3_vc, 0);
         assert_eq!(lottery.charity_4_vc, 0);
+        assert_eq!(lottery.holding_wallet, holding_wallet);
+        assert_eq!(lottery.rewards_wallet, rewards_wallet);
+        assert_eq!(
+            lottery.slot_holders_rewards_wallet,
+            slot_holders_rewards_wallet
+        );
+        assert_eq!(lottery.sollotto_labs_wallet, sollotto_labs_wallet);
         assert_eq!(lottery.total_registrations, 0);
         for number in &lottery.winning_numbers {
             assert_eq!(*number, 0);
@@ -469,14 +543,26 @@ mod test {
             LotteryData::get_packed_len(),
             &program_id,
         );
-        let user_key = Pubkey::new_unique();
+        let user_funding_key = Pubkey::new_unique();
+        let mut user_funding_acc = SolanaAccount::default();
+        let user_ticket_key = Pubkey::new_unique();
         let mut user_ticket_acc = SolanaAccount::new(
             ticket_minimum_balance(),
             TicketData::get_packed_len(),
             &program_id,
         );
         let mut rent_sysvar_acc = create_account_for_test(&Rent::default());
-        let charity_id = 1;
+        let mut system_acc = SolanaAccount::default();
+        let charity_1 = Pubkey::new_unique();
+        let charity_2 = Pubkey::new_unique();
+        let charity_3 = Pubkey::new_unique();
+        let charity_4 = Pubkey::new_unique();
+        let holding_wallet = Pubkey::new_unique();
+        let mut holding_wallet_acc = SolanaAccount::default();
+        let rewards_wallet = Pubkey::new_unique();
+        let slot_holders_rewards_wallet = Pubkey::new_unique();
+        let sollotto_labs_wallet = Pubkey::new_unique();
+        let user_charity = charity_1;
 
         // BadCase: Lottery is not initialized
         assert_eq!(
@@ -484,13 +570,22 @@ mod test {
             do_process(
                 crate::instruction::purchase_ticket(
                     &program_id,
-                    charity_id,
-                    &user_key,
+                    &user_charity,
+                    &user_funding_key,
                     &[10, 20, 30, 40, 50, 15],
+                    &user_ticket_key,
+                    &holding_wallet,
                     &lottery_key,
                 )
                 .unwrap(),
-                vec![&mut lottery_acc, &mut user_ticket_acc, &mut rent_sysvar_acc]
+                vec![
+                    &mut lottery_acc,
+                    &mut user_ticket_acc,
+                    &mut user_funding_acc,
+                    &mut holding_wallet_acc,
+                    &mut rent_sysvar_acc,
+                    &mut system_acc
+                ]
             )
         );
 
@@ -498,10 +593,14 @@ mod test {
             crate::instruction::initialize_lottery(
                 &program_id,
                 lottery_id,
-                1,
-                2,
-                3,
-                4,
+                &charity_1,
+                &charity_2,
+                &charity_3,
+                &charity_4,
+                &holding_wallet,
+                &rewards_wallet,
+                &slot_holders_rewards_wallet,
+                &sollotto_labs_wallet,
                 &lottery_key,
             )
             .unwrap(),
@@ -520,13 +619,22 @@ mod test {
             do_process(
                 crate::instruction::purchase_ticket(
                     &program_id,
-                    charity_id,
-                    &user_key,
+                    &user_charity,
+                    &user_funding_key,
                     &[10, 20, 30, 40, 50, 15],
+                    &user_ticket_key,
+                    &holding_wallet,
                     &lottery_key,
                 )
                 .unwrap(),
-                vec![&mut lottery_acc, &mut bad_ticket_acc, &mut rent_sysvar_acc]
+                vec![
+                    &mut lottery_acc,
+                    &mut bad_ticket_acc,
+                    &mut user_funding_acc,
+                    &mut holding_wallet_acc,
+                    &mut rent_sysvar_acc,
+                    &mut system_acc
+                ]
             )
         );
 
@@ -536,13 +644,22 @@ mod test {
             do_process(
                 crate::instruction::purchase_ticket(
                     &program_id,
-                    charity_id,
-                    &user_key,
+                    &user_charity,
+                    &user_funding_key,
                     &[70, 20, 30, 40, 50, 15],
+                    &user_ticket_key,
+                    &holding_wallet,
                     &lottery_key,
                 )
                 .unwrap(),
-                vec![&mut lottery_acc, &mut user_ticket_acc, &mut rent_sysvar_acc]
+                vec![
+                    &mut lottery_acc,
+                    &mut user_ticket_acc,
+                    &mut user_funding_acc,
+                    &mut holding_wallet_acc,
+                    &mut rent_sysvar_acc,
+                    &mut system_acc
+                ]
             )
         );
 
@@ -551,13 +668,22 @@ mod test {
             do_process(
                 crate::instruction::purchase_ticket(
                     &program_id,
-                    charity_id,
-                    &user_key,
+                    &user_charity,
+                    &user_funding_key,
                     &[10, 20, 30, 40, 0, 15],
+                    &user_ticket_key,
+                    &holding_wallet,
                     &lottery_key,
                 )
                 .unwrap(),
-                vec![&mut lottery_acc, &mut user_ticket_acc, &mut rent_sysvar_acc]
+                vec![
+                    &mut lottery_acc,
+                    &mut user_ticket_acc,
+                    &mut user_funding_acc,
+                    &mut holding_wallet_acc,
+                    &mut rent_sysvar_acc,
+                    &mut system_acc
+                ]
             )
         );
 
@@ -566,32 +692,75 @@ mod test {
             do_process(
                 crate::instruction::purchase_ticket(
                     &program_id,
-                    charity_id,
-                    &user_key,
+                    &user_charity,
+                    &user_funding_key,
                     &[10, 20, 30, 40, 50, 30],
+                    &user_ticket_key,
+                    &holding_wallet,
                     &lottery_key,
                 )
                 .unwrap(),
-                vec![&mut lottery_acc, &mut user_ticket_acc, &mut rent_sysvar_acc]
+                vec![
+                    &mut lottery_acc,
+                    &mut user_ticket_acc,
+                    &mut user_funding_acc,
+                    &mut holding_wallet_acc,
+                    &mut rent_sysvar_acc,
+                    &mut system_acc
+                ]
             )
         );
 
         do_process(
             crate::instruction::purchase_ticket(
                 &program_id,
-                charity_id,
-                &user_key,
+                &user_charity,
+                &user_funding_key,
                 &[10, 20, 30, 40, 50, 29],
+                &user_ticket_key,
+                &holding_wallet,
                 &lottery_key,
             )
             .unwrap(),
-            vec![&mut lottery_acc, &mut user_ticket_acc, &mut rent_sysvar_acc],
+            vec![
+                &mut lottery_acc,
+                &mut user_ticket_acc,
+                &mut user_funding_acc,
+                &mut holding_wallet_acc,
+                &mut rent_sysvar_acc,
+                &mut system_acc,
+            ],
         )
         .unwrap();
 
         let lottery = LotteryData::unpack(&lottery_acc.data()).unwrap();
         assert_eq!(lottery.charity_1_vc, 1);
         assert_eq!(lottery.total_registrations, 1);
+
+        // BadCase: Ticket already purchased
+        assert_eq!(
+            Err(LotteryError::AlreadyPurchased.into()),
+            do_process(
+                crate::instruction::purchase_ticket(
+                    &program_id,
+                    &user_charity,
+                    &user_funding_key,
+                    &[10, 20, 30, 40, 50, 30],
+                    &user_ticket_key,
+                    &holding_wallet,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![
+                    &mut lottery_acc,
+                    &mut user_ticket_acc,
+                    &mut user_funding_acc,
+                    &mut holding_wallet_acc,
+                    &mut rent_sysvar_acc,
+                    &mut system_acc
+                ]
+            )
+        );
     }
 
     #[test]
@@ -605,6 +774,14 @@ mod test {
             &program_id,
         );
         let mut rent_sysvar_acc = create_account_for_test(&Rent::default());
+        let charity_1 = Pubkey::new_unique();
+        let charity_2 = Pubkey::new_unique();
+        let charity_3 = Pubkey::new_unique();
+        let charity_4 = Pubkey::new_unique();
+        let holding_wallet = Pubkey::new_unique();
+        let rewards_wallet = Pubkey::new_unique();
+        let slot_holders_rewards_wallet = Pubkey::new_unique();
+        let sollotto_labs_wallet = Pubkey::new_unique();
 
         // BadCase: Lottery is not initialized
         assert_eq!(
@@ -624,10 +801,14 @@ mod test {
             crate::instruction::initialize_lottery(
                 &program_id,
                 lottery_id,
-                1,
-                2,
-                3,
-                4,
+                &charity_1,
+                &charity_2,
+                &charity_3,
+                &charity_4,
+                &holding_wallet,
+                &rewards_wallet,
+                &slot_holders_rewards_wallet,
+                &sollotto_labs_wallet,
                 &lottery_key,
             )
             .unwrap(),

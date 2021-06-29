@@ -23,6 +23,9 @@ pub enum LotteryError {
     /// Number is invalid
     #[error("Number is invalid")]
     InvalidNumber,
+    /// Ticket already purchased
+    #[error("Ticket already purchased")]
+    AlreadyPurchased,
 }
 
 impl From<LotteryError> for ProgramError {

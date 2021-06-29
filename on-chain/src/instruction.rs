@@ -21,10 +21,14 @@ pub enum LotteryInstruction {
     /// 1. `[]` Rent sysvar
     InitLottery {
         lottery_id: u32,
-        charity_1_id: u32,
-        charity_2_id: u32,
-        charity_3_id: u32,
-        charity_4_id: u32,
+        charity_1: Pubkey,
+        charity_2: Pubkey,
+        charity_3: Pubkey,
+        charity_4: Pubkey,
+        holding_wallet: Pubkey,
+        rewards_wallet: Pubkey,
+        slot_holders_rewards_wallet: Pubkey,
+        sollotto_labs_wallet: Pubkey,
     },
 
     /// User purchases new ticket for lottery
@@ -32,9 +36,12 @@ pub enum LotteryInstruction {
     ///
     /// 0. `[writable, signer]` Lottery data account
     /// 1. `[writable]` Users ticket data account
-    /// 2. `[]` Rent sysvar
+    /// 2. `[writeable,signer]` User funding account (must be a system account)
+    /// 3. `[writeable]` Sollotto holding wallet account (must be a system account)
+    /// 4. `[]` Rent sysvar
+    /// 5. `[]` System program account
     PurchaseTicket {
-        charity_id: u32,
+        charity: Pubkey,
         user_wallet_pk: Pubkey,
         ticket_number_arr: [u8; 6],
     },
@@ -67,57 +74,35 @@ impl LotteryInstruction {
                     .map(u32::from_le_bytes)
                     .ok_or(InvalidInstruction)?;
 
-                let (charity_1_id, rest) = rest.split_at(4);
-                let charity_1_id = charity_1_id
-                    .try_into()
-                    .ok()
-                    .map(u32::from_le_bytes)
-                    .ok_or(InvalidInstruction)?;
-
-                let (charity_2_id, rest) = rest.split_at(4);
-                let charity_2_id = charity_2_id
-                    .try_into()
-                    .ok()
-                    .map(u32::from_le_bytes)
-                    .ok_or(InvalidInstruction)?;
-
-                let (charity_3_id, rest) = rest.split_at(4);
-                let charity_3_id = charity_3_id
-                    .try_into()
-                    .ok()
-                    .map(u32::from_le_bytes)
-                    .ok_or(InvalidInstruction)?;
-
-                let (charity_4_id, _) = rest.split_at(4);
-                let charity_4_id = charity_4_id
-                    .try_into()
-                    .ok()
-                    .map(u32::from_le_bytes)
-                    .ok_or(InvalidInstruction)?;
+                let (charity_1, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (charity_2, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (charity_3, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (charity_4, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (holding_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (rewards_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (slot_holders_rewards_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (sollotto_labs_wallet, _) = Self::unpack_pubkey(rest).unwrap();
 
                 Self::InitLottery {
                     lottery_id,
-                    charity_1_id,
-                    charity_2_id,
-                    charity_3_id,
-                    charity_4_id,
+                    charity_1,
+                    charity_2,
+                    charity_3,
+                    charity_4,
+                    holding_wallet,
+                    rewards_wallet,
+                    slot_holders_rewards_wallet,
+                    sollotto_labs_wallet,
                 }
             }
 
             1 => {
-                let (charity_id, rest) = rest.split_at(4);
-                let charity_id = charity_id
-                    .try_into()
-                    .ok()
-                    .map(u32::from_le_bytes)
-                    .ok_or(InvalidInstruction)?;
-
+                let (charity, rest) = Self::unpack_pubkey(rest).unwrap();
                 let (user_wallet_pk, rest) = Self::unpack_pubkey(rest).unwrap();
-
                 let (ticket_number_arr, _) = Self::unpack_ticket_number_arr(rest).unwrap();
 
                 Self::PurchaseTicket {
-                    charity_id,
+                    charity,
                     user_wallet_pk,
                     ticket_number_arr: *ticket_number_arr,
                 }
@@ -142,26 +127,34 @@ impl LotteryInstruction {
         match self {
             Self::InitLottery {
                 lottery_id,
-                charity_1_id,
-                charity_2_id,
-                charity_3_id,
-                charity_4_id,
+                charity_1,
+                charity_2,
+                charity_3,
+                charity_4,
+                holding_wallet,
+                rewards_wallet,
+                slot_holders_rewards_wallet,
+                sollotto_labs_wallet,
             } => {
                 buf.push(0);
                 buf.extend_from_slice(&lottery_id.to_le_bytes());
-                buf.extend_from_slice(&charity_1_id.to_le_bytes());
-                buf.extend_from_slice(&charity_2_id.to_le_bytes());
-                buf.extend_from_slice(&charity_3_id.to_le_bytes());
-                buf.extend_from_slice(&charity_4_id.to_le_bytes());
+                buf.extend_from_slice(charity_1.as_ref());
+                buf.extend_from_slice(charity_2.as_ref());
+                buf.extend_from_slice(charity_3.as_ref());
+                buf.extend_from_slice(charity_4.as_ref());
+                buf.extend_from_slice(holding_wallet.as_ref());
+                buf.extend_from_slice(rewards_wallet.as_ref());
+                buf.extend_from_slice(slot_holders_rewards_wallet.as_ref());
+                buf.extend_from_slice(sollotto_labs_wallet.as_ref());
             }
 
             Self::PurchaseTicket {
-                charity_id,
+                charity,
                 user_wallet_pk,
                 ticket_number_arr,
             } => {
                 buf.push(1);
-                buf.extend_from_slice(&charity_id.to_le_bytes());
+                buf.extend_from_slice(charity.as_ref());
                 buf.extend_from_slice(user_wallet_pk.as_ref());
                 buf.extend_from_slice(&ticket_number_arr.as_ref());
             }
@@ -204,19 +197,27 @@ impl LotteryInstruction {
 pub fn initialize_lottery(
     program_id: &Pubkey,
     lottery_id: u32,
-    charity_1_id: u32,
-    charity_2_id: u32,
-    charity_3_id: u32,
-    charity_4_id: u32,
+    charity_1: &Pubkey,
+    charity_2: &Pubkey,
+    charity_3: &Pubkey,
+    charity_4: &Pubkey,
+    holding_wallet: &Pubkey,
+    rewards_wallet: &Pubkey,
+    slot_holders_rewards_wallet: &Pubkey,
+    sollotto_labs_wallet: &Pubkey,
     lottery_authority: &Pubkey,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(program_id)?;
     let data = LotteryInstruction::InitLottery {
-        lottery_id,
-        charity_1_id,
-        charity_2_id,
-        charity_3_id,
-        charity_4_id,
+        lottery_id: lottery_id,
+        charity_1: *charity_1,
+        charity_2: *charity_2,
+        charity_3: *charity_3,
+        charity_4: *charity_4,
+        holding_wallet: *holding_wallet,
+        rewards_wallet: *rewards_wallet,
+        slot_holders_rewards_wallet: *slot_holders_rewards_wallet,
+        sollotto_labs_wallet: *sollotto_labs_wallet,
     }
     .pack();
 
@@ -234,23 +235,31 @@ pub fn initialize_lottery(
 /// Creates a `PurchaseTicket` instruction
 pub fn purchase_ticket(
     program_id: &Pubkey,
-    charity_id: u32,
+    charity: &Pubkey,
     user_wallet_pk: &Pubkey,
     ticket_number_arr: &[u8; 6],
+    user_ticket_key: &Pubkey,
+    holding_wallet_key: &Pubkey,
     lottery_authority: &Pubkey,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(program_id)?;
     let data = LotteryInstruction::PurchaseTicket {
-        charity_id: charity_id,
+        charity: *charity,
         user_wallet_pk: *user_wallet_pk,
         ticket_number_arr: *ticket_number_arr,
     }
     .pack();
 
-    let mut accounts = Vec::with_capacity(3);
+    let mut accounts = Vec::with_capacity(6);
     accounts.push(AccountMeta::new(*lottery_authority, true));
+    accounts.push(AccountMeta::new(*user_ticket_key, false));
     accounts.push(AccountMeta::new(*user_wallet_pk, false));
+    accounts.push(AccountMeta::new(*holding_wallet_key, false));
     accounts.push(AccountMeta::new_readonly(sysvar::rent::id(), false));
+    accounts.push(AccountMeta::new_readonly(
+        solana_program::system_program::id(),
+        false,
+    ));
 
     Ok(Instruction {
         program_id: *program_id,
