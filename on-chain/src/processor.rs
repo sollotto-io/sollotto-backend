@@ -165,6 +165,7 @@ impl Processor {
         // Add data to account
         let mut lottery_data = LotteryData::unpack_unchecked(&lottery_data_account.data.borrow())?;
         if lottery_data.is_initialized {
+            msg!("Lottery data account already initialized");
             return Err(LotteryError::Initialized.into());
         }
 
@@ -205,29 +206,31 @@ impl Processor {
         let rent = &Rent::from_account_info(next_account_info(accounts_iter)?)?;
         let system_program_info = next_account_info(accounts_iter)?;
 
-        // Check if program owns lottery data account
         if lottery_data_account.owner != program_id {
             msg!("Lottery Data account does not have the correct program id");
+            return Err(ProgramError::IncorrectProgramId);
+        }
+        if ticket_data_account.owner != program_id {
+            msg!("Ticket Data account does not have the correct program id");
             return Err(ProgramError::IncorrectProgramId);
         }
 
         if !lottery_data_account.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
+        if !user_funding_account.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
 
         let mut lottery_data = LotteryData::unpack_unchecked(&lottery_data_account.data.borrow())?;
         //Check if lottery initisalised
         if !lottery_data.is_initialized {
+            msg!("Ticket data account is not initialized");
             return Err(LotteryError::NotInitialized.into());
         }
         if lottery_data.is_finaled {
+            msg!("Lottery data account already finaled");
             return Err(LotteryError::IsFinaled.into());
-        }
-
-        // Check if program owns ticket data account
-        if ticket_data_account.owner != program_id {
-            msg!("Ticket Data account does not have the correct program id");
-            return Err(ProgramError::IncorrectProgramId);
         }
 
         if !rent.is_exempt(
@@ -246,15 +249,18 @@ impl Processor {
 
         let mut ticket_data = TicketData::unpack_unchecked(&ticket_data_account.data.borrow())?;
         if ticket_data.is_purchased {
+            msg!("Ticket data account already purchased");
             return Err(LotteryError::AlreadyPurchased.into());
         }
 
         for i in 0..5 {
             if ticket_number_arr[i] < 1 || ticket_number_arr[i] > 69 {
+                msg!("Invalid value for one of from 1 to 5 number");
                 return Err(LotteryError::InvalidNumber.into());
             }
         }
         if ticket_number_arr[5] < 1 || ticket_number_arr[5] > 29 {
+            msg!("Invalid value for 6 number");
             return Err(LotteryError::InvalidNumber.into());
         }
 
@@ -333,13 +339,19 @@ impl Processor {
             msg!("Lottery Data account is not initialized");
             return Err(LotteryError::NotInitialized.into());
         }
+        if lottery_data.is_finaled {
+            msg!("Lottery Data account already finaled");
+            return Err(LotteryError::IsFinaled.into());
+        }
 
         for i in 0..5 {
             if winning_numbers_arr[i] < 1 || winning_numbers_arr[i] > 69 {
+                msg!("Invalid value for one of from 1 to 5 number");
                 return Err(LotteryError::InvalidNumber.into());
             }
         }
         if winning_numbers_arr[5] < 1 || winning_numbers_arr[5] > 29 {
+            msg!("Invalid value for 6 number");
             return Err(LotteryError::InvalidNumber.into());
         }
 
@@ -378,6 +390,9 @@ impl Processor {
         if !lottery_data_account.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
+        if !holding_wallet_account.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
 
         let mut lottery_data = LotteryData::unpack_unchecked(&lottery_data_account.data.borrow())?;
         if !lottery_data.is_initialized {
@@ -387,6 +402,32 @@ impl Processor {
         if !lottery_data.is_finaled {
             msg!("Lottery Data account have not winning numbers");
             return Err(LotteryError::NotFinaled.into());
+        }
+
+        // Check all sollotto keys
+        if *holding_wallet_account.key != lottery_data.holding_wallet {
+            return Err(LotteryError::InvalidSollottoAccount.into());
+        }
+        if *rewards_wallet_account.key != lottery_data.rewards_wallet {
+            return Err(LotteryError::InvalidSollottoAccount.into());
+        }
+        if *slot_holders_wallet_account.key != lottery_data.slot_holders_rewards_wallet {
+            return Err(LotteryError::InvalidSollottoAccount.into());
+        }
+        if *sollotto_labs_wallet_account.key != lottery_data.sollotto_labs_wallet {
+            return Err(LotteryError::InvalidSollottoAccount.into());
+        }
+        if *charity_1_wallet_account.key != lottery_data.charity_1 {
+            return Err(LotteryError::InvalidSollottoAccount.into());
+        }
+        if *charity_2_wallet_account.key != lottery_data.charity_2 {
+            return Err(LotteryError::InvalidSollottoAccount.into());
+        }
+        if *charity_3_wallet_account.key != lottery_data.charity_3 {
+            return Err(LotteryError::InvalidSollottoAccount.into());
+        }
+        if *charity_4_wallet_account.key != lottery_data.charity_4 {
+            return Err(LotteryError::InvalidSollottoAccount.into());
         }
 
         if participants_accounts.len() % 2 != 0 {
@@ -534,7 +575,7 @@ impl Processor {
 
         lottery_data.prize_pool_amount -= sollotto_labs_reward;
 
-        // 14. If there is just one winner, transfer the remaining portion (64%) of the prize pool to the
+        // 14. If there is just one winner, transfer the remaining portion (65%) of the prize pool to the
         let winners_pool = prize_pool * 0.65;
         let winner_reward = sol_to_lamports(winners_pool / winners.len() as f64);
         msg!("Winners number {}", winners.len());
@@ -1428,6 +1469,46 @@ mod test {
                     &mut system_acc,
                     &mut user1_ticket_acc,
                     &mut user1_fake_wallet_acc,
+                    &mut user2_ticket_acc,
+                    &mut user2_wallet_acc
+                ]
+            )
+        );
+
+        // BadCase: Bad sollotto reward account
+        let fake_sollotto_labs_wallet = Pubkey::new_unique();
+        assert_eq!(
+            Err(LotteryError::InvalidSollottoAccount.into()),
+            do_process(
+                crate::instruction::reward_winners(
+                    &program_id,
+                    &lottery_key,
+                    &lottery_result_key,
+                    &holding_wallet,
+                    &rewards_wallet,
+                    &slot_holders_rewards_wallet,
+                    &fake_sollotto_labs_wallet,
+                    &[charity_1, charity_2, charity_3, charity_4],
+                    &vec![
+                        (user1_ticket, user1_wallet),
+                        (user2_ticket, user2_wallet)
+                    ],
+                )
+                .unwrap(),
+                vec![
+                    &mut lottery_acc,
+                    &mut lottery_result_acc,
+                    &mut holding_wallet_acc,
+                    &mut rewards_wallet_acc,
+                    &mut slot_holders_rewards_wallet_acc,
+                    &mut sollotto_labs_wallet_acc,
+                    &mut charity_1_acc,
+                    &mut charity_2_acc,
+                    &mut charity_3_acc,
+                    &mut charity_4_acc,
+                    &mut system_acc,
+                    &mut user1_ticket_acc,
+                    &mut user1_wallet_acc,
                     &mut user2_ticket_acc,
                     &mut user2_wallet_acc
                 ]

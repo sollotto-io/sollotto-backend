@@ -35,6 +35,9 @@ pub enum LotteryError {
     /// Lottery is already finaled
     #[error("Lottery is already finaled")]
     IsFinaled,
+    /// Invalid sollotto accounts
+    #[error("Invalid sollotto account")]
+    InvalidSollottoAccount,
 }
 
 impl From<LotteryError> for ProgramError {

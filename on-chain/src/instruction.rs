@@ -335,7 +335,7 @@ pub fn purchase_ticket(
     let mut accounts = Vec::with_capacity(6);
     accounts.push(AccountMeta::new(*lottery_authority, true));
     accounts.push(AccountMeta::new(*user_ticket_key, false));
-    accounts.push(AccountMeta::new(*user_wallet_pk, false));
+    accounts.push(AccountMeta::new(*user_wallet_pk, true));
     accounts.push(AccountMeta::new(*holding_wallet_key, false));
     accounts.push(AccountMeta::new_readonly(sysvar::rent::id(), false));
     accounts.push(AccountMeta::new_readonly(
