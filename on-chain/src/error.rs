@@ -26,6 +26,15 @@ pub enum LotteryError {
     /// Ticket already purchased
     #[error("Ticket already purchased")]
     AlreadyPurchased,
+    /// Invalid participants accounts
+    #[error("Invalid participants accounts")]
+    InvalidParticipantsAccounts,
+    /// Lottery is not finaled
+    #[error("Lottery is not finaled")]
+    NotFinaled,
+    /// Lottery is already finaled
+    #[error("Lottery is already finaled")]
+    IsFinaled,
 }
 
 impl From<LotteryError> for ProgramError {

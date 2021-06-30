@@ -36,8 +36,8 @@ pub enum LotteryInstruction {
     ///
     /// 0. `[writable, signer]` Lottery data account
     /// 1. `[writable]` Users ticket data account
-    /// 2. `[writeable,signer]` User funding account (must be a system account)
-    /// 3. `[writeable]` Sollotto holding wallet account (must be a system account)
+    /// 2. `[writable,signer]` User funding account (must be a system account)
+    /// 3. `[writable]` Sollotto holding wallet account (must be a system account)
     /// 4. `[]` Rent sysvar
     /// 5. `[]` System program account
     PurchaseTicket {
@@ -58,7 +58,13 @@ pub enum LotteryInstruction {
     ///
     /// 0. `[writable, signer]` Lottery data account
     /// 1. `[writable]` Lottery result data account
-    /// 3 + N. `[]` N readonly percipients accounts
+    /// 2. `[writable, signer]` Sollotto holding wallet account (must be a system account)
+    /// 3. `[writable]` Solloto rewards wallet account (must be a system account)
+    /// 4. `[writable]` SLOT holders wallet account (must be a system account)
+    /// 5. `[writable]` Solloto labs wallet account (must be a system account)
+    /// 6-9. `[writable]` Charities wallet accounts (must be a system account)
+    /// 10. `[]` System program account
+    /// 10 + N*2. `[]` N*2 readonly percipients accounts pairs: (ticket_acc, user_wallet_acc (system account))
     RewardWinners {},
 
     /// Update charity wallets in lottery data account
@@ -369,18 +375,35 @@ pub fn store_winning_numbers(
 /// Creates a `RewardWinners` instruction
 pub fn reward_winners(
     program_id: &Pubkey,
-    participants: &Vec<Pubkey>,
-    lottery_result: &Pubkey,
     lottery_authority: &Pubkey,
+    lottery_result: &Pubkey,
+    holding_wallet: &Pubkey,
+    rewards_wallet: &Pubkey,
+    slot_holders_wallet: &Pubkey,
+    sollotto_labs_wallet: &Pubkey,
+    charities: &[Pubkey; 4],
+    participants: &Vec<(Pubkey, Pubkey)>,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(program_id)?;
     let data = LotteryInstruction::RewardWinners {}.pack();
 
-    let mut accounts = Vec::with_capacity(3 + participants.len());
+    let mut accounts = Vec::with_capacity(9 + participants.len());
     accounts.push(AccountMeta::new(*lottery_authority, true));
     accounts.push(AccountMeta::new(*lottery_result, false));
+    accounts.push(AccountMeta::new(*holding_wallet, true));
+    accounts.push(AccountMeta::new(*rewards_wallet, false));
+    accounts.push(AccountMeta::new(*slot_holders_wallet, false));
+    accounts.push(AccountMeta::new(*sollotto_labs_wallet, false));
+    for charity in charities {
+        accounts.push(AccountMeta::new(*charity, false));
+    }
+    accounts.push(AccountMeta::new_readonly(
+        solana_program::system_program::id(),
+        false,
+    ));
     for participant in participants {
-        accounts.push(AccountMeta::new_readonly(*participant, false));
+        accounts.push(AccountMeta::new_readonly(participant.0, false));
+        accounts.push(AccountMeta::new(participant.1, false));
     }
 
     Ok(Instruction {

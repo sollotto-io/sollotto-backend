@@ -10,6 +10,7 @@ use solana_program::{
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct LotteryData {
     pub is_initialized: bool,
+    pub is_finaled: bool,
     pub lottery_id: u32,
     pub charity_1: Pubkey,
     pub charity_2: Pubkey,
@@ -37,13 +38,14 @@ impl IsInitialized for LotteryData {
 }
 
 impl Pack for LotteryData {
-    /// 1 + 4 + 32 + 32 + 32 + 32 + 4 + 4 + 4 + 4 + 4 + 6 + 8 + 32 + 32 + 32 + 32 = 295
-    const LEN: usize = 295;
+    /// 1 + 1 + 4 + 32 + 32 + 32 + 32 + 4 + 4 + 4 + 4 + 4 + 6 + 8 + 32 + 32 + 32 + 32 = 296
+    const LEN: usize = 296;
 
     fn unpack_from_slice(src: &[u8]) -> Result<Self, ProgramError> {
-        let src = array_ref![src, 0, 295];
+        let src = array_ref![src, 0, 296];
         let (
             is_initialized,
+            is_finaled,
             lottery_id,
             charity_1,
             charity_2,
@@ -60,7 +62,7 @@ impl Pack for LotteryData {
             rewards_wallet,
             slot_holders_rewards_wallet,
             sollotto_labs_wallet,
-        ) = array_refs![src, 1, 4, 32, 32, 32, 32, 4, 4, 4, 4, 4, 6, 8, 32, 32, 32, 32];
+        ) = array_refs![src, 1, 1, 4, 32, 32, 32, 32, 4, 4, 4, 4, 4, 6, 8, 32, 32, 32, 32];
 
         let is_initialized = match is_initialized {
             [0] => false,
@@ -68,8 +70,15 @@ impl Pack for LotteryData {
             _ => return Err(ProgramError::InvalidAccountData),
         };
 
+        let is_finaled = match is_finaled {
+            [0] => false,
+            [1] => true,
+            _ => return Err(ProgramError::InvalidAccountData),
+        };
+
         let result = LotteryData {
             is_initialized,
+            is_finaled,
             lottery_id: u32::from_le_bytes(*lottery_id),
             charity_1: Pubkey::new_from_array(*charity_1),
             charity_2: Pubkey::new_from_array(*charity_2),
@@ -92,9 +101,10 @@ impl Pack for LotteryData {
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
-        let dst = array_mut_ref![dst, 0, 295];
+        let dst = array_mut_ref![dst, 0, 296];
         let (
             is_initialized_dst,
+            is_finaled_dst,
             lottery_id_dst,
             charity_1_dst,
             charity_2_dst,
@@ -111,9 +121,10 @@ impl Pack for LotteryData {
             rewards_wallet_dst,
             slot_holders_rewards_wallet_dst,
             sollotto_labs_wallet_dst,
-        ) = mut_array_refs![dst, 1, 4, 32, 32, 32, 32, 4, 4, 4, 4, 4, 6, 8, 32, 32, 32, 32];
+        ) = mut_array_refs![dst, 1, 1, 4, 32, 32, 32, 32, 4, 4, 4, 4, 4, 6, 8, 32, 32, 32, 32];
 
         is_initialized_dst[0] = self.is_initialized as u8;
+        is_finaled_dst[0] = self.is_finaled as u8;
         *lottery_id_dst = self.lottery_id.to_le_bytes();
         charity_1_dst.copy_from_slice(self.charity_1.as_ref());
         charity_2_dst.copy_from_slice(self.charity_2.as_ref());
@@ -185,32 +196,32 @@ impl Pack for TicketData {
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct LotteryResultData {
     pub lottery_id: u32,
-    pub winner: Pubkey,
+    pub winning_numbers: [u8; 6],
 }
 
 impl Sealed for LotteryResultData {}
 
 impl Pack for LotteryResultData {
-    /// 4 + 32 = 36
-    const LEN: usize = 36;
+    /// 4 + 6 = 10
+    const LEN: usize = 10;
 
     fn unpack_from_slice(src: &[u8]) -> Result<Self, ProgramError> {
-        let src = array_ref![src, 0, 36];
-        let (lottery_id, winner) = array_refs![src, 4, 32];
+        let src = array_ref![src, 0, 10];
+        let (lottery_id, winning_numbers) = array_refs![src, 4, 6];
 
         let result = LotteryResultData {
             lottery_id: u32::from_le_bytes(*lottery_id),
-            winner: Pubkey::new_from_array(*winner),
+            winning_numbers: *winning_numbers,
         };
 
         Ok(result)
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
-        let dst = array_mut_ref![dst, 0, 36];
-        let (lottery_id_dst, winner_dst) = mut_array_refs![dst, 4, 32];
+        let dst = array_mut_ref![dst, 0, 10];
+        let (lottery_id_dst, winning_numbers_dst) = mut_array_refs![dst, 4, 6];
 
         *lottery_id_dst = self.lottery_id.to_le_bytes();
-        winner_dst.copy_from_slice(self.winner.as_ref());
+        *winning_numbers_dst = self.winning_numbers;
     }
 }
