@@ -430,7 +430,7 @@ impl Processor {
             return Err(LotteryError::InvalidSollottoAccount.into());
         }
 
-        if participants_accounts.len() % 2 != 0 {
+        if (participants_accounts.len() / 2) as u32 != lottery_data.total_registrations {
             msg!(
                 "Invalid participants accounts size: {}",
                 participants_accounts.len()
@@ -1434,6 +1434,40 @@ mod test {
         )
         .unwrap();
 
+        // BadCase: not enough users accounts
+        assert_eq!(
+            Err(LotteryError::InvalidParticipantsAccounts.into()),
+            do_process(
+                crate::instruction::reward_winners(
+                    &program_id,
+                    &lottery_key,
+                    &lottery_result_key,
+                    &holding_wallet,
+                    &rewards_wallet,
+                    &slot_holders_rewards_wallet,
+                    &sollotto_labs_wallet,
+                    &[charity_1, charity_2, charity_3, charity_4],
+                    &vec![(user2_ticket, user2_wallet)],
+                )
+                .unwrap(),
+                vec![
+                    &mut lottery_acc,
+                    &mut lottery_result_acc,
+                    &mut holding_wallet_acc,
+                    &mut rewards_wallet_acc,
+                    &mut slot_holders_rewards_wallet_acc,
+                    &mut sollotto_labs_wallet_acc,
+                    &mut charity_1_acc,
+                    &mut charity_2_acc,
+                    &mut charity_3_acc,
+                    &mut charity_4_acc,
+                    &mut system_acc,
+                    &mut user2_ticket_acc,
+                    &mut user2_wallet_acc
+                ]
+            )
+        );
+
         // BadCase: Bad wallet user pk in ticket data
         let user1_fake_wallet = Pubkey::new_unique();
         let mut user1_fake_wallet_acc = SolanaAccount::default();
@@ -1489,10 +1523,7 @@ mod test {
                     &slot_holders_rewards_wallet,
                     &fake_sollotto_labs_wallet,
                     &[charity_1, charity_2, charity_3, charity_4],
-                    &vec![
-                        (user1_ticket, user1_wallet),
-                        (user2_ticket, user2_wallet)
-                    ],
+                    &vec![(user1_ticket, user1_wallet), (user2_ticket, user2_wallet)],
                 )
                 .unwrap(),
                 vec![
