@@ -34,15 +34,15 @@ mongoose
       .then((res) => {
         console.log(`Server running on ${res.url}`);
       })
-      .then(() => {
-        console.log("inside cron then");
-        cron.schedule("0 0 * * wed,sat", () => {changeDraw()},
-        {
-          scheduled: true,
-          timezone: "Atlantic/Azores"
-        }
-        );
-      })
+      // .then(() => {
+      //   console.log("inside cron then");
+      //   cron.schedule("0 0 * * wed,sat", () => {changeDraw()},
+      //   {
+      //     scheduled: true,
+      //     timezone: "Atlantic/Azores"
+      //   }
+      //   );
+      // })
     
       .catch((err) => {
         console.log(err);

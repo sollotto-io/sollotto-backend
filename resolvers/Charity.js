@@ -13,8 +13,9 @@ module.exports = {
           addedBy,
           Status,
           Years,
-          watchURL,
-          watchGrade,
+          URL,
+          isWatch,
+          Grade,
           Impact,
           webURL,
           socialMedia
@@ -31,8 +32,9 @@ module.exports = {
         addedBy,
         Status,
         Years,
-        watchURL,
-        watchGrade,
+        URL,
+        isWatch,
+        Grade,
         Impact,
         webURL,
         socialMedia
