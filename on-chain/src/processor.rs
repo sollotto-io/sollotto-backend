@@ -233,6 +233,11 @@ impl Processor {
             return Err(LotteryError::IsFinaled.into());
         }
 
+        if user_funding_account.lamports() < sol_to_lamports(0.1) {
+            msg!("User cannot pay for ticket");
+            return Err(ProgramError::InsufficientFunds);
+        }
+
         if !rent.is_exempt(
             lottery_data_account.lamports(),
             lottery_data_account.data_len(),
@@ -933,6 +938,33 @@ mod test {
         )
         .unwrap();
 
+        // BadCase: user cannot pay
+        assert_eq!(
+            Err(ProgramError::InsufficientFunds),
+            do_process(
+                crate::instruction::purchase_ticket(
+                    &program_id,
+                    &user_charity,
+                    &user_funding_key,
+                    &[10, 20, 30, 40, 50, 29],
+                    &user_ticket_key,
+                    &holding_wallet,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![
+                    &mut lottery_acc,
+                    &mut user_ticket_acc,
+                    &mut user_funding_acc,
+                    &mut holding_wallet_acc,
+                    &mut rent_sysvar_acc,
+                    &mut system_acc
+                ]
+            )
+        );
+
+        user_funding_acc.lamports += sol_to_lamports(0.1);
+
         // BadCase: rent NotRentExempt
         let mut bad_ticket_acc = SolanaAccount::new(
             ticket_minimum_balance() - 100,
@@ -1389,8 +1421,34 @@ mod test {
             )
         );
 
-        // Purchase tickets
+        // BadCase: user cannot pay for ticket
         let user1_charity = charity_1;
+        assert_eq!(
+            Err(ProgramError::InsufficientFunds),
+            do_process(
+                crate::instruction::purchase_ticket(
+                    &program_id,
+                    &user1_charity,
+                    &user1_wallet,
+                    &[1, 2, 3, 4, 55, 6],
+                    &user1_ticket,
+                    &holding_wallet,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![
+                    &mut lottery_acc,
+                    &mut user1_ticket_acc,
+                    &mut user1_wallet_acc,
+                    &mut holding_wallet_acc,
+                    &mut rent_sysvar_acc,
+                    &mut system_acc,
+                ],
+            )
+        );
+
+        // Purchase tickets
+        user1_wallet_acc.lamports += sol_to_lamports(0.1);
         do_process(
             crate::instruction::purchase_ticket(
                 &program_id,
@@ -1414,6 +1472,7 @@ mod test {
         .unwrap();
 
         let user2_charity = charity_1;
+        user2_wallet_acc.lamports += sol_to_lamports(0.1);
         do_process(
             crate::instruction::purchase_ticket(
                 &program_id,

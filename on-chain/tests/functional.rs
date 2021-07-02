@@ -1,11 +1,12 @@
 use solana_program::{
-    hash::Hash,
-    native_token::{lamports_to_sol, sol_to_lamports},
-    program_pack::Pack,
+    hash::Hash, instruction::InstructionError, native_token::sol_to_lamports, program_pack::Pack,
     system_instruction,
 };
 use solana_program_test::*;
-use solana_sdk::{signature::Keypair, system_transaction, transport::TransportError};
+use solana_sdk::{
+    signature::Keypair, system_transaction, transaction::TransactionError,
+    transport::TransportError,
+};
 use sollotto::{
     processor::id,
     processor::Processor,
@@ -99,6 +100,60 @@ async fn purchase_ticket(
     );
     transaction.sign(
         &[payer, ticket_authority, lottery_authority, user_authority],
+        *recent_blockhash,
+    );
+    banks_client.process_transaction(transaction).await?;
+    Ok(())
+}
+
+async fn create_ticket_account(
+    banks_client: &mut BanksClient,
+    payer: &Keypair,
+    recent_blockhash: &Hash,
+    ticket_data_rent: u64,
+    ticket_authority: &Keypair,
+) -> Result<(), TransportError> {
+    let mut transaction = Transaction::new_with_payer(
+        &[system_instruction::create_account(
+            &payer.pubkey(),
+            &ticket_authority.pubkey(),
+            ticket_data_rent,
+            sollotto::state::TicketData::LEN as u64,
+            &id(),
+        )],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[payer, ticket_authority], *recent_blockhash);
+    banks_client.process_transaction(transaction).await?;
+    Ok(())
+}
+
+async fn purchase_ticket_without_creation(
+    banks_client: &mut BanksClient,
+    payer: &Keypair,
+    recent_blockhash: &Hash,
+    charity: &Pubkey,
+    ticket_number: &[u8; 6],
+    holding_wallet: &Pubkey,
+    ticket_authority: &Keypair,
+    user_authority: &Keypair,
+    lottery_authority: &Keypair,
+) -> Result<(), TransportError> {
+    let mut transaction = Transaction::new_with_payer(
+        &[sollotto::instruction::purchase_ticket(
+            &id(),
+            charity,
+            &user_authority.pubkey(),
+            ticket_number,
+            &ticket_authority.pubkey(),
+            holding_wallet,
+            &lottery_authority.pubkey(),
+        )
+        .unwrap()],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(
+        &[payer, lottery_authority, user_authority],
         *recent_blockhash,
     );
     banks_client.process_transaction(transaction).await?;
@@ -1064,4 +1119,160 @@ async fn test_many_users_without_winners() {
     for i in 0..number_of_users {
         check_balance(&mut banks_client, users_wallets_pubkeys[i], 0.9).await;
     }
+}
+
+#[tokio::test]
+async fn test_insufficient_funds() {
+    let program = ProgramTest::new("sollotto", id(), processor!(Processor::process));
+    let (mut banks_client, payer, recent_blockhash) = program.start().await;
+
+    let rent = banks_client.get_rent().await.unwrap();
+    let lottery_result_data_rent = rent.minimum_balance(LotteryResultData::LEN);
+    let ticket_data_rent = rent.minimum_balance(TicketData::LEN);
+    let lottery_data_rent = rent.minimum_balance(LotteryData::LEN);
+
+    let number_of_users = 5;
+    let lottery_id = 112233;
+    let lottery_authority = Keypair::new();
+    let lottery_result = Keypair::new();
+    let holding_wallet = Keypair::new();
+    let rewards_wallet = Keypair::new();
+    let slot_holders_rewards_wallet = Keypair::new();
+    let sollotto_labs_wallet = Keypair::new();
+    let charities: Vec<Keypair> = (0..4).map(|_| Keypair::new()).collect();
+    let charities_pubkeys: Vec<Pubkey> = charities.iter().map(|c| c.pubkey()).collect();
+    let users_wallets: Vec<Keypair> = (0..number_of_users).map(|_| Keypair::new()).collect();
+    let users_wallets_pubkeys: Vec<Pubkey> = users_wallets.iter().map(|x| x.pubkey()).collect();
+    let tickets: Vec<Keypair> = (0..number_of_users).map(|_| Keypair::new()).collect();
+    let tickets_pubkeys: Vec<Pubkey> = tickets.iter().map(|x| x.pubkey()).collect();
+    let winning_numbers = [1, 2, 3, 4, 5, 6];
+    let not_winning_numbers = [1, 1, 1, 1, 1, 1];
+
+    initialize_lottery(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        lottery_data_rent,
+        lottery_id,
+        &charities_pubkeys,
+        &holding_wallet.pubkey(),
+        &rewards_wallet.pubkey(),
+        &slot_holders_rewards_wallet.pubkey(),
+        &sollotto_labs_wallet.pubkey(),
+        &lottery_authority,
+    )
+    .await
+    .unwrap();
+
+    // Create tickets accounts
+    for i in 0..number_of_users {
+        create_ticket_account(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            ticket_data_rent,
+            &tickets[i],
+        )
+        .await
+        .unwrap();
+    }
+
+    // Users try to purchase tickets
+    for i in 0..number_of_users {
+        assert_eq!(
+            TransactionError::InstructionError(0, InstructionError::InsufficientFunds),
+            purchase_ticket_without_creation(
+                &mut banks_client,
+                &payer,
+                &recent_blockhash,
+                &charities_pubkeys[0],
+                &not_winning_numbers,
+                &holding_wallet.pubkey(),
+                &tickets[i],
+                &users_wallets[i],
+                &lottery_authority,
+            )
+            .await
+            .unwrap_err()
+            .unwrap(),
+        );
+    }
+
+    // Set initial balances for users
+    for i in 0..number_of_users {
+        transfer_sol(
+            &mut banks_client,
+            &recent_blockhash,
+            &payer,
+            &users_wallets[i],
+            1.0,
+        )
+        .await
+        .unwrap();
+    }
+
+    // Users purchase tickets
+    for i in 0..number_of_users {
+        purchase_ticket_without_creation(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            &charities_pubkeys[1],
+            &not_winning_numbers,
+            &holding_wallet.pubkey(),
+            &tickets[i],
+            &users_wallets[i],
+            &lottery_authority,
+        )
+        .await
+        .unwrap();
+    }
+
+    // Finaled lottery
+    store_winning_numbers(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        &winning_numbers,
+        &lottery_authority,
+    )
+    .await
+    .unwrap();
+
+    let participants = (0..number_of_users)
+        .map(|i| (tickets_pubkeys[i], users_wallets_pubkeys[i]))
+        .collect();
+
+    // Spend prize pool from holding wallet acc
+    transfer_sol(
+        &mut banks_client,
+        &recent_blockhash,
+        &holding_wallet,
+        &payer,
+        0.4,
+    )
+    .await
+    .unwrap();
+
+    // Try to Reward winners
+    assert_eq!(
+        TransactionError::InstructionError(1, InstructionError::InsufficientFunds),
+        reward_winners(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            lottery_result_data_rent,
+            &rewards_wallet.pubkey(),
+            &slot_holders_rewards_wallet.pubkey(),
+            &sollotto_labs_wallet.pubkey(),
+            &charities_pubkeys,
+            &participants,
+            &holding_wallet,
+            &lottery_result,
+            &lottery_authority,
+        )
+        .await
+        .unwrap_err()
+        .unwrap(),
+    );
 }
