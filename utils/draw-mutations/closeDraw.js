@@ -33,7 +33,7 @@ const closeDrawing = async (drawing) => {
     });
     if (result.winFlag === false) {
       await Lottery.findByIdAndUpdate(
-        "60c447da624b8a3d5095baa8",
+        process.env.LOTTERY_ID,
         { $inc: { TotalPoolValue: drawing.TotalPoolValue * 0.65 } },
         { new: true }
       );
@@ -52,7 +52,7 @@ const closeDrawing = async (drawing) => {
       );
     } else {
       await Lottery.findByIdAndUpdate(
-        "60c447da624b8a3d5095baa8",
+        process.env.LOTTERY_ID,
         { TotalPoolValue: 0 },
         { new: true }
       );

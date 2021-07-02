@@ -4,7 +4,7 @@ const Drawing = require("../../models/Drawing");
 const Charity = require('../../models/Charity')
 const openDrawing = async (activeDrawing) => {
   var newDraw = {};
-  const lottery = await Lottery.findById("60c447da624b8a3d5095baa8");
+  const lottery = await Lottery.findById(process.env.LOTTERY_ID);
 
   //60c447da624b8a3d5095baa8
   //60c9be158676ea0799255ee4
