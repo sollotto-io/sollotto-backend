@@ -469,7 +469,11 @@ impl Processor {
             }
         }
 
-        // TODO: Test Reward winners and pay fee
+        if holding_wallet_account.lamports() < lottery_data.prize_pool_amount {
+            msg!("Model 1 holding wallet InsufficientFunds error");
+            return Err(ProgramError::InsufficientFunds);
+        }
+
         let prize_pool = lamports_to_sol(lottery_data.prize_pool_amount);
         msg!("Prize pool in SOL: {}", prize_pool);
 
@@ -497,7 +501,12 @@ impl Processor {
             }
         }
 
-        let charity_reward = sol_to_lamports(charity_pool / win_charities.len() as f64);
+        let charity_reward;
+        if win_charities.len() != 0 {
+            charity_reward = sol_to_lamports(charity_pool / win_charities.len() as f64);
+        } else {
+            charity_reward = 0;
+        }
         msg!("Winning charities number {}", win_charities.len());
         msg!("Charity reward in lamports: {}", charity_reward);
         for charity in win_charities {
@@ -577,7 +586,12 @@ impl Processor {
 
         // 14. If there is just one winner, transfer the remaining portion (65%) of the prize pool to the
         let winners_pool = prize_pool * 0.65;
-        let winner_reward = sol_to_lamports(winners_pool / winners.len() as f64);
+        let winner_reward;
+        if winners.len() != 0 {
+            winner_reward = sol_to_lamports(winners_pool / winners.len() as f64);
+        } else {
+            winner_reward = 0;
+        }
         msg!("Winners number {}", winners.len());
         msg!("Winner reward in lamports: {}", winner_reward);
         for winner in winners {
@@ -1553,6 +1567,7 @@ mod test {
         assert_eq!(lottery.winning_numbers, [2, 3, 4, 5, 66, 7]);
 
         // User2 wins the lottery
+        holding_wallet_acc.lamports += sol_to_lamports(10.0);
         do_process(
             crate::instruction::reward_winners(
                 &program_id,
