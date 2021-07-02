@@ -12,11 +12,13 @@ module.exports = gql`
     lifeTimeWins:Int
     Status:String!
     Years: String!
-    watchURL:String!
-    watchGrade: String!
+    URL:String!
+    isWatch:Boolean
+    Grade: String!
     Impact:String!
     webURL: String!
     socialMedia:String
+    nominationVotes:Int
   }
   input charityInput {
     charityName: String!
@@ -25,8 +27,9 @@ module.exports = gql`
     addedBy: String!
     Status:String!
     Years: String!
-    watchURL:String!
-    watchGrade: String!
+    isWatch:Boolean
+    URL:String!
+    Grade: String!
     Impact:String!
     webURL: String
     socialMedia:String

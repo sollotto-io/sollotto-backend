@@ -1,7 +1,7 @@
 const Lottery = require("../../models/Lottery");
 const moment = require("moment");
 const Drawing = require("../../models/Drawing");
-
+const Charity = require('../../models/Charity')
 const openDrawing = async (activeDrawing) => {
   var newDraw = {};
   const lottery = await Lottery.findById("60c447da624b8a3d5095baa8");
@@ -9,19 +9,24 @@ const openDrawing = async (activeDrawing) => {
   //60c447da624b8a3d5095baa8
   //60c9be158676ea0799255ee4
   var day = moment(activeDrawing.EndDate).format("dddd");
-
-  const charityVote = [];
-  activeDrawing.Charities.map((t) => {
+  const charities = await Charity.find({Status:"Active"}).sort({ createdAt: -1 });
+       
+  var charityVote = [];
+  var drawCharity = []
+  charities.map((t) => {
     charityVote.push({
-      charityId: t,
+      charityId: t.id,
       votes: 0,
     });
+    drawCharity.push(t.id)
   });
+
+  console.log(drawCharity)
 
   if (day === "Wednesday") {
     if (lottery.TotalPoolValue < 10) {
       newDraw = new Drawing({
-        Charities: activeDrawing.Charities,
+        Charities: drawCharity,
         StartDate: activeDrawing.EndDate,
         EndDate: moment(activeDrawing.EndDate).add(3, "days").utc().format(),
         isActive: true,
@@ -30,7 +35,7 @@ const openDrawing = async (activeDrawing) => {
       });
     } else {
       newDraw = new Drawing({
-        Charities: activeDrawing.Charities,
+        Charities: drawCharity,
         StartDate: activeDrawing.EndDate,
         EndDate: moment(activeDrawing.EndDate).add(3, "days").utc().format(),
         isActive: true,
@@ -43,7 +48,7 @@ const openDrawing = async (activeDrawing) => {
   } else if (day === "Saturday") {
     if (lottery.TotalPoolValue < 10) {
       newDraw = new Drawing({
-        Charities: activeDrawing.Charities,
+        Charities: drawCharity,
         StartDate: activeDrawing.EndDate,
         EndDate: moment(activeDrawing.EndDate).add(4, "days").utc().format(),
         isActive: true,
@@ -52,7 +57,7 @@ const openDrawing = async (activeDrawing) => {
       });
     } else {
       newDraw = new Drawing({
-        Charities: activeDrawing.Charities,
+        Charities: drawCharity,
         StartDate: activeDrawing.EndDate,
         EndDate: moment(activeDrawing.EndDate).add(4, "days").utc().format(),
         isActive: true,

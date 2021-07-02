@@ -45,7 +45,7 @@ mongoose
       // })
       // .then(() => {
       //   console.log("inside cron then");
-      //   cron.schedule("*/3 * * * *", () => {changeDraw()},
+      //   cron.schedule("*/1 * * * *", () => {changeDraw()},
       //   {
       //     scheduled: true,
       //     timezone: "Atlantic/Azores"
