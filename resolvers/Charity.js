@@ -57,11 +57,9 @@ module.exports = {
     },
     async getActiveCharities(_, args, context, info) {
       try {
-        const charities = await Charity.find().sort({ createdAt: -1 });
-        activeCharities = charities.filter(
-          (p) => p.Status === CHARITY_STATUS.VOTE_NOW
-        );
-        return activeCharities;
+        const charities = await Charity.find({Status:"Active"}).sort({ createdAt: -1 });
+       
+        return charities;
       } catch (err) {
         throw new Error(err);
       }
