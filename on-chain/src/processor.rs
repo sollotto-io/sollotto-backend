@@ -233,6 +233,11 @@ impl Processor {
             return Err(LotteryError::IsFinaled.into());
         }
 
+        if *holding_wallet_account.key != lottery_data.holding_wallet {
+            msg!("Missing holding wallet");
+            return Err(LotteryError::InvalidSollottoAccount.into());
+        }
+
         if user_funding_account.lamports() < sol_to_lamports(0.1) {
             msg!("User cannot pay for ticket");
             return Err(ProgramError::InsufficientFunds);
