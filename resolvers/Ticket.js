@@ -7,7 +7,7 @@ module.exports = {
       ticketArray,
       DataWallet,
       charityId,
-      drawingId},context, info){
+      drawingId,TransactionId},context, info){
        
         const newTicket = new Ticket({
           walletID,
@@ -15,8 +15,11 @@ module.exports = {
           charityId,
           DataWallet,
           drawingId,
+          TransactionId
         });
+        console.log(newTicket)
         const res = await newTicket.save();
+       
         await Drawing.findOne({ _id: drawingId });
         await Drawing.findOneAndUpdate(
           { _id: drawingId, "CharityVoteCount.charityId": charityId },

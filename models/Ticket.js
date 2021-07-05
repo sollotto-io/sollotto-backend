@@ -5,6 +5,7 @@ const ticketSchema = new Schema({
    ticketArray: {type: [Number], required:true},
    charityId: {type:Schema.Types.ObjectId, ref:'Charity'},
    DataWallet: {type: [Number], required:true}, // DataAccountpubkey Id
+   TransactionId: String
 });
 
 module.exports = model('Ticket', ticketSchema);
