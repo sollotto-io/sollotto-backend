@@ -1,4 +1,5 @@
 const Charity = require("../models/Charity");
+const User = require('../models/User')
 const { CHARITY_STATUS } = require("../config");
 module.exports = {
   Mutation: {
@@ -45,6 +46,11 @@ module.exports = {
         id: res._id,
       };
     },
+    async addNominationVotes(_,{CharityId, UserPk,Votes},context,info){
+        await Charity.findByIdAndUpdate(CharityId,{$inc:{nominationVotes:Votes}});
+        await User.findOneAndUpdate({UserPK:UserPk},{$inc:{TokenValue:-Votes}})
+      return "Votes added successfully"
+    }
   },
   Query: {
     async getAllCharities(_, args, context, info) {

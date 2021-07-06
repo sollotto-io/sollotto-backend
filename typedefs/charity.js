@@ -41,6 +41,7 @@ module.exports = gql`
   }
   extend type Mutation {
       addCharity(charityInput:charityInput): Charity!
+      addNominationVotes(CharityId:ID!, UserPk:String!,Votes:Int!): String! 
   }
 
 `

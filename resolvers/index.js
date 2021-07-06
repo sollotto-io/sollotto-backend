@@ -2,6 +2,7 @@ const charityResolvers = require("./Charity");
 const ticketResolvers = require("./Ticket");
 const lotteryResolvers = require("./Lottery");
 const drawingResolvers = require("./Drawing");
+const userResolvers = require('./User')
 module.exports = {
 	Mutation: {
 		...charityResolvers.Mutation,
@@ -14,5 +15,7 @@ module.exports = {
 		...drawingResolvers.Query,
 		// ...ticketResolvers.Query,
 		...lotteryResolvers.Query,
+		...userResolvers.Query
+
 	},
 };
