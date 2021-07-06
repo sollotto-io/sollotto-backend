@@ -572,7 +572,7 @@ impl Processor {
                 system_program_info.clone(),
             ],
         )?;
-
+        
         lottery_data.prize_pool_amount -= slot_holders_reward;
 
         // 9. 0.4% of the prize pool is transferred to a "Sollotto Labs" wallet address
