@@ -14,18 +14,35 @@ use std::{convert::TryInto, mem::size_of};
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum LotteryInstruction {
-    // TODO
-    /// Initialize new lottery data
+    /// Initialize lottery data with basic information
     /// Accounts expected by this instruction:
     ///
     /// 0. `[writable, signer]` Lottery data account
     /// 1. `[]` Rent sysvar
     InitLottery {
-        lottery_id: u32,
-        holding_wallet: Pubkey,
+        staking_pool_wallet: Pubkey,
+        staking_pool_token_mint: Pubkey,
         rewards_wallet: Pubkey,
         slot_holders_rewards_wallet: Pubkey,
         sollotto_labs_wallet: Pubkey,
+    },
+
+    /// User deposits amount of SOL and gets equivalent of
+    /// Sollotto SOL Staking pool token
+    ///
+    /// Accounts expected by this instruction:
+    // TODO:
+    Deposit {
+        amount: u64,
+    },
+
+    /// User undeposits amount of Sollotto SOL Staking pool token
+    /// and gets equivalent of SOL
+    ///
+    /// Accounts expected by this instruction:
+    // TODO:
+    Undeposit {
+        amount: u64,
     },
 
     // TODO
@@ -37,28 +54,37 @@ impl LotteryInstruction {
         let (tag, rest) = input.split_first().ok_or(InvalidInstruction)?;
         Ok(match tag {
             0 => {
-                let (lottery_id, rest) = rest.split_at(4);
-                let lottery_id = lottery_id
-                    .try_into()
-                    .ok()
-                    .map(u32::from_le_bytes)
-                    .ok_or(InvalidInstruction)?;
-
-                let (holding_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (staking_pool_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (staking_pool_token_mint, rest) = Self::unpack_pubkey(rest).unwrap();
                 let (rewards_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
                 let (slot_holders_rewards_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
                 let (sollotto_labs_wallet, _) = Self::unpack_pubkey(rest).unwrap();
 
                 Self::InitLottery {
-                    lottery_id,
-                    holding_wallet,
+                    staking_pool_wallet,
+                    staking_pool_token_mint,
                     rewards_wallet,
                     slot_holders_rewards_wallet,
                     sollotto_labs_wallet,
                 }
             }
 
-            1 => Self::RewardWinner {},
+            1 | 2 => {
+                let (amount, _) = rest.split_at(8);
+                let amount = amount
+                    .try_into()
+                    .ok()
+                    .map(u64::from_le_bytes)
+                    .ok_or(InvalidInstruction)?;
+
+                match tag {
+                    1 => Self::Deposit { amount: amount },
+                    2 => Self::Undeposit { amount: amount },
+                    _ => unreachable!(),
+                }
+            }
+
+            3 => Self::RewardWinner {},
 
             _ => return Err(InvalidInstruction.into()),
         })
@@ -69,22 +95,32 @@ impl LotteryInstruction {
         let mut buf = Vec::with_capacity(size_of::<Self>());
         match self {
             Self::InitLottery {
-                lottery_id,
-                holding_wallet,
+                staking_pool_wallet,
+                staking_pool_token_mint,
                 rewards_wallet,
                 slot_holders_rewards_wallet,
                 sollotto_labs_wallet,
             } => {
                 buf.push(0);
-                buf.extend_from_slice(&lottery_id.to_le_bytes());
-                buf.extend_from_slice(holding_wallet.as_ref());
+                buf.extend_from_slice(staking_pool_wallet.as_ref());
+                buf.extend_from_slice(staking_pool_token_mint.as_ref());
                 buf.extend_from_slice(rewards_wallet.as_ref());
                 buf.extend_from_slice(slot_holders_rewards_wallet.as_ref());
                 buf.extend_from_slice(sollotto_labs_wallet.as_ref());
             }
 
-            Self::RewardWinner {} => {
+            Self::Deposit { amount } => {
                 buf.push(1);
+                buf.extend_from_slice(&amount.to_le_bytes());
+            }
+
+            Self::Undeposit { amount } => {
+                buf.push(2);
+                buf.extend_from_slice(&amount.to_le_bytes());
+            }
+
+            Self::RewardWinner {} => {
+                buf.push(3);
             }
         };
         buf
@@ -113,8 +149,8 @@ impl LotteryInstruction {
 /// Creates a `InitLottery` instruction
 pub fn initialize_lottery(
     program_id: &Pubkey,
-    lottery_id: u32,
-    holding_wallet: &Pubkey,
+    staking_pool_wallet: &Pubkey,
+    staking_pool_token_mint: &Pubkey,
     rewards_wallet: &Pubkey,
     slot_holders_rewards_wallet: &Pubkey,
     sollotto_labs_wallet: &Pubkey,
@@ -122,8 +158,8 @@ pub fn initialize_lottery(
 ) -> Result<Instruction, ProgramError> {
     check_program_account(program_id)?;
     let data = LotteryInstruction::InitLottery {
-        lottery_id: lottery_id,
-        holding_wallet: *holding_wallet,
+        staking_pool_wallet: *staking_pool_wallet,
+        staking_pool_token_mint: *staking_pool_token_mint,
         rewards_wallet: *rewards_wallet,
         slot_holders_rewards_wallet: *slot_holders_rewards_wallet,
         sollotto_labs_wallet: *sollotto_labs_wallet,
@@ -140,4 +176,3 @@ pub fn initialize_lottery(
         data,
     })
 }
-

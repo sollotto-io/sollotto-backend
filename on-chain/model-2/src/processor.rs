@@ -42,8 +42,8 @@ impl Processor {
         let instruction = LotteryInstruction::unpack(instruction_data)?;
         match instruction {
             LotteryInstruction::InitLottery {
-                lottery_id,
-                holding_wallet,
+                staking_pool_wallet,
+                staking_pool_token_mint,
                 rewards_wallet,
                 slot_holders_rewards_wallet,
                 sollotto_labs_wallet,
@@ -52,12 +52,22 @@ impl Processor {
                 Self::process_init_lottery(
                     program_id,
                     accounts,
-                    lottery_id,
-                    holding_wallet,
+                    staking_pool_wallet,
+                    staking_pool_token_mint,
                     rewards_wallet,
                     slot_holders_rewards_wallet,
                     sollotto_labs_wallet,
                 )
+            }
+
+            LotteryInstruction::Deposit { amount } => {
+                msg!("Instruction: Deposit");
+                Self::process_deposit(program_id, accounts, amount)
+            }
+
+            LotteryInstruction::Undeposit { amount } => {
+                msg!("Instruction: Undeposit");
+                Self::process_undeposit(program_id, accounts, amount)
             }
 
             LotteryInstruction::RewardWinner {} => {
@@ -70,11 +80,41 @@ impl Processor {
     pub fn process_init_lottery(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        lottery_id: u32,
-        holding_wallet: Pubkey,
+        staking_pool_wallet: Pubkey,
+        staking_pool_token_mint: Pubkey,
         rewards_wallet: Pubkey,
         slot_holders_rewards_wallet: Pubkey,
         sollotto_labs_wallet: Pubkey,
+    ) -> ProgramResult {
+        let accounts_iter = &mut accounts.iter();
+
+        // TODO
+        // 1. Check access
+        // 2. Set up field, save account
+
+        Ok(())
+    }
+
+    pub fn process_deposit(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        amount: u64,
+    ) -> ProgramResult {
+        let accounts_iter = &mut accounts.iter();
+
+        // TODO
+        // Check access
+        // Check user funds
+        // Transfer amount SOL from user to staking_pool_wallet
+        // Mint amount staking_pool_token_mint to user associated account
+
+        Ok(())
+    }
+
+    pub fn process_undeposit(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        amount: u64,
     ) -> ProgramResult {
         let accounts_iter = &mut accounts.iter();
 
