@@ -47,6 +47,18 @@ pub enum LotteryInstruction {
 
     // TODO
     RewardWinner {},
+
+    /// Update wallets pubkeys in lottery data account
+    /// Accounts expected by this instruction:
+    ///
+    /// 0. `[writable, signer]` Lottery data account
+    UpdateLotteryWallets {
+        staking_pool_wallet: Pubkey,
+        staking_pool_token_mint: Pubkey,
+        rewards_wallet: Pubkey,
+        slot_holders_rewards_wallet: Pubkey,
+        sollotto_labs_wallet: Pubkey,
+    },
 }
 
 impl LotteryInstruction {
@@ -86,6 +98,22 @@ impl LotteryInstruction {
 
             3 => Self::RewardWinner {},
 
+            4 => {
+                let (staking_pool_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (staking_pool_token_mint, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (rewards_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (slot_holders_rewards_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
+                let (sollotto_labs_wallet, _) = Self::unpack_pubkey(rest).unwrap();
+
+                Self::UpdateLotteryWallets {
+                    staking_pool_wallet,
+                    staking_pool_token_mint,
+                    rewards_wallet,
+                    slot_holders_rewards_wallet,
+                    sollotto_labs_wallet,
+                }
+            }
+
             _ => return Err(InvalidInstruction.into()),
         })
     }
@@ -121,6 +149,21 @@ impl LotteryInstruction {
 
             Self::RewardWinner {} => {
                 buf.push(3);
+            }
+
+            Self::UpdateLotteryWallets {
+                staking_pool_wallet,
+                staking_pool_token_mint,
+                rewards_wallet,
+                slot_holders_rewards_wallet,
+                sollotto_labs_wallet,
+            } => {
+                buf.push(4);
+                buf.extend_from_slice(staking_pool_wallet.as_ref());
+                buf.extend_from_slice(staking_pool_token_mint.as_ref());
+                buf.extend_from_slice(rewards_wallet.as_ref());
+                buf.extend_from_slice(slot_holders_rewards_wallet.as_ref());
+                buf.extend_from_slice(sollotto_labs_wallet.as_ref());
             }
         };
         buf
@@ -169,6 +212,36 @@ pub fn initialize_lottery(
     let mut accounts = Vec::with_capacity(2);
     accounts.push(AccountMeta::new(*lottery_authority, true));
     accounts.push(AccountMeta::new_readonly(sysvar::rent::id(), false));
+
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
+
+/// Creates a `UpdateLotteryWallets` instruction
+pub fn update_lottery_wallets(
+    program_id: &Pubkey,
+    staking_pool_wallet: &Pubkey,
+    staking_pool_token_mint: &Pubkey,
+    rewards_wallet: &Pubkey,
+    slot_holders_rewards_wallet: &Pubkey,
+    sollotto_labs_wallet: &Pubkey,
+    lottery_authority: &Pubkey,
+) -> Result<Instruction, ProgramError> {
+    check_program_account(program_id)?;
+    let data = LotteryInstruction::UpdateLotteryWallets {
+        staking_pool_wallet: *staking_pool_wallet,
+        staking_pool_token_mint: *staking_pool_token_mint,
+        rewards_wallet: *rewards_wallet,
+        slot_holders_rewards_wallet: *slot_holders_rewards_wallet,
+        sollotto_labs_wallet: *sollotto_labs_wallet,
+    }
+    .pack();
+
+    let mut accounts = Vec::with_capacity(1);
+    accounts.push(AccountMeta::new(*lottery_authority, true));
 
     Ok(Instruction {
         program_id: *program_id,

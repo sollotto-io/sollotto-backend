@@ -1,20 +1,13 @@
 //! Program state processor
-use crate::{
-    error::LotteryError,
-    instruction::LotteryInstruction,
-    state::{LotteryData, LotteryResultData},
-};
+use crate::{error::LotteryError, instruction::LotteryInstruction, state::LotteryData};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
-    native_token::{lamports_to_sol, sol_to_lamports},
-    program::invoke,
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
     rent::Rent,
-    system_instruction,
     sysvar::Sysvar,
 };
 
@@ -74,6 +67,25 @@ impl Processor {
                 msg!("Instruction: reward winners");
                 Self::process_reward_winner(program_id, accounts)
             }
+
+            LotteryInstruction::UpdateLotteryWallets {
+                staking_pool_wallet,
+                staking_pool_token_mint,
+                rewards_wallet,
+                slot_holders_rewards_wallet,
+                sollotto_labs_wallet,
+            } => {
+                msg!("Instruction: update lottery wallets");
+                Self::process_update_lottery_wallets(
+                    program_id,
+                    accounts,
+                    staking_pool_wallet,
+                    staking_pool_token_mint,
+                    rewards_wallet,
+                    slot_holders_rewards_wallet,
+                    sollotto_labs_wallet,
+                )
+            }
         }
     }
 
@@ -87,10 +99,38 @@ impl Processor {
         sollotto_labs_wallet: Pubkey,
     ) -> ProgramResult {
         let accounts_iter = &mut accounts.iter();
+        let lottery_account = next_account_info(accounts_iter)?;
+        let rent = &Rent::from_account_info(next_account_info(accounts_iter)?)?;
 
-        // TODO
-        // 1. Check access
-        // 2. Set up field, save account
+        if lottery_account.owner != program_id {
+            msg!("Lottery Data account does not have the correct program id");
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        if !lottery_account.is_signer {
+            msg!("Missing lottery data account signature");
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        if !rent.is_exempt(lottery_account.lamports(), lottery_account.data_len()) {
+            return Err(LotteryError::NotRentExempt.into());
+        }
+
+        let mut lottery_data = LotteryData::unpack_unchecked(&lottery_account.data.borrow())?;
+        if lottery_data.is_initialized {
+            msg!("Lottery data account already initialized");
+            return Err(LotteryError::Initialized.into());
+        }
+
+        lottery_data.is_initialized = true;
+        lottery_data.staking_pool_amount = 0;
+        lottery_data.staking_pool_wallet = staking_pool_wallet;
+        lottery_data.staking_pool_token_mint = staking_pool_token_mint;
+        lottery_data.rewards_wallet = rewards_wallet;
+        lottery_data.slot_holders_rewards_wallet = slot_holders_rewards_wallet;
+        lottery_data.sollotto_labs_wallet = sollotto_labs_wallet;
+
+        LotteryData::pack(lottery_data, &mut lottery_account.data.borrow_mut())?;
 
         Ok(())
     }
@@ -127,6 +167,45 @@ impl Processor {
         let accounts_iter = &mut accounts.iter();
 
         // TODO
+
+        Ok(())
+    }
+
+    pub fn process_update_lottery_wallets(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        staking_pool_wallet: Pubkey,
+        staking_pool_token_mint: Pubkey,
+        rewards_wallet: Pubkey,
+        slot_holders_rewards_wallet: Pubkey,
+        sollotto_labs_wallet: Pubkey,
+    ) -> ProgramResult {
+        let accounts_iter = &mut accounts.iter();
+        let lottery_account = next_account_info(accounts_iter)?;
+
+        if lottery_account.owner != program_id {
+            msg!("Lottery Data account does not have the correct program id");
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        if !lottery_account.is_signer {
+            msg!("Missing lottery data account signature");
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        let mut lottery_data = LotteryData::unpack_unchecked(&lottery_account.data.borrow())?;
+        if !lottery_data.is_initialized {
+            msg!("Lottery data account is not initialized");
+            return Err(LotteryError::NotInitialized.into());
+        }
+
+        lottery_data.staking_pool_wallet = staking_pool_wallet;
+        lottery_data.staking_pool_token_mint = staking_pool_token_mint;
+        lottery_data.rewards_wallet = rewards_wallet;
+        lottery_data.slot_holders_rewards_wallet = slot_holders_rewards_wallet;
+        lottery_data.sollotto_labs_wallet = sollotto_labs_wallet;
+
+        LotteryData::pack(lottery_data, &mut lottery_account.data.borrow_mut())?;
 
         Ok(())
     }
