@@ -14,24 +14,35 @@ use std::{convert::TryInto, mem::size_of};
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum LotteryInstruction {
-    /// Initialize lottery data with basic information
+    /// Initialize lottery data with basic information.
+    /// Creates staking pool token Mint and
+    /// associated token account for staking pool token.
     /// Accounts expected by this instruction:
     ///
     /// 0. `[writable, signer]` Lottery data account
-    /// 1. `[]` Rent sysvar
+    /// 1. `[writable]` Staking pool token Mint
+    /// 2. `[writable]` Staking pool token associated account
+    /// 3. `[]` Rent sysvar
+    /// 4. `[]` SPL Token program
     InitLottery {
         staking_pool_wallet: Pubkey,
-        staking_pool_token_mint: Pubkey,
         rewards_wallet: Pubkey,
         slot_holders_rewards_wallet: Pubkey,
         sollotto_labs_wallet: Pubkey,
     },
 
-    /// User deposits amount of SOL and gets equivalent of
+    /// User deposits amount in lamports and gets equivalent of
     /// Sollotto SOL Staking pool token
     ///
     /// Accounts expected by this instruction:
-    // TODO:
+    // TODO: Fix it with liquidity stake pool information
+    /// 0. `[writable, signer]` Lottery data account (also onwer for staking pool token mint)
+    /// 1. `[writable]` Staking pool token mint
+    /// 1. `[writable, signer]` User funding account (must be a system account)
+    /// 2. `[writable]` User staking pool token associated account
+    /// 3. `[writable]` Sollotto staking pool wallet (TODO: liquidity pool here)
+    /// 4. `[]` SPL Token program
+    /// 5. `[]` System program account
     Deposit {
         amount: u64,
     },
@@ -40,12 +51,12 @@ pub enum LotteryInstruction {
     /// and gets equivalent of SOL
     ///
     /// Accounts expected by this instruction:
-    // TODO:
+    // TODO: Fix it with liquidity stake pool information
     Undeposit {
         amount: u64,
     },
 
-    // TODO
+    // TODO: Fix it with liquidity stake pool information
     RewardWinner {},
 
     /// Update wallets pubkeys in lottery data account
@@ -67,14 +78,12 @@ impl LotteryInstruction {
         Ok(match tag {
             0 => {
                 let (staking_pool_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
-                let (staking_pool_token_mint, rest) = Self::unpack_pubkey(rest).unwrap();
                 let (rewards_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
                 let (slot_holders_rewards_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
                 let (sollotto_labs_wallet, _) = Self::unpack_pubkey(rest).unwrap();
 
                 Self::InitLottery {
                     staking_pool_wallet,
-                    staking_pool_token_mint,
                     rewards_wallet,
                     slot_holders_rewards_wallet,
                     sollotto_labs_wallet,
@@ -124,14 +133,12 @@ impl LotteryInstruction {
         match self {
             Self::InitLottery {
                 staking_pool_wallet,
-                staking_pool_token_mint,
                 rewards_wallet,
                 slot_holders_rewards_wallet,
                 sollotto_labs_wallet,
             } => {
                 buf.push(0);
                 buf.extend_from_slice(staking_pool_wallet.as_ref());
-                buf.extend_from_slice(staking_pool_token_mint.as_ref());
                 buf.extend_from_slice(rewards_wallet.as_ref());
                 buf.extend_from_slice(slot_holders_rewards_wallet.as_ref());
                 buf.extend_from_slice(sollotto_labs_wallet.as_ref());
@@ -178,15 +185,6 @@ impl LotteryInstruction {
         let pk = Pubkey::new(key);
         Ok((pk, rest))
     }
-
-    fn unpack_ticket_number_arr(input: &[u8]) -> Result<(&[u8; 6], &[u8]), ProgramError> {
-        if input.len() < 6 {
-            msg!("Cannot be unpacked");
-            return Err(InvalidInstruction.into());
-        }
-        let (bytes, rest) = input.split_at(6);
-        Ok((bytes.try_into().map_err(|_| InvalidInstruction)?, rest))
-    }
 }
 
 /// Creates a `InitLottery` instruction
@@ -194,6 +192,7 @@ pub fn initialize_lottery(
     program_id: &Pubkey,
     staking_pool_wallet: &Pubkey,
     staking_pool_token_mint: &Pubkey,
+    staking_pool_token_account: &Pubkey,
     rewards_wallet: &Pubkey,
     slot_holders_rewards_wallet: &Pubkey,
     sollotto_labs_wallet: &Pubkey,
@@ -202,16 +201,50 @@ pub fn initialize_lottery(
     check_program_account(program_id)?;
     let data = LotteryInstruction::InitLottery {
         staking_pool_wallet: *staking_pool_wallet,
-        staking_pool_token_mint: *staking_pool_token_mint,
         rewards_wallet: *rewards_wallet,
         slot_holders_rewards_wallet: *slot_holders_rewards_wallet,
         sollotto_labs_wallet: *sollotto_labs_wallet,
     }
     .pack();
 
-    let mut accounts = Vec::with_capacity(2);
+    let mut accounts = Vec::with_capacity(4);
     accounts.push(AccountMeta::new(*lottery_authority, true));
+    accounts.push(AccountMeta::new(*staking_pool_token_mint, false));
+    accounts.push(AccountMeta::new(*staking_pool_token_account, false));
     accounts.push(AccountMeta::new_readonly(sysvar::rent::id(), false));
+    accounts.push(AccountMeta::new_readonly(spl_token::id(), false));
+
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
+
+/// Creates a `Deposit` instruction
+pub fn deposit(
+    program_id: &Pubkey,
+    amount: u64,
+    staking_pool_token_mint: &Pubkey,
+    user_staking_pool_token_account: &Pubkey,
+    staking_pool_wallet: &Pubkey,
+    user_authority: &Pubkey,
+    lottery_authority: &Pubkey,
+) -> Result<Instruction, ProgramError> {
+    check_program_account(program_id)?;
+    let data = LotteryInstruction::Deposit { amount }.pack();
+
+    let mut accounts = Vec::with_capacity(7);
+    accounts.push(AccountMeta::new(*lottery_authority, true));
+    accounts.push(AccountMeta::new(*staking_pool_token_mint, false));
+    accounts.push(AccountMeta::new(*user_authority, true));
+    accounts.push(AccountMeta::new(*user_staking_pool_token_account, false));
+    accounts.push(AccountMeta::new(*staking_pool_wallet, false));
+    accounts.push(AccountMeta::new_readonly(spl_token::id(), false));
+    accounts.push(AccountMeta::new_readonly(
+        solana_program::system_program::id(),
+        false,
+    ));
 
     Ok(Instruction {
         program_id: *program_id,

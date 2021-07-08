@@ -29,7 +29,7 @@ impl IsInitialized for LotteryData {
 
 impl Pack for LotteryData {
     /// 1 + 8 + 32 + 32 + 32 + 32 + 32 = 169
-    const LEN: usize = 165;
+    const LEN: usize = 169;
 
     fn unpack_from_slice(src: &[u8]) -> Result<Self, ProgramError> {
         let src = array_ref![src, 0, 169];

@@ -4,10 +4,12 @@ use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
+    program::invoke,
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
     rent::Rent,
+    system_instruction,
     sysvar::Sysvar,
 };
 
@@ -36,7 +38,6 @@ impl Processor {
         match instruction {
             LotteryInstruction::InitLottery {
                 staking_pool_wallet,
-                staking_pool_token_mint,
                 rewards_wallet,
                 slot_holders_rewards_wallet,
                 sollotto_labs_wallet,
@@ -46,7 +47,6 @@ impl Processor {
                     program_id,
                     accounts,
                     staking_pool_wallet,
-                    staking_pool_token_mint,
                     rewards_wallet,
                     slot_holders_rewards_wallet,
                     sollotto_labs_wallet,
@@ -93,14 +93,16 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         staking_pool_wallet: Pubkey,
-        staking_pool_token_mint: Pubkey,
         rewards_wallet: Pubkey,
         slot_holders_rewards_wallet: Pubkey,
         sollotto_labs_wallet: Pubkey,
     ) -> ProgramResult {
         let accounts_iter = &mut accounts.iter();
         let lottery_account = next_account_info(accounts_iter)?;
-        let rent = &Rent::from_account_info(next_account_info(accounts_iter)?)?;
+        let staking_pool_token_mint = next_account_info(accounts_iter)?;
+        let staking_pool_token_account = next_account_info(accounts_iter)?;
+        let rent_account = next_account_info(accounts_iter)?;
+        let spl_token_account = next_account_info(accounts_iter)?;
 
         if lottery_account.owner != program_id {
             msg!("Lottery Data account does not have the correct program id");
@@ -112,6 +114,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        let rent = &Rent::from_account_info(rent_account)?;
         if !rent.is_exempt(lottery_account.lamports(), lottery_account.data_len()) {
             return Err(LotteryError::NotRentExempt.into());
         }
@@ -122,10 +125,45 @@ impl Processor {
             return Err(LotteryError::Initialized.into());
         }
 
+        // Initialize staking pool token Mint
+        invoke(
+            &spl_token::instruction::initialize_mint(
+                &spl_token::id(),
+                &staking_pool_token_mint.key,
+                &lottery_account.key,
+                None,
+                9,
+            )
+            .unwrap(),
+            &[
+                spl_token_account.clone(),
+                staking_pool_token_mint.clone(),
+                rent_account.clone(),
+            ],
+        )?;
+
+        // Initialize token associated account
+        invoke(
+            &spl_token::instruction::initialize_account(
+                &spl_token::id(),
+                &staking_pool_token_account.key,
+                &staking_pool_token_mint.key,
+                &lottery_account.key,
+            )
+            .unwrap(),
+            &[
+                spl_token_account.clone(),
+                staking_pool_token_account.clone(),
+                staking_pool_token_mint.clone(),
+                lottery_account.clone(),
+                rent_account.clone(),
+            ],
+        )?;
+
         lottery_data.is_initialized = true;
         lottery_data.staking_pool_amount = 0;
         lottery_data.staking_pool_wallet = staking_pool_wallet;
-        lottery_data.staking_pool_token_mint = staking_pool_token_mint;
+        lottery_data.staking_pool_token_mint = *staking_pool_token_mint.key;
         lottery_data.rewards_wallet = rewards_wallet;
         lottery_data.slot_holders_rewards_wallet = slot_holders_rewards_wallet;
         lottery_data.sollotto_labs_wallet = sollotto_labs_wallet;
@@ -141,12 +179,75 @@ impl Processor {
         amount: u64,
     ) -> ProgramResult {
         let accounts_iter = &mut accounts.iter();
+        let lottery_account = next_account_info(accounts_iter)?;
+        let staking_pool_token_mint = next_account_info(accounts_iter)?;
+        let user_funding_account = next_account_info(accounts_iter)?;
+        let user_staking_pool_token_account = next_account_info(accounts_iter)?;
+        let solloto_staking_pool_wallet = next_account_info(accounts_iter)?;
+        let spl_token_account = next_account_info(accounts_iter)?;
+        let system_program_account = next_account_info(accounts_iter)?;
 
-        // TODO
-        // Check access
-        // Check user funds
-        // Transfer amount SOL from user to staking_pool_wallet
+        if lottery_account.owner != program_id {
+            msg!("Lottery Data account does not have the correct program id");
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        if !lottery_account.is_signer {
+            msg!("Missing lottery data account signature");
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+        if !user_funding_account.is_signer {
+            msg!("Missing user account signature");
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        let mut lottery_data = LotteryData::unpack(&lottery_account.data.borrow())?;
+        if lottery_data.staking_pool_token_mint != *staking_pool_token_mint.key {
+            msg!("Invalid staking pool token mint");
+            return Err(LotteryError::InvalidSollottoAccount.into());
+        }
+        if lottery_data.staking_pool_wallet != *solloto_staking_pool_wallet.key {
+            msg!("Invalid staking pool wallet");
+            return Err(LotteryError::InvalidSollottoAccount.into());
+        }
+
+        // TODO: transfer to liquidity pool?
+        // Transfer SOL from user to staking_pool_wallet
+        invoke(
+            &system_instruction::transfer(
+                &user_funding_account.key,
+                &solloto_staking_pool_wallet.key,
+                amount,
+            ),
+            &[
+                user_funding_account.clone(),
+                solloto_staking_pool_wallet.clone(),
+                system_program_account.clone(),
+            ],
+        )?;
+
         // Mint amount staking_pool_token_mint to user associated account
+        invoke(
+            &spl_token::instruction::mint_to(
+                &spl_token::id(),
+                &staking_pool_token_mint.key,
+                &user_staking_pool_token_account.key,
+                &lottery_account.key,
+                &[],
+                amount,
+            )?,
+            &[
+                spl_token_account.clone(),
+                staking_pool_token_mint.clone(),
+                user_staking_pool_token_account.clone(),
+                lottery_account.clone(),
+            ],
+        )?;
+
+        // Save information in lottery data account
+        lottery_data.staking_pool_amount += amount;
+
+        LotteryData::pack(lottery_data, &mut lottery_account.data.borrow_mut())?;
 
         Ok(())
     }
