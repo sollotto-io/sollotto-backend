@@ -38,11 +38,11 @@ pub enum LotteryInstruction {
     // TODO: Fix it with liquidity stake pool information
     /// 0. `[writable, signer]` Lottery data account (also onwer for staking pool token mint)
     /// 1. `[writable]` Staking pool token mint
-    /// 1. `[writable, signer]` User funding account (must be a system account)
-    /// 2. `[writable]` User staking pool token associated account
-    /// 3. `[writable]` Sollotto staking pool wallet (TODO: liquidity pool here)
-    /// 4. `[]` SPL Token program
-    /// 5. `[]` System program account
+    /// 2. `[writable, signer]` User funding account (must be a system account)
+    /// 3. `[writable]` User staking pool token associated account
+    /// 4. `[writable]` Sollotto staking pool wallet (TODO: liquidity pool here)
+    /// 5. `[]` SPL Token program
+    /// 6. `[]` System program account
     Deposit {
         amount: u64,
     },
@@ -52,6 +52,13 @@ pub enum LotteryInstruction {
     ///
     /// Accounts expected by this instruction:
     // TODO: Fix it with liquidity stake pool information
+    /// 0. `[writable, signer]` Lottery data account (also onwer for staking pool token mint)
+    /// 1. `[writable]` Staking pool token mint
+    /// 2. `[writable, signer]` User funding account (must be a system account)
+    /// 3. `[writable]` User staking pool token associated account
+    /// 4. `[writable, signer]` Sollotto staking pool wallet (TODO: liquidity pool here)
+    /// 5. `[]` SPL Token program
+    /// 6. `[]` System program account
     Undeposit {
         amount: u64,
     },
@@ -240,6 +247,38 @@ pub fn deposit(
     accounts.push(AccountMeta::new(*user_authority, true));
     accounts.push(AccountMeta::new(*user_staking_pool_token_account, false));
     accounts.push(AccountMeta::new(*staking_pool_wallet, false));
+    accounts.push(AccountMeta::new_readonly(spl_token::id(), false));
+    accounts.push(AccountMeta::new_readonly(
+        solana_program::system_program::id(),
+        false,
+    ));
+
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
+
+/// Creates a `Undeposit` instruction
+pub fn undeposit(
+    program_id: &Pubkey,
+    amount: u64,
+    staking_pool_token_mint: &Pubkey,
+    user_staking_pool_token_account: &Pubkey,
+    staking_pool_wallet: &Pubkey,
+    user_authority: &Pubkey,
+    lottery_authority: &Pubkey,
+) -> Result<Instruction, ProgramError> {
+    check_program_account(program_id)?;
+    let data = LotteryInstruction::Undeposit { amount }.pack();
+
+    let mut accounts = Vec::with_capacity(7);
+    accounts.push(AccountMeta::new(*lottery_authority, true));
+    accounts.push(AccountMeta::new(*staking_pool_token_mint, false));
+    accounts.push(AccountMeta::new(*user_authority, true));
+    accounts.push(AccountMeta::new(*user_staking_pool_token_account, false));
+    accounts.push(AccountMeta::new(*staking_pool_wallet, true));
     accounts.push(AccountMeta::new_readonly(spl_token::id(), false));
     accounts.push(AccountMeta::new_readonly(
         solana_program::system_program::id(),
