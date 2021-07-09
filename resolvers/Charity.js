@@ -1,5 +1,6 @@
 const Charity = require("../models/Charity");
-const User = require('../models/User')
+const User = require("../models/User");
+const _ = require("lodash");
 const { CHARITY_STATUS } = require("../config");
 module.exports = {
   Mutation: {
@@ -7,7 +8,6 @@ module.exports = {
       _,
       {
         charityInput: {
-        
           charityName,
           projectDetails,
           fundUse,
@@ -19,14 +19,13 @@ module.exports = {
           Grade,
           Impact,
           webURL,
-          socialMedia
+          socialMedia,
         },
       },
       context,
       info
     ) {
       const newCharity = new Charity({
-    
         charityName,
         projectDetails,
         fundUse,
@@ -38,7 +37,7 @@ module.exports = {
         Grade,
         Impact,
         webURL,
-        socialMedia
+        socialMedia,
       });
       const res = await newCharity.save();
       return {
@@ -46,25 +45,22 @@ module.exports = {
         id: res._id,
       };
     },
-    async addNominationVotes(_,{CharityId, UserPk,Votes},context,info){
-        await Charity.findByIdAndUpdate(CharityId,{$inc:{nominationVotes:Votes}});
-        await User.findOneAndUpdate({UserPK:UserPk},{$inc:{TokenValue:-Votes}})
-      return "Votes added successfully"
-    }
+    async addNominationVotes(_, { CharityId, UserPk, Votes }, context, info) {
+      await Charity.findByIdAndUpdate(CharityId, {
+        $inc: { nominationVotes: Votes },
+        LastNominationVote: Date.now().toString(),
+      });
+      await User.findOneAndUpdate(
+        { UserPK: UserPk },
+        { $inc: { TokenValue: -Votes } }
+      );
+      return "Votes added successfully";
+    },
   },
   Query: {
     async getAllCharities(_, args, context, info) {
       try {
         const charities = await Charity.find().sort({ createdAt: -1 });
-        return charities;
-      } catch (err) {
-        throw new Error(err);
-      }
-    },
-    async getActiveCharities(_, args, context, info) {
-      try {
-        const charities = await Charity.find({Status:"Active"}).sort({ createdAt: -1 });
-       
         return charities;
       } catch (err) {
         throw new Error(err);

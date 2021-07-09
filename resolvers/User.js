@@ -19,10 +19,5 @@ module.exports = {
       await newUser.save();
       return newUser.TokenValue;
     },
-    async getAllUser(){
-      const users = await User.find().sort({ createdAt: -1 })
-
-      return users;
-    }
   }
 };

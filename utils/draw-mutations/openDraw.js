@@ -2,15 +2,13 @@ const Lottery = require("../../models/Lottery");
 const moment = require("moment");
 const Drawing = require("../../models/Drawing");
 const Charity = require('../../models/Charity')
-const openDrawing = async (activeDrawing) => {
+const openDrawing = async (activeDrawing,charities) => {
   var newDraw = {};
   const lottery = await Lottery.findById("60c447da624b8a3d5095baa8");
 
   //60c447da624b8a3d5095baa8
   //60c9be158676ea0799255ee4
-  var day = moment(activeDrawing.EndDate).format("dddd");
-  const charities = await Charity.find({Status:"Active"}).sort({ createdAt: -1 });
-       
+  var day = moment(activeDrawing.EndDate).format("dddd");      
   var charityVote = [];
   var drawCharity = []
   charities.map((t) => {

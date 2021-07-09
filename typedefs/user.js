@@ -8,7 +8,6 @@ module.exports = gql`
   }
 extend type Query {
     addUser(Userpk:String): Int!
-    getAllUser : [User]
 }
 
 `;

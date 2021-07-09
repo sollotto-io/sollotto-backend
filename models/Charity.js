@@ -17,7 +17,8 @@ const charitySchema = new Schema({
     Impact:String,
     webURL: String,
     socialMedia:String,
-    nominationVotes:{type:Number}
+    nominationVotes:{type:Number},
+    LastNominationVote:String
 });
 
 module.exports = model('Charity', charitySchema);

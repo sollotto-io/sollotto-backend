@@ -19,6 +19,8 @@ module.exports = gql`
     webURL: String!
     socialMedia:String
     nominationVotes:Int
+    LastNominationVote:String
+
   }
   input charityInput {
     charityName: String!
@@ -37,7 +39,6 @@ module.exports = gql`
 
   extend type Query{
     getAllCharities: [Charity]!
-    getActiveCharities:[Charity!]!
   }
   extend type Mutation {
       addCharity(charityInput:charityInput): Charity!
