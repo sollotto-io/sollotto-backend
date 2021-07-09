@@ -532,16 +532,24 @@ mod test {
     use solana_program::{instruction::Instruction, program_pack::Pack};
     use solana_sdk::account::{
         create_account_for_test, create_is_signer_account_infos, Account as SolanaAccount,
-        ReadableAccount,
     };
+    use spl_token::state::{Account, Mint};
 
-    // fn lottery_minimum_balance() -> u64 {
-    //     Rent::default().minimum_balance(LotteryData::get_packed_len())
-    // }
+    fn lottery_minimum_balance() -> u64 {
+        Rent::default().minimum_balance(LotteryData::get_packed_len())
+    }
 
-    // fn lottery_result_minimum_balance() -> u64 {
-    //     Rent::default().minimum_balance(LotteryResultData::get_packed_len())
-    // }
+    fn lottery_result_minimum_balance() -> u64 {
+        Rent::default().minimum_balance(LotteryResultData::get_packed_len())
+    }
+
+    fn mint_minimum_balance() -> u64 {
+        Rent::default().minimum_balance(Mint::get_packed_len())
+    }
+
+    fn account_minimum_balance() -> u64 {
+        Rent::default().minimum_balance(Account::get_packed_len())
+    }
 
     fn do_process(instruction: Instruction, accounts: Vec<&mut SolanaAccount>) -> ProgramResult {
         let mut meta = instruction
@@ -555,5 +563,111 @@ mod test {
         Processor::process(&instruction.program_id, &account_infos, &instruction.data)
     }
 
-    // TODO: unit tests
+    #[test]
+    fn test_init_lottery() {
+        let program_id = id();
+        let mut rent_sysvar_acc = create_account_for_test(&Rent::default());
+        let mut spl_token_acc = SolanaAccount::default();
+        let lottery_key = Pubkey::new_unique();
+        let mut lottery_acc = SolanaAccount::new(
+            lottery_minimum_balance(),
+            LotteryData::get_packed_len(),
+            &program_id,
+        );
+        let staking_pool_mint_key = Pubkey::new_unique();
+        let mut staking_pool_mint =
+            SolanaAccount::new(mint_minimum_balance(), Mint::LEN, &spl_token::id());
+        let staking_pool_token_account_key = Pubkey::new_unique();
+        let mut staking_pool_token_account =
+            SolanaAccount::new(account_minimum_balance(), Account::LEN, &spl_token::id());
+        let staking_pool_wallet = Pubkey::new_unique();
+        let rewards_wallet = Pubkey::new_unique();
+        let slot_holders_rewards_wallet = Pubkey::new_unique();
+        let sollotto_labs_wallet = Pubkey::new_unique();
+
+
+        let mut bad_lottery_acc = SolanaAccount::new(
+            lottery_minimum_balance() - 100,
+            LotteryData::get_packed_len(),
+            &program_id,
+        );
+        assert_eq!(
+            Err(LotteryError::NotRentExempt.into()),
+            do_process(
+                crate::instruction::initialize_lottery(
+                    &program_id,
+                    &staking_pool_wallet,
+                    &staking_pool_mint_key,
+                    &staking_pool_token_account_key,
+                    &rewards_wallet,
+                    &slot_holders_rewards_wallet,
+                    &sollotto_labs_wallet,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![
+                    &mut bad_lottery_acc,
+                    &mut staking_pool_mint,
+                    &mut staking_pool_token_account,
+                    &mut rent_sysvar_acc,
+                    &mut spl_token_acc,
+                ],
+            )
+        );
+
+        do_process(
+            crate::instruction::initialize_lottery(
+                &program_id,
+                &staking_pool_wallet,
+                &staking_pool_mint_key,
+                &staking_pool_token_account_key,
+                &rewards_wallet,
+                &slot_holders_rewards_wallet,
+                &sollotto_labs_wallet,
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![
+                &mut lottery_acc,
+                &mut staking_pool_mint,
+                &mut staking_pool_token_account,
+                &mut rent_sysvar_acc,
+                &mut spl_token_acc,
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(
+            Err(LotteryError::Initialized.into()),
+            do_process(
+                crate::instruction::initialize_lottery(
+                    &program_id,
+                    &staking_pool_wallet,
+                    &staking_pool_mint_key,
+                    &staking_pool_token_account_key,
+                    &rewards_wallet,
+                    &slot_holders_rewards_wallet,
+                    &sollotto_labs_wallet,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![
+                    &mut lottery_acc,
+                    &mut staking_pool_mint,
+                    &mut staking_pool_token_account,
+                    &mut rent_sysvar_acc,
+                    &mut spl_token_acc,
+                ],
+            )
+        );
+
+        let lottery_data = LotteryData::unpack(&lottery_acc.data).unwrap();
+        assert_eq!(lottery_data.is_initialized, true);
+        assert_eq!(lottery_data.staking_pool_amount, 0);
+        assert_eq!(lottery_data.staking_pool_token_mint, staking_pool_mint_key);
+        assert_eq!(lottery_data.staking_pool_wallet, staking_pool_wallet);
+        assert_eq!(lottery_data.sollotto_labs_wallet, sollotto_labs_wallet);
+        assert_eq!(lottery_data.slot_holders_rewards_wallet, slot_holders_rewards_wallet);
+        assert_eq!(lottery_data.rewards_wallet, rewards_wallet);
+    }
 }
