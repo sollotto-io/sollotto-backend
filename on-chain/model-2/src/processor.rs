@@ -585,7 +585,6 @@ mod test {
         let slot_holders_rewards_wallet = Pubkey::new_unique();
         let sollotto_labs_wallet = Pubkey::new_unique();
 
-
         let mut bad_lottery_acc = SolanaAccount::new(
             lottery_minimum_balance() - 100,
             LotteryData::get_packed_len(),
@@ -667,7 +666,102 @@ mod test {
         assert_eq!(lottery_data.staking_pool_token_mint, staking_pool_mint_key);
         assert_eq!(lottery_data.staking_pool_wallet, staking_pool_wallet);
         assert_eq!(lottery_data.sollotto_labs_wallet, sollotto_labs_wallet);
-        assert_eq!(lottery_data.slot_holders_rewards_wallet, slot_holders_rewards_wallet);
+        assert_eq!(
+            lottery_data.slot_holders_rewards_wallet,
+            slot_holders_rewards_wallet
+        );
         assert_eq!(lottery_data.rewards_wallet, rewards_wallet);
+    }
+
+    #[test]
+    fn test_update_wallets() {
+        let program_id = id();
+        let mut rent_sysvar_acc = create_account_for_test(&Rent::default());
+        let mut spl_token_acc = SolanaAccount::default();
+        let lottery_key = Pubkey::new_unique();
+        let mut lottery_acc = SolanaAccount::new(
+            lottery_minimum_balance(),
+            LotteryData::get_packed_len(),
+            &program_id,
+        );
+        let staking_pool_mint_key = Pubkey::new_unique();
+        let mut staking_pool_mint =
+            SolanaAccount::new(mint_minimum_balance(), Mint::LEN, &spl_token::id());
+        let staking_pool_token_account_key = Pubkey::new_unique();
+        let mut staking_pool_token_account =
+            SolanaAccount::new(account_minimum_balance(), Account::LEN, &spl_token::id());
+        let staking_pool_wallet = Pubkey::new_unique();
+        let rewards_wallet = Pubkey::new_unique();
+        let slot_holders_rewards_wallet = Pubkey::new_unique();
+        let sollotto_labs_wallet = Pubkey::new_unique();
+
+        assert_eq!(
+            Err(LotteryError::NotInitialized.into()),
+            do_process(
+                crate::instruction::update_lottery_wallets(
+                    &program_id,
+                    &staking_pool_wallet,
+                    &staking_pool_mint_key,
+                    &rewards_wallet,
+                    &slot_holders_rewards_wallet,
+                    &sollotto_labs_wallet,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![&mut lottery_acc,],
+            )
+        );
+
+        do_process(
+            crate::instruction::initialize_lottery(
+                &program_id,
+                &staking_pool_wallet,
+                &staking_pool_mint_key,
+                &staking_pool_token_account_key,
+                &rewards_wallet,
+                &slot_holders_rewards_wallet,
+                &sollotto_labs_wallet,
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![
+                &mut lottery_acc,
+                &mut staking_pool_mint,
+                &mut staking_pool_token_account,
+                &mut rent_sysvar_acc,
+                &mut spl_token_acc,
+            ],
+        )
+        .unwrap();
+
+        let new_rewards_wallet = Pubkey::new_unique();
+        let new_slot_holders_rewards_wallet = Pubkey::new_unique();
+        let new_sollotto_labs_wallet = Pubkey::new_unique();
+        do_process(
+            crate::instruction::update_lottery_wallets(
+                &program_id,
+                &staking_pool_wallet,
+                &staking_pool_mint_key,
+                &new_rewards_wallet,
+                &new_slot_holders_rewards_wallet,
+                &new_sollotto_labs_wallet,
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![&mut lottery_acc],
+        )
+        .unwrap();
+
+        let lottery_data = LotteryData::unpack(&lottery_acc.data).unwrap();
+        assert_eq!(lottery_data.is_initialized, true);
+        assert_eq!(lottery_data.staking_pool_amount, 0);
+        assert_eq!(lottery_data.staking_pool_token_mint, staking_pool_mint_key);
+        assert_eq!(lottery_data.staking_pool_wallet, staking_pool_wallet);
+        assert_eq!(lottery_data.sollotto_labs_wallet, new_sollotto_labs_wallet);
+        assert_eq!(
+            lottery_data.slot_holders_rewards_wallet,
+            new_slot_holders_rewards_wallet
+        );
+        assert_eq!(lottery_data.rewards_wallet, new_rewards_wallet);
     }
 }
