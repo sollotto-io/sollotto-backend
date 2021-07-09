@@ -43,9 +43,7 @@ pub enum LotteryInstruction {
     /// 4. `[writable]` Sollotto staking pool wallet (TODO: liquidity pool here)
     /// 5. `[]` SPL Token program
     /// 6. `[]` System program account
-    Deposit {
-        amount: u64,
-    },
+    Deposit { amount: u64 },
 
     /// User undeposits amount of Sollotto SOL Staking pool token
     /// and gets equivalent of SOL
@@ -59,12 +57,21 @@ pub enum LotteryInstruction {
     /// 4. `[writable, signer]` Sollotto staking pool wallet (TODO: liquidity pool here)
     /// 5. `[]` SPL Token program
     /// 6. `[]` System program account
-    Undeposit {
-        amount: u64,
-    },
+    Undeposit { amount: u64 },
 
+    /// Get the winner`s wallet and pay reward from prize pool
+    ///
+    /// Accounts expected by this instruction:
     // TODO: Fix it with liquidity stake pool information
-    RewardWinner {},
+    /// 0. `[signer]` Lottery data account (also onwer for staking pool token mint)
+    /// 1. `[writable]` Lottery result data account
+    /// 2. `[writable]` Winner wallet (must be a system account)
+    /// 3. `[writable, signer]` Sollotto staking pool wallet (TODO: liquidity pool here)
+    /// 4. `[writable]` Sollotto Foundation Rewards wallet (must be a system account)
+    /// 5. `[writable]` SLOT Holders rewards wallet (must be a system account)
+    /// 6. `[writable]` Sollotto labs wallet (must be a system account)
+    /// 7. `[]` System program account
+    RewardWinner { lottery_id: u32 },
 
     /// Update wallets pubkeys in lottery data account
     /// Accounts expected by this instruction:
@@ -112,7 +119,16 @@ impl LotteryInstruction {
                 }
             }
 
-            3 => Self::RewardWinner {},
+            3 => {
+                let (lottery_id, _) = rest.split_at(4);
+                let lottery_id = lottery_id
+                    .try_into()
+                    .ok()
+                    .map(u32::from_le_bytes)
+                    .ok_or(InvalidInstruction)?;
+
+                Self::RewardWinner { lottery_id }
+            }
 
             4 => {
                 let (staking_pool_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
@@ -161,8 +177,9 @@ impl LotteryInstruction {
                 buf.extend_from_slice(&amount.to_le_bytes());
             }
 
-            Self::RewardWinner {} => {
+            Self::RewardWinner { lottery_id } => {
                 buf.push(3);
+                buf.extend_from_slice(&lottery_id.to_le_bytes());
             }
 
             Self::UpdateLotteryWallets {
