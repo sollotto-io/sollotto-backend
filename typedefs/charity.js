@@ -20,6 +20,7 @@ module.exports = gql`
     socialMedia:String
     nominationVotes:Int
     LastNominationVote:String
+    publicKey:String!
 
   }
   input charityInput {
@@ -35,6 +36,7 @@ module.exports = gql`
     Impact:String!
     webURL: String
     socialMedia:String
+    publicKey:String!
   }
 
   extend type Query{

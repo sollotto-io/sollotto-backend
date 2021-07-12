@@ -38,6 +38,7 @@ module.exports = {
         Impact,
         webURL,
         socialMedia,
+        publicKey
       });
       const res = await newCharity.save();
       return {

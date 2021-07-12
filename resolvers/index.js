@@ -8,7 +8,6 @@ module.exports = {
 		...charityResolvers.Mutation,
 		...ticketResolvers.Mutation,
 		...drawingResolvers.Mutation,
-		...lotteryResolvers.Mutations,
 	},
 	Query: {
 		...charityResolvers.Query,
