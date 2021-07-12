@@ -1,8 +1,15 @@
 use solana_program::{
-    hash::Hash, native_token::sol_to_lamports, program_pack::Pack, system_instruction,
+    hash::Hash,
+    instruction::InstructionError,
+    native_token::sol_to_lamports,
+    program_pack::Pack,
+    system_instruction::{self},
 };
 use solana_program_test::*;
-use solana_sdk::{signature::Keypair, system_transaction, transport::TransportError};
+use solana_sdk::{
+    signature::Keypair, system_transaction, transaction::TransactionError,
+    transport::TransportError,
+};
 use sollotto_model_2::{
     processor::id,
     processor::Processor,
@@ -252,6 +259,32 @@ async fn transfer_sol(
     Ok(())
 }
 
+async fn transfer_token(
+    banks_client: &mut BanksClient,
+    recent_blockhash: &Hash,
+    payer: &Keypair,
+    from: &Pubkey,
+    to: &Pubkey,
+    owner: &Keypair,
+    amount: u64,
+) -> Result<(), TransportError> {
+    let mut transaction = Transaction::new_with_payer(
+        &[spl_token::instruction::transfer(
+            &spl_token::id(),
+            from,
+            to,
+            &owner.pubkey(),
+            &[],
+            amount,
+        )
+        .unwrap()],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[payer, owner], *recent_blockhash);
+    banks_client.process_transaction(transaction).await?;
+    Ok(())
+}
+
 async fn get_token_balance(banks_client: &mut BanksClient, token_account: Pubkey) -> u64 {
     let account = banks_client
         .get_account(token_account)
@@ -459,4 +492,197 @@ async fn test_lottery() {
         2.0 + remain,
     )
     .await;
+}
+
+#[tokio::test]
+async fn test_insufficient_funds() {
+    let program = ProgramTest::new("sollotto", id(), processor!(Processor::process));
+    let (mut banks_client, payer, recent_blockhash) = program.start().await;
+
+    let rent = banks_client.get_rent().await.unwrap();
+    let lottery_data_rent = rent.minimum_balance(LotteryData::LEN);
+    let mint_rent = rent.minimum_balance(Mint::LEN);
+    let token_account_rent = rent.minimum_balance(Account::LEN);
+
+    let lottery_authority = Keypair::new();
+    let staking_pool_wallet = Keypair::new();
+    let staking_pool_token_mint = Keypair::new();
+    let sollotto_staking_pool_token_account = Keypair::new();
+
+    let rewards_wallet = Keypair::new();
+    let slot_holders_rewards_wallet = Keypair::new();
+    let sollotto_labs_wallet = Keypair::new();
+
+    let user_authority = Keypair::new();
+    let user_staking_pool_token_account = Keypair::new();
+
+    // Initialize lottery, mint, lottery associated token account
+    initialize_lottery(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        lottery_data_rent,
+        mint_rent,
+        token_account_rent,
+        &staking_pool_wallet.pubkey(),
+        &staking_pool_token_mint,
+        &sollotto_staking_pool_token_account,
+        &rewards_wallet.pubkey(),
+        &slot_holders_rewards_wallet.pubkey(),
+        &sollotto_labs_wallet.pubkey(),
+        &lottery_authority,
+    )
+    .await
+    .unwrap();
+
+    // Create token associated account for user
+    create_token_account(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        &user_staking_pool_token_account,
+        token_account_rent,
+        &staking_pool_token_mint.pubkey(),
+        &user_authority.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    // User tries to deposit without SOL in balance
+    assert_eq!(
+        // SystemError::ResultWithNegativeLamports
+        TransactionError::InstructionError(0, InstructionError::Custom(1)),
+        deposit(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            sol_to_lamports(0.5),
+            &staking_pool_token_mint.pubkey(),
+            &user_staking_pool_token_account.pubkey(),
+            &staking_pool_wallet.pubkey(),
+            &user_authority,
+            &lottery_authority,
+        )
+        .await
+        .unwrap_err()
+        .unwrap()
+    );
+
+    // Send SOL to user
+    transfer_sol(
+        &mut banks_client,
+        &recent_blockhash,
+        &payer,
+        &user_authority,
+        1.0,
+    )
+    .await
+    .unwrap();
+
+    // User deposit SOL
+    deposit(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        sol_to_lamports(1.0),
+        &staking_pool_token_mint.pubkey(),
+        &user_staking_pool_token_account.pubkey(),
+        &staking_pool_wallet.pubkey(),
+        &user_authority,
+        &lottery_authority,
+    )
+    .await
+    .unwrap();
+
+    // Check balances
+    check_token_balance(
+        &mut banks_client,
+        user_staking_pool_token_account.pubkey(),
+        1.0,
+    )
+    .await;
+    check_balance(&mut banks_client, staking_pool_wallet.pubkey(), 1.0).await;
+    check_balance(&mut banks_client, user_authority.pubkey(), 0.0).await;
+
+    // User spent spl-token
+    transfer_token(
+        &mut banks_client,
+        &recent_blockhash,
+        &payer,
+        &user_staking_pool_token_account.pubkey(),
+        &sollotto_staking_pool_token_account.pubkey(),
+        &user_authority,
+        1_000_000_000, // 1.0 token
+    )
+    .await
+    .unwrap();
+
+    check_token_balance(
+        &mut banks_client,
+        user_staking_pool_token_account.pubkey(),
+        0.0,
+    )
+    .await;
+
+    // User tries to undeposit without spl-token in token balance
+    assert_eq!(
+        // spl token error insufficient funds
+        TransactionError::InstructionError(0, InstructionError::Custom(1)),
+        undeposit(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            sol_to_lamports(1.0),
+            &staking_pool_token_mint.pubkey(),
+            &user_staking_pool_token_account.pubkey(),
+            &staking_pool_wallet,
+            &user_authority,
+            &lottery_authority,
+        )
+        .await
+        .unwrap_err()
+        .unwrap()
+    );
+
+    transfer_token(
+        &mut banks_client,
+        &recent_blockhash,
+        &payer,
+        &sollotto_staking_pool_token_account.pubkey(),
+        &user_staking_pool_token_account.pubkey(),
+        &lottery_authority,
+        1_000_000_000, // 1.0 token
+    )
+    .await
+    .unwrap();
+
+    // Lottery staking pool wallet spent SOL
+    transfer_sol(
+        &mut banks_client,
+        &recent_blockhash,
+        &staking_pool_wallet,
+        &payer,
+        0.5,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        // SystemError::ResultWithNegativeLamports
+        TransactionError::InstructionError(0, InstructionError::Custom(1)),
+        undeposit(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            sol_to_lamports(0.8),
+            &staking_pool_token_mint.pubkey(),
+            &user_staking_pool_token_account.pubkey(),
+            &staking_pool_wallet,
+            &user_authority,
+            &lottery_authority,
+        )
+        .await
+        .unwrap_err()
+        .unwrap()
+    );
 }
