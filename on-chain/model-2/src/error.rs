@@ -20,6 +20,9 @@ pub enum LotteryError {
     /// Invalid sollotto accounts
     #[error("Invalid sollotto account")]
     InvalidSollottoAccount,
+    /// Prize pool is empty
+    #[error("Priez pool is empty")]
+    EmptyPrizePool,
 }
 
 impl From<LotteryError> for ProgramError {

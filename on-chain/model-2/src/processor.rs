@@ -206,7 +206,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let mut lottery_data = LotteryData::unpack(&lottery_account.data.borrow())?;
+        let mut lottery_data = LotteryData::unpack_unchecked(&lottery_account.data.borrow())?;
         if !lottery_data.is_initialized {
             msg!("Lottery data account is not initialized");
             return Err(LotteryError::NotInitialized.into());
@@ -294,7 +294,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let mut lottery_data = LotteryData::unpack(&lottery_account.data.borrow())?;
+        let mut lottery_data = LotteryData::unpack_unchecked(&lottery_account.data.borrow())?;
         if !lottery_data.is_initialized {
             msg!("Lottery data account is not initialized");
             return Err(LotteryError::NotInitialized.into());
@@ -307,6 +307,11 @@ impl Processor {
         if lottery_data.staking_pool_wallet != *sollotto_staking_pool_wallet.key {
             msg!("Invalid staking pool wallet");
             return Err(LotteryError::InvalidSollottoAccount.into());
+        }
+
+        if amount > lottery_data.staking_pool_amount {
+            msg!("Lottery staking pool insufficient funds");
+            return Err(ProgramError::InsufficientFunds);
         }
 
         // Burn amout of staking pool tokens from user associated account
@@ -383,7 +388,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let lottery_data = LotteryData::unpack(&lottery_account.data.borrow())?;
+        let lottery_data = LotteryData::unpack_unchecked(&lottery_account.data.borrow())?;
         if !lottery_data.is_initialized {
             msg!("Lottery data account is not initialized");
             return Err(LotteryError::NotInitialized.into());
@@ -406,11 +411,21 @@ impl Processor {
             return Err(LotteryError::InvalidSollottoAccount.into());
         }
 
+        if sollotto_staking_pool_wallet.lamports() < lottery_data.staking_pool_amount {
+            msg!("Sollotto staking pool wallet insufficient funds");
+            return Err(ProgramError::InsufficientFunds);
+        }
+
         // Calculate current prize pool from staking pool rewards
         // TODO: for now is just difference between sollotto_staking_pool_wallet balance and lottery.staking_pool_amount
         // fix it later to difference between liquidity staking pool balance and lottery.staking_pool_amount
         let prize_pool_lamports =
             sollotto_staking_pool_wallet.lamports() - lottery_data.staking_pool_amount;
+        if prize_pool_lamports == 0 {
+            msg!("Prize pool is empty");
+            return Err(LotteryError::EmptyPrizePool.into());
+        }
+
         let prize_pool_sol = lamports_to_sol(prize_pool_lamports);
         let winner_share = prize_pool_sol * 0.95;
         let sollotto_rewards_share = prize_pool_sol * 0.04;
@@ -674,10 +689,11 @@ mod test {
     }
 
     #[test]
-    fn test_update_wallets() {
+    fn test_deposit() {
         let program_id = id();
         let mut rent_sysvar_acc = create_account_for_test(&Rent::default());
         let mut spl_token_acc = SolanaAccount::default();
+        let mut system_acc = SolanaAccount::default();
         let lottery_key = Pubkey::new_unique();
         let mut lottery_acc = SolanaAccount::new(
             lottery_minimum_balance(),
@@ -695,23 +711,39 @@ mod test {
         let slot_holders_rewards_wallet = Pubkey::new_unique();
         let sollotto_labs_wallet = Pubkey::new_unique();
 
+        let user_key = Pubkey::new_unique();
+        let mut user_wallet = SolanaAccount::default();
+        let user_staking_pool_token_acc_key = Pubkey::new_unique();
+        let mut user_staking_pool_token_acc =
+            SolanaAccount::new(account_minimum_balance(), Account::LEN, &spl_token::id());
+
+        // BadCase: Lottery is not initialized
         assert_eq!(
             Err(LotteryError::NotInitialized.into()),
             do_process(
-                crate::instruction::update_lottery_wallets(
+                crate::instruction::deposit(
                     &program_id,
-                    &staking_pool_wallet,
+                    sol_to_lamports(1.0),
                     &staking_pool_mint_key,
-                    &rewards_wallet,
-                    &slot_holders_rewards_wallet,
-                    &sollotto_labs_wallet,
+                    &user_staking_pool_token_acc_key,
+                    &staking_pool_wallet,
+                    &user_key,
                     &lottery_key,
                 )
                 .unwrap(),
-                vec![&mut lottery_acc,],
+                vec![
+                    &mut lottery_acc,
+                    &mut staking_pool_mint,
+                    &mut user_wallet,
+                    &mut user_staking_pool_token_acc,
+                    &mut staking_pool_token_account,
+                    &mut spl_token_acc,
+                    &mut system_acc,
+                ],
             )
         );
 
+        // Initialize lottery
         do_process(
             crate::instruction::initialize_lottery(
                 &program_id,
@@ -734,6 +766,584 @@ mod test {
         )
         .unwrap();
 
+        // BadCase: Invalid token mint
+        let bad_mint_key = Pubkey::new_unique();
+        let mut bad_mint = SolanaAccount::default();
+        assert_eq!(
+            Err(LotteryError::InvalidSollottoAccount.into()),
+            do_process(
+                crate::instruction::deposit(
+                    &program_id,
+                    sol_to_lamports(1.0),
+                    &bad_mint_key,
+                    &user_staking_pool_token_acc_key,
+                    &staking_pool_wallet,
+                    &user_key,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![
+                    &mut lottery_acc,
+                    &mut bad_mint,
+                    &mut user_wallet,
+                    &mut user_staking_pool_token_acc,
+                    &mut staking_pool_token_account,
+                    &mut spl_token_acc,
+                    &mut system_acc,
+                ],
+            )
+        );
+
+        // BadCase: Invalid lottery staking pool wallet
+        let bad_wallet_key = Pubkey::new_unique();
+        assert_eq!(
+            Err(LotteryError::InvalidSollottoAccount.into()),
+            do_process(
+                crate::instruction::deposit(
+                    &program_id,
+                    sol_to_lamports(1.0),
+                    &staking_pool_mint_key,
+                    &staking_pool_token_account_key,
+                    &bad_wallet_key,
+                    &user_key,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![
+                    &mut lottery_acc,
+                    &mut staking_pool_mint,
+                    &mut user_wallet,
+                    &mut user_staking_pool_token_acc,
+                    &mut staking_pool_token_account,
+                    &mut spl_token_acc,
+                    &mut system_acc,
+                ],
+            )
+        );
+
+        do_process(
+            crate::instruction::deposit(
+                &program_id,
+                sol_to_lamports(1.0),
+                &staking_pool_mint_key,
+                &user_staking_pool_token_acc_key,
+                &staking_pool_wallet,
+                &user_key,
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![
+                &mut lottery_acc,
+                &mut staking_pool_mint,
+                &mut user_wallet,
+                &mut user_staking_pool_token_acc,
+                &mut staking_pool_token_account,
+                &mut spl_token_acc,
+                &mut system_acc,
+            ],
+        )
+        .unwrap();
+
+        // Check lottery staking pool amount
+        let lottery_data = LotteryData::unpack(&lottery_acc.data).unwrap();
+        assert_eq!(lottery_data.staking_pool_amount, sol_to_lamports(1.0));
+    }
+
+    #[test]
+    fn test_undeposit() {
+        let program_id = id();
+        let mut rent_sysvar_acc = create_account_for_test(&Rent::default());
+        let mut spl_token_acc = SolanaAccount::default();
+        let mut system_acc = SolanaAccount::default();
+        let lottery_key = Pubkey::new_unique();
+        let mut lottery_acc = SolanaAccount::new(
+            lottery_minimum_balance(),
+            LotteryData::get_packed_len(),
+            &program_id,
+        );
+        let staking_pool_mint_key = Pubkey::new_unique();
+        let mut staking_pool_mint =
+            SolanaAccount::new(mint_minimum_balance(), Mint::LEN, &spl_token::id());
+        let staking_pool_token_account_key = Pubkey::new_unique();
+        let mut staking_pool_token_account =
+            SolanaAccount::new(account_minimum_balance(), Account::LEN, &spl_token::id());
+        let staking_pool_wallet = Pubkey::new_unique();
+        let rewards_wallet = Pubkey::new_unique();
+        let slot_holders_rewards_wallet = Pubkey::new_unique();
+        let sollotto_labs_wallet = Pubkey::new_unique();
+
+        let user_key = Pubkey::new_unique();
+        let mut user_wallet = SolanaAccount::default();
+        let user_staking_pool_token_acc_key = Pubkey::new_unique();
+        let mut user_staking_pool_token_acc =
+            SolanaAccount::new(account_minimum_balance(), Account::LEN, &spl_token::id());
+
+        // BadCase: Lottery is not initialized
+        assert_eq!(
+            Err(LotteryError::NotInitialized.into()),
+            do_process(
+                crate::instruction::undeposit(
+                    &program_id,
+                    sol_to_lamports(1.0),
+                    &staking_pool_mint_key,
+                    &user_staking_pool_token_acc_key,
+                    &staking_pool_wallet,
+                    &user_key,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![
+                    &mut lottery_acc,
+                    &mut staking_pool_mint,
+                    &mut user_wallet,
+                    &mut user_staking_pool_token_acc,
+                    &mut staking_pool_token_account,
+                    &mut spl_token_acc,
+                    &mut system_acc,
+                ],
+            )
+        );
+
+        // Initialize lottery
+        do_process(
+            crate::instruction::initialize_lottery(
+                &program_id,
+                &staking_pool_wallet,
+                &staking_pool_mint_key,
+                &staking_pool_token_account_key,
+                &rewards_wallet,
+                &slot_holders_rewards_wallet,
+                &sollotto_labs_wallet,
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![
+                &mut lottery_acc,
+                &mut staking_pool_mint,
+                &mut staking_pool_token_account,
+                &mut rent_sysvar_acc,
+                &mut spl_token_acc,
+            ],
+        )
+        .unwrap();
+
+        // BadCase: Invalid token mint
+        let bad_mint_key = Pubkey::new_unique();
+        let mut bad_mint = SolanaAccount::default();
+        assert_eq!(
+            Err(LotteryError::InvalidSollottoAccount.into()),
+            do_process(
+                crate::instruction::undeposit(
+                    &program_id,
+                    sol_to_lamports(1.0),
+                    &bad_mint_key,
+                    &user_staking_pool_token_acc_key,
+                    &staking_pool_wallet,
+                    &user_key,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![
+                    &mut lottery_acc,
+                    &mut bad_mint,
+                    &mut user_wallet,
+                    &mut user_staking_pool_token_acc,
+                    &mut staking_pool_token_account,
+                    &mut spl_token_acc,
+                    &mut system_acc,
+                ],
+            )
+        );
+
+        // BadCase: Invalid lottery staking pool wallet
+        let bad_wallet_key = Pubkey::new_unique();
+        assert_eq!(
+            Err(LotteryError::InvalidSollottoAccount.into()),
+            do_process(
+                crate::instruction::undeposit(
+                    &program_id,
+                    sol_to_lamports(1.0),
+                    &staking_pool_mint_key,
+                    &staking_pool_token_account_key,
+                    &bad_wallet_key,
+                    &user_key,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![
+                    &mut lottery_acc,
+                    &mut staking_pool_mint,
+                    &mut user_wallet,
+                    &mut user_staking_pool_token_acc,
+                    &mut staking_pool_token_account,
+                    &mut spl_token_acc,
+                    &mut system_acc,
+                ],
+            )
+        );
+
+        // BadCase: Staking pool amount insufficient funds
+        assert_eq!(
+            Err(ProgramError::InsufficientFunds),
+            do_process(
+                crate::instruction::undeposit(
+                    &program_id,
+                    sol_to_lamports(1.0),
+                    &staking_pool_mint_key,
+                    &staking_pool_token_account_key,
+                    &staking_pool_wallet,
+                    &user_key,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![
+                    &mut lottery_acc,
+                    &mut staking_pool_mint,
+                    &mut user_wallet,
+                    &mut user_staking_pool_token_acc,
+                    &mut staking_pool_token_account,
+                    &mut spl_token_acc,
+                    &mut system_acc,
+                ],
+            )
+        );
+
+        // Deposit 2 SOL
+        do_process(
+            crate::instruction::deposit(
+                &program_id,
+                sol_to_lamports(2.0),
+                &staking_pool_mint_key,
+                &user_staking_pool_token_acc_key,
+                &staking_pool_wallet,
+                &user_key,
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![
+                &mut lottery_acc,
+                &mut staking_pool_mint,
+                &mut user_wallet,
+                &mut user_staking_pool_token_acc,
+                &mut staking_pool_token_account,
+                &mut spl_token_acc,
+                &mut system_acc,
+            ],
+        )
+        .unwrap();
+
+        // Undeposit 1 SOL
+        do_process(
+            crate::instruction::undeposit(
+                &program_id,
+                sol_to_lamports(1.0),
+                &staking_pool_mint_key,
+                &user_staking_pool_token_acc_key,
+                &staking_pool_wallet,
+                &user_key,
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![
+                &mut lottery_acc,
+                &mut staking_pool_mint,
+                &mut user_wallet,
+                &mut user_staking_pool_token_acc,
+                &mut staking_pool_token_account,
+                &mut spl_token_acc,
+                &mut system_acc,
+            ],
+        )
+        .unwrap();
+
+        // Check lottery staking pool amount
+        let lottery_data = LotteryData::unpack(&lottery_acc.data).unwrap();
+        assert_eq!(lottery_data.staking_pool_amount, sol_to_lamports(1.0));
+    }
+
+    #[test]
+    fn test_reward_winner() {
+        let program_id = id();
+        let mut rent_sysvar_acc = create_account_for_test(&Rent::default());
+        let mut spl_token_acc = SolanaAccount::default();
+        let mut system_acc = SolanaAccount::default();
+        let lottery_key = Pubkey::new_unique();
+        let mut lottery_acc = SolanaAccount::new(
+            lottery_minimum_balance(),
+            LotteryData::get_packed_len(),
+            &program_id,
+        );
+        let staking_pool_mint_key = Pubkey::new_unique();
+        let mut staking_pool_mint =
+            SolanaAccount::new(mint_minimum_balance(), Mint::LEN, &spl_token::id());
+        let staking_pool_token_account_key = Pubkey::new_unique();
+        let mut staking_pool_token_account =
+            SolanaAccount::new(account_minimum_balance(), Account::LEN, &spl_token::id());
+        let staking_pool_wallet = Pubkey::new_unique();
+        let mut staking_pool_wallet_account = SolanaAccount::default();
+        let rewards_wallet = Pubkey::new_unique();
+        let mut rewards_wallet_account = SolanaAccount::default();
+        let slot_holders_rewards_wallet = Pubkey::new_unique();
+        let mut slot_holders_rewards_wallet_account = SolanaAccount::default();
+        let sollotto_labs_wallet = Pubkey::new_unique();
+        let mut sollotto_labs_wallet_account = SolanaAccount::default();
+
+        let user_key = Pubkey::new_unique();
+        let mut user_wallet = SolanaAccount::default();
+        let user_staking_pool_token_acc_key = Pubkey::new_unique();
+        let mut user_staking_pool_token_acc =
+            SolanaAccount::new(account_minimum_balance(), Account::LEN, &spl_token::id());
+
+        let lottery_id = 112233;
+        let lottery_result_account_key = Pubkey::new_unique();
+        let mut lottery_result_account = SolanaAccount::new(
+            lottery_result_minimum_balance(),
+            LotteryResultData::LEN,
+            &program_id,
+        );
+
+        // BadCase: Lottery is not initialized
+        assert_eq!(
+            Err(LotteryError::NotInitialized.into()),
+            do_process(
+                crate::instruction::reward_winner(
+                    &program_id,
+                    lottery_id,
+                    &lottery_result_account_key,
+                    &user_key,
+                    &rewards_wallet,
+                    &slot_holders_rewards_wallet,
+                    &sollotto_labs_wallet,
+                    &staking_pool_wallet,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![
+                    &mut lottery_acc,
+                    &mut lottery_result_account,
+                    &mut user_wallet,
+                    &mut staking_pool_wallet_account,
+                    &mut rewards_wallet_account,
+                    &mut slot_holders_rewards_wallet_account,
+                    &mut sollotto_labs_wallet_account,
+                    &mut system_acc,
+                ],
+            )
+        );
+
+        // Initialize lottery
+        do_process(
+            crate::instruction::initialize_lottery(
+                &program_id,
+                &staking_pool_wallet,
+                &staking_pool_mint_key,
+                &staking_pool_token_account_key,
+                &rewards_wallet,
+                &slot_holders_rewards_wallet,
+                &sollotto_labs_wallet,
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![
+                &mut lottery_acc,
+                &mut staking_pool_mint,
+                &mut staking_pool_token_account,
+                &mut rent_sysvar_acc,
+                &mut spl_token_acc,
+            ],
+        )
+        .unwrap();
+
+        // User deposit 1 SOL
+        do_process(
+            crate::instruction::deposit(
+                &program_id,
+                sol_to_lamports(1.0),
+                &staking_pool_mint_key,
+                &user_staking_pool_token_acc_key,
+                &staking_pool_wallet,
+                &user_key,
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![
+                &mut lottery_acc,
+                &mut staking_pool_mint,
+                &mut user_wallet,
+                &mut user_staking_pool_token_acc,
+                &mut staking_pool_token_account,
+                &mut spl_token_acc,
+                &mut system_acc,
+            ],
+        )
+        .unwrap();
+        staking_pool_wallet_account.lamports = sol_to_lamports(1.0);
+
+        // BadCase: prize pool is empty (there is no staking rewards for now)
+        assert_eq!(
+            Err(LotteryError::EmptyPrizePool.into()),
+            do_process(
+                crate::instruction::reward_winner(
+                    &program_id,
+                    lottery_id,
+                    &lottery_result_account_key,
+                    &user_key,
+                    &rewards_wallet,
+                    &slot_holders_rewards_wallet,
+                    &sollotto_labs_wallet,
+                    &staking_pool_wallet,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![
+                    &mut lottery_acc,
+                    &mut lottery_result_account,
+                    &mut user_wallet,
+                    &mut staking_pool_wallet_account,
+                    &mut rewards_wallet_account,
+                    &mut slot_holders_rewards_wallet_account,
+                    &mut sollotto_labs_wallet_account,
+                    &mut system_acc,
+                ],
+            )
+        );
+
+        // BadCase: staking pool wallet insufficient funds
+        // Staking pool wallet spends 0.5 SOL
+        staking_pool_wallet_account.lamports -= sol_to_lamports(0.5);
+        assert_eq!(
+            Err(ProgramError::InsufficientFunds),
+            do_process(
+                crate::instruction::reward_winner(
+                    &program_id,
+                    lottery_id,
+                    &lottery_result_account_key,
+                    &user_key,
+                    &rewards_wallet,
+                    &slot_holders_rewards_wallet,
+                    &sollotto_labs_wallet,
+                    &staking_pool_wallet,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![
+                    &mut lottery_acc,
+                    &mut lottery_result_account,
+                    &mut user_wallet,
+                    &mut staking_pool_wallet_account,
+                    &mut rewards_wallet_account,
+                    &mut slot_holders_rewards_wallet_account,
+                    &mut sollotto_labs_wallet_account,
+                    &mut system_acc,
+                ],
+            )
+        );
+
+        // Get the staking reward for prize pool
+        staking_pool_wallet_account.lamports += sol_to_lamports(1.0);
+
+        // User wins lottery
+        do_process(
+            crate::instruction::reward_winner(
+                &program_id,
+                lottery_id,
+                &lottery_result_account_key,
+                &user_key,
+                &rewards_wallet,
+                &slot_holders_rewards_wallet,
+                &sollotto_labs_wallet,
+                &staking_pool_wallet,
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![
+                &mut lottery_acc,
+                &mut lottery_result_account,
+                &mut user_wallet,
+                &mut staking_pool_wallet_account,
+                &mut rewards_wallet_account,
+                &mut slot_holders_rewards_wallet_account,
+                &mut sollotto_labs_wallet_account,
+                &mut system_acc,
+            ],
+        )
+        .unwrap();
+
+        // Check staking pool amount
+        let lottery_data = LotteryData::unpack(&lottery_acc.data).unwrap();
+        assert_eq!(lottery_data.staking_pool_amount, sol_to_lamports(1.0));
+
+        // Check lottery result data
+        let lottery_result_data =
+            LotteryResultData::unpack_unchecked(&lottery_result_account.data).unwrap();
+        assert_eq!(lottery_result_data.lottery_id, lottery_id);
+        assert_eq!(lottery_result_data.winner, user_key);
+    }
+
+    #[test]
+    fn test_update_wallets() {
+        let program_id = id();
+        let mut rent_sysvar_acc = create_account_for_test(&Rent::default());
+        let mut spl_token_acc = SolanaAccount::default();
+        let lottery_key = Pubkey::new_unique();
+        let mut lottery_acc = SolanaAccount::new(
+            lottery_minimum_balance(),
+            LotteryData::get_packed_len(),
+            &program_id,
+        );
+        let staking_pool_mint_key = Pubkey::new_unique();
+        let mut staking_pool_mint =
+            SolanaAccount::new(mint_minimum_balance(), Mint::LEN, &spl_token::id());
+        let staking_pool_token_account_key = Pubkey::new_unique();
+        let mut staking_pool_token_account =
+            SolanaAccount::new(account_minimum_balance(), Account::LEN, &spl_token::id());
+        let staking_pool_wallet = Pubkey::new_unique();
+        let rewards_wallet = Pubkey::new_unique();
+        let slot_holders_rewards_wallet = Pubkey::new_unique();
+        let sollotto_labs_wallet = Pubkey::new_unique();
+
+        // BadCase: Lottery is not initialized
+        assert_eq!(
+            Err(LotteryError::NotInitialized.into()),
+            do_process(
+                crate::instruction::update_lottery_wallets(
+                    &program_id,
+                    &staking_pool_wallet,
+                    &staking_pool_mint_key,
+                    &rewards_wallet,
+                    &slot_holders_rewards_wallet,
+                    &sollotto_labs_wallet,
+                    &lottery_key,
+                )
+                .unwrap(),
+                vec![&mut lottery_acc,],
+            )
+        );
+
+        // Initialize lottery data
+        do_process(
+            crate::instruction::initialize_lottery(
+                &program_id,
+                &staking_pool_wallet,
+                &staking_pool_mint_key,
+                &staking_pool_token_account_key,
+                &rewards_wallet,
+                &slot_holders_rewards_wallet,
+                &sollotto_labs_wallet,
+                &lottery_key,
+            )
+            .unwrap(),
+            vec![
+                &mut lottery_acc,
+                &mut staking_pool_mint,
+                &mut staking_pool_token_account,
+                &mut rent_sysvar_acc,
+                &mut spl_token_acc,
+            ],
+        )
+        .unwrap();
+
+        // Update lottery wallets
         let new_rewards_wallet = Pubkey::new_unique();
         let new_slot_holders_rewards_wallet = Pubkey::new_unique();
         let new_sollotto_labs_wallet = Pubkey::new_unique();

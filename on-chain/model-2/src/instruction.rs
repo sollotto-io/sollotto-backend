@@ -309,6 +309,41 @@ pub fn undeposit(
     })
 }
 
+/// Creates a `RewardWinner` instruction
+pub fn reward_winner(
+    program_id: &Pubkey,
+    lottery_id: u32,
+    lottery_result: &Pubkey,
+    winner_wallet: &Pubkey,
+    rewards_wallet: &Pubkey,
+    slot_holders_wallet: &Pubkey,
+    sollotto_labs_wallet: &Pubkey,
+    staking_pool_wallet: &Pubkey,
+    lottery_authority: &Pubkey,
+) -> Result<Instruction, ProgramError> {
+    check_program_account(program_id)?;
+    let data = LotteryInstruction::RewardWinner { lottery_id }.pack();
+
+    let mut accounts = Vec::with_capacity(8);
+    accounts.push(AccountMeta::new_readonly(*lottery_authority, true));
+    accounts.push(AccountMeta::new(*lottery_result, false));
+    accounts.push(AccountMeta::new(*winner_wallet, false));
+    accounts.push(AccountMeta::new(*staking_pool_wallet, true));
+    accounts.push(AccountMeta::new(*rewards_wallet, false));
+    accounts.push(AccountMeta::new(*slot_holders_wallet, false));
+    accounts.push(AccountMeta::new(*sollotto_labs_wallet, false));
+    accounts.push(AccountMeta::new_readonly(
+        solana_program::system_program::id(),
+        false,
+    ));
+
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
+
 /// Creates a `UpdateLotteryWallets` instruction
 pub fn update_lottery_wallets(
     program_id: &Pubkey,
