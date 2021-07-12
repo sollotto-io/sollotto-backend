@@ -7,7 +7,9 @@ const { MONGODB } = require("./config");
 const cron = require("node-cron");
 const cors = require("cors");
 const path = require("path");
-const { changeDraw } = require("./utils/changeDraw");
+// const { changeDraw } = require("./utils/changeDraw");
+// var CryptoJS = require("crypto-js");
+// const { Account } = require("@solana/web3.js");
 
 const app = express();
 app.use("/static", express.static(path.join(__dirname, "public")));
@@ -35,19 +37,15 @@ mongoose
         .then((res) => {
           console.log(`Server running on ${res.url}`);
         })
-        .then(() => {
-          console.log("inside cron then");
-          cron.schedule(
-            "0 0 * * wed,sat",
-            () => {
-              changeDraw();
-            },
-            {
-              scheduled: true,
-              timezone: "Atlantic/Azores",
-            }
-          );
-        })
+        // .then(() => {
+        //   console.log("inside cron then");
+        //   cron.schedule("0 0 * * wed,sat", () => {changeDraw()},
+        //   {
+        //     scheduled: true,
+        //     timezone: "Atlantic/Azores"
+        //   }
+        //   );
+        // })
         // .then(() => {
         //   console.log("inside cron then");
         //   cron.schedule("*/1 * * * *", () => {changeDraw()},

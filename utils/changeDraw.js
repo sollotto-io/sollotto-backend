@@ -1,6 +1,7 @@
 const Drawing = require("../models/Drawing");
 const {closeDrawing} = require('./draw-mutations/closeDraw')
 const {openDrawing} = require('./draw-mutations/openDraw')
+const {selectWinnerCharity} = require('./draw-mutations/selectWinnerCharity')
 const _ = require("lodash");
 
 
@@ -11,7 +12,8 @@ exports.changeDraw = async () => {
 
   if (activeDrawing) {
     await closeDrawing(activeDrawing);
-    await openDrawing(activeDrawing);
+    const charities = await selectWinnerCharity();
+    await openDrawing(activeDrawing,charities);
   } else {
     console.log("no active");
   }

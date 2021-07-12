@@ -18,10 +18,12 @@
 	},
 	"homepage": "https://github.com/leaddev-sollotto/sollotto-backend#readme",
 	"dependencies": {
-		"@solana/web3.js": "^1.17.0",
+		"@solana/web3.js": "^1.20.2",
 		"apollo-server": "^2.24.0",
 		"borsh": "^0.4.0",
+		"buffer-layout": "^1.2.2",
 		"cors": "^2.8.5",
+		"crypto-js": "^4.0.0",
 		"dotenv": "^10.0.0",
 		"express": "^4.17.1",
 		"graphql": "^15.5.0",
