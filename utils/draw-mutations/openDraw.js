@@ -1,7 +1,7 @@
 const Lottery = require("../../models/Lottery");
 const moment = require("moment");
 const Drawing = require("../../models/Drawing");
-const { initLottery }  = require('../on-chain-instructions/initLottery')
+// const { initLottery }  = require('../on-chain-instructions/initLottery')
 const openDrawing = async (activeDrawing, charities) => {
   var newDraw = {};
   const lottery = await Lottery.findById(process.env.LOTTERY_ID);

@@ -2,11 +2,11 @@ const Charity = require("../../models/Charity");
 const Drawing = require("../../models/Drawing");
 const Lottery = require("../../models/Lottery");
 const { lotteryDraw } = require("../lotteryDraw");
-const {
-  storeWinningNumbers,
-} = require("../on-chain-instructions/storeWinningNumbers");
+// const {
+//   storeWinningNumbers,
+// } = require("../on-chain-instructions/storeWinningNumbers");
 
-const {rewardWinner} = require('../on-chain-instructions/rewardWinner')
+// const {rewardWinner} = require('../on-chain-instructions/rewardWinner')
 
 const closeDrawing = async (drawing) => {
   var winningCharity = [];
