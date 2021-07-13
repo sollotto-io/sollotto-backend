@@ -47,7 +47,7 @@ const closeDrawing = async (drawing) => {
   if (result.winFlag === false) {
     await Lottery.findByIdAndUpdate(
       process.env.LOTTERY_ID,
-      { $inc: { TotalPoolValue: drawing.TotalPoolValue * 0.65 } },
+      { TotalPoolValue: drawing.TotalPoolValue * 0.65 } ,
       { new: true }
     );
     //60c447da624b8a3d5095baa8
