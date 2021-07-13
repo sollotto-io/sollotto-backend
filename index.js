@@ -7,7 +7,7 @@ const { MONGODB } = require("./config");
 const cron = require("node-cron");
 const cors = require("cors");
 const path = require("path");
-// const { changeDraw } = require("./utils/changeDraw");
+const { changeDraw } = require("./utils/changeDraw");
 // var CryptoJS = require("crypto-js");
 // const { Account } = require("@solana/web3.js");
 

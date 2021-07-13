@@ -69,11 +69,11 @@ const openDrawing = async (activeDrawing, charities) => {
   } else {
     console.log("no new lot");
   }
-  const {lotteryDataSK, lotteryId} = await initLottery(charities);
+  // const {lotteryDataSK, lotteryId} = await initLottery(charities);
   
   //storing the encrypted lottery data account in db in order to use it again
 
-  await Lottery.findByIdAndUpdate(process.env.LOTTERY_ID,{LotteryId:lotteryId,  LotteryDataAccount:lotteryDataSK})
+  // await Lottery.findByIdAndUpdate(process.env.LOTTERY_ID,{LotteryId:lotteryId,  LotteryDataAccount:lotteryDataSK})
 };
 
 
