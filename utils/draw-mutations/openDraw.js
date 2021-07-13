@@ -1,27 +1,25 @@
 const Lottery = require("../../models/Lottery");
 const moment = require("moment");
 const Drawing = require("../../models/Drawing");
-const Charity = require('../../models/Charity')
-const openDrawing = async (activeDrawing) => {
+// const { initLottery }  = require('../on-chain-instructions/initLottery')
+const openDrawing = async (activeDrawing, charities) => {
   var newDraw = {};
   const lottery = await Lottery.findById(process.env.LOTTERY_ID);
-
+  
   //60c447da624b8a3d5095baa8
   //60c9be158676ea0799255ee4
   var day = moment(activeDrawing.EndDate).format("dddd");
-  const charities = await Charity.find({Status:"Active"}).sort({ createdAt: -1 });
-       
   var charityVote = [];
-  var drawCharity = []
+  var drawCharity = [];
   charities.map((t) => {
     charityVote.push({
       charityId: t.id,
       votes: 0,
     });
-    drawCharity.push(t.id)
+    drawCharity.push(t.id);
   });
 
-  console.log(drawCharity)
+  console.log(drawCharity);
 
   if (day === "Wednesday") {
     if (lottery.TotalPoolValue < 10) {
@@ -71,7 +69,14 @@ const openDrawing = async (activeDrawing) => {
   } else {
     console.log("no new lot");
   }
+  // const {lotteryDataSK, lotteryId} = await initLottery(charities);
+  
+  //storing the encrypted lottery data account in db in order to use it again
+
+  // await Lottery.findByIdAndUpdate(process.env.LOTTERY_ID,{LotteryId:lotteryId,  LotteryDataAccount:lotteryDataSK})
 };
+
+
 
 module.exports = {
   openDrawing,

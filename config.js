@@ -1,3 +1,4 @@
+const { Connection } = require("@solana/web3.js");
 const dotenv = require("dotenv");
 dotenv.config();
 module.exports = {
@@ -7,5 +8,7 @@ module.exports = {
 		VOTE_NOW: "VOTE NOW",
 		NOT_ELIGIBLE: "NOT ELIGIBLE",
 	},
+	 connection : new Connection('https://api.devnet.solana.com'),
+	 
 };
 
