@@ -429,8 +429,8 @@ impl Processor {
         let prize_pool_sol = lamports_to_sol(prize_pool_lamports);
         let winner_share = prize_pool_sol * 0.95;
         let sollotto_rewards_share = prize_pool_sol * 0.04;
-        let slot_holders_share = prize_pool_sol * 0.0006;
-        let sollotto_labs_share = prize_pool_sol * 0.0004;
+        let slot_holders_share = prize_pool_sol * 0.006;
+        let sollotto_labs_share = prize_pool_sol * 0.004;
 
         // Pay 95% of prize pool to the user
         invoke(
@@ -460,7 +460,7 @@ impl Processor {
             ],
         )?;
 
-        // Pay 0.06% to SLOT Holders rewards wallet
+        // Pay 0.6% to SLOT Holders rewards wallet
         invoke(
             &system_instruction::transfer(
                 &sollotto_staking_pool_wallet.key,
@@ -474,7 +474,7 @@ impl Processor {
             ],
         )?;
 
-        // Pay 0.04% to Sollotto Labs wallet
+        // Pay 0.4% to Sollotto Labs wallet
         invoke(
             &system_instruction::transfer(
                 &sollotto_staking_pool_wallet.key,

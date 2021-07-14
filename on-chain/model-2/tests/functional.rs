@@ -470,14 +470,14 @@ async fn test_lottery() {
         sollotto_foundation_rewards_share,
     )
     .await;
-    let slot_holders_share = prize_pool * 0.0006;
+    let slot_holders_share = prize_pool * 0.006;
     check_balance(
         &mut banks_client,
         slot_holders_rewards_wallet.pubkey(),
         slot_holders_share,
     )
     .await;
-    let sollotto_labs_share = prize_pool * 0.0004;
+    let sollotto_labs_share = prize_pool * 0.004;
     check_balance(
         &mut banks_client,
         sollotto_labs_wallet.pubkey(),
@@ -485,11 +485,10 @@ async fn test_lottery() {
     )
     .await;
 
-    let remain = prize_pool * 0.009;
     check_balance(
         &mut banks_client,
         staking_pool_wallet.pubkey(),
-        2.0 + remain,
+        2.0,
     )
     .await;
 }
