@@ -18,6 +18,7 @@ const charitySchema = new Schema({
     webURL: String,
     socialMedia:String,
     nominationVotes:{type:Number},
+    lifeTimeNominationVotes:{type:Number},
     LastNominationVote:String,
     publicKey:String
 });

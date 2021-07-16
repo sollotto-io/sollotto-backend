@@ -5,46 +5,45 @@ module.exports = gql`
     id: ID!
     charityName: String!
     projectDetails: String!
-    fundUse:String!
+    fundUse: String!
     currentVotes: Int
     addedBy: String!
     lifeTimeVotes: Int
-    lifeTimeWins:Int
-    Status:String!
+    lifeTimeWins: Int
+    Status: String!
     Years: String!
-    URL:String!
-    isWatch:Boolean
+    URL: String!
+    isWatch: Boolean
     Grade: String!
-    Impact:String!
+    Impact: String!
     webURL: String!
-    socialMedia:String
-    nominationVotes:Int
-    LastNominationVote:String
-    publicKey:String!
-
+    socialMedia: String
+    nominationVotes: Int
+    lifeTimeNominationVotes:Int
+    LastNominationVote: String
+    publicKey: String!
   }
   input charityInput {
     charityName: String!
     projectDetails: String!
-    fundUse:String!
+    fundUse: String!
     addedBy: String!
-    Status:String!
+    Status: String!
     Years: String!
-    isWatch:Boolean
-    URL:String!
+    isWatch: Boolean
+    URL: String!
     Grade: String!
-    Impact:String!
+    Impact: String!
     webURL: String
-    socialMedia:String
-    publicKey:String!
+    socialMedia: String
+    publicKey: String!
   }
 
-  extend type Query{
+  extend type Query {
     getAllCharities: [Charity]!
   }
   extend type Mutation {
-      addCharity(charityInput:charityInput): Charity!
-      addNominationVotes(CharityId:ID!, UserPk:String!,Votes:Int!): String! 
+    addCharity(charityInput: charityInput): Charity!
+    addNominationVotes(charityId: ID!, UserPk: String!, Votes: Int!): String!
   }
-
-`
+`;

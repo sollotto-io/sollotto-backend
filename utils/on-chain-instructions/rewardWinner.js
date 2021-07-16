@@ -4,15 +4,25 @@ const {
   TransactionInstruction,
   Transaction,
   sendAndConfirmRawTransaction,
+  PublicKey,
 } = require("@solana/web3.js");
 const { connection } = require("../../config");
 
 const rewardWinner = async (
   lotteryId,
   lotteryDataAccount,
-  charities,
+  drawing,
   winningNumberArr
 ) => {
+  
+  var participantArray = []
+
+  await drawing.Tickets.forEach(async(t)=>{
+      await participantArray.push(new PublicKey(t.DataWallet))
+      await participantArray.push(new PublicKey(t.walletID))
+  })
+
+
   //getting Lottery Data Account for signing
 
   const lotteryBytes = CryptoJS.AES.decrypt(
@@ -108,22 +118,22 @@ try {
         isWritable: true,
       },
       {
-        pubkey: charities[0].publicKey,
+        pubkey: new PublicKey(drawing.Charities[0].publicKey),
         isSigner: false,
         isWritable: true,
       },
       {
-        pubkey: charities[1].publicKey,
+        pubkey: new PublicKey(drawing.Charities[1].publicKey),
         isSigner: false,
         isWritable: true,
       },
       {
-        pubkey: charities[2].publicKey,
+        pubkey: new PublicKey(Charities[2].publicKey),
         isSigner: false,
         isWritable: true,
       },
       {
-        pubkey: charities[3].publicKey,
+        pubkey: new PublicKey(Charities[3].publicKey),
         isSigner: false,
         isWritable: true,
       },
@@ -133,7 +143,7 @@ try {
         isWritable: false,
       },
       {
-        //publickey: dont know what to add in n^2 participants
+        publickey: participantArray,
         isSigner: false,
         isWritable: false,
       },

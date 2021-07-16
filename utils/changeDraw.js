@@ -13,6 +13,7 @@ exports.changeDraw = async () => {
   if (activeDrawing) {
     await closeDrawing(activeDrawing);
     const charities = await selectWinnerCharity();
+    // console.log(charities)
     await openDrawing(activeDrawing,charities);
   } else {
     console.log("no active");

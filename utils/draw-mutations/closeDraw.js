@@ -18,9 +18,9 @@ const closeDrawing = async (drawing) => {
   //   lottery.LotteryDataAccount,
   //   result.winningNumberArr
   // );
-  // // reward winner instruction call
+  // reward winner instruction call
   
-  //  await rewardWinner(lottery.LotteryId, lottery.LotteryDataAccount,drawing.Charities,result.winningNumberArr);
+  //  await rewardWinner(lottery.LotteryId, lottery.LotteryDataAccount,drawing,result.winningNumberArr);
 
   let max = 0;
   await drawing.CharityVoteCount.forEach(async (charity) => {
@@ -29,25 +29,21 @@ const closeDrawing = async (drawing) => {
       winningCharity = [charity.charityId.toString()];
     } else if (charity.votes === max) {
       winningCharity.push(charity.charityId.toString());
-    } else {
-      await Charity.findByIdAndUpdate(charity.charityId, {
-        currentVotes: 0,
-      });
-    }
+    } 
   });
+  await Charity.updateMany({},{currentVotes:0});
 
   winningCharity.forEach(async (charityId) => {
     await Charity.findByIdAndUpdate(charityId, {
       $inc: {
         lifeTimeWins: 1,
       },
-      currentVotes: 0,
     });
   });
   if (result.winFlag === false) {
     await Lottery.findByIdAndUpdate(
       process.env.LOTTERY_ID,
-      { $inc: { TotalPoolValue: drawing.TotalPoolValue * 0.65 } },
+      { TotalPoolValue: drawing.TotalPoolValue * 0.65 } ,
       { new: true }
     );
     //60c447da624b8a3d5095baa8
