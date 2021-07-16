@@ -38,7 +38,7 @@ module.exports = {
         Impact,
         webURL,
         socialMedia,
-        publicKey
+        publicKey,
       });
       const res = await newCharity.save();
       return {
@@ -46,15 +46,16 @@ module.exports = {
         id: res._id,
       };
     },
-    async addNominationVotes(_, { CharityId, UserPk, Votes }, context, info) {
-      await Charity.findByIdAndUpdate(CharityId, {
-        $inc: { nominationVotes: Votes },
+    async addNominationVotes(_, { charityId, UserPk, Votes }, context, info) {
+      await Charity.findByIdAndUpdate(charityId, {
+        $inc: { currentVotes: Votes },
         LastNominationVote: Date.now().toString(),
       });
       await User.findOneAndUpdate(
         { UserPK: UserPk },
         { $inc: { TokenValue: -Votes } }
       );
+
       return "Votes added successfully";
     },
   },

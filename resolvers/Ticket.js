@@ -1,6 +1,7 @@
 const Ticket = require("../models/Ticket");
 const Drawing = require("../models/Drawing");
 const Charity = require("../models/Charity");
+const User = require("../models/User");
 module.exports = {
   Mutation: {
     async addTicket(
@@ -12,6 +13,7 @@ module.exports = {
         charityId,
         drawingId,
         TransactionId,
+        UserPK,
       },
       context,
       info
@@ -25,7 +27,6 @@ module.exports = {
         TransactionId,
       });
       const res = await newTicket.save();
-
       await Drawing.findOne({ _id: drawingId });
       await Drawing.findOneAndUpdate(
         { _id: drawingId, "CharityVoteCount.charityId": charityId },
@@ -52,6 +53,16 @@ module.exports = {
         },
         { new: true }
       );
+
+      await User.findOne({ UserPK: UserPK }, (err, user) => {
+        if (!user) {
+          const newUser = new User({
+            UserPK: UserPK,
+            TokenValue: 10,
+          });
+          newUser.save();
+        }
+      });
       return "Ticket Saved Successfully";
     },
   },
