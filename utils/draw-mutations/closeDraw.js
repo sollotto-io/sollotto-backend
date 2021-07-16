@@ -14,13 +14,13 @@ const closeDrawing = async (drawing) => {
   const lottery = await Lottery.findById(process.env.LOTTERY_ID);
 
   // storewinner number instruction call
-     await storeWinningNumbers(
-    lottery.LotteryDataAccount,
-    result.winningNumberArr
-  );
+  //    await storeWinningNumbers(
+  //   lottery.LotteryDataAccount,
+  //   result.winningNumberArr
+  // );
   // reward winner instruction call
   
-   await rewardWinner(lottery.LotteryId, lottery.LotteryDataAccount,drawing,result.winningNumberArr);
+  //  await rewardWinner(lottery.LotteryId, lottery.LotteryDataAccount,drawing,result.winningNumberArr);
 
   let max = 0;
   await drawing.CharityVoteCount.forEach(async (charity) => {

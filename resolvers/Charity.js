@@ -48,7 +48,7 @@ module.exports = {
     },
     async addNominationVotes(_, { charityId, UserPk, Votes }, context, info) {
       await Charity.findByIdAndUpdate(charityId, {
-        $inc: { currentVotes: Votes },
+        $inc: { nominationVotes: Votes, lifeTimeNominationVotes: Votes },
         LastNominationVote: Date.now().toString(),
       });
       await User.findOneAndUpdate(

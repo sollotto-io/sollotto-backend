@@ -1,6 +1,6 @@
 const { PublicKey, Connection } = require("@solana/web3.js");
 var borsh = require("borsh");
-const { winningTicketGenerator } = require("./helpers");
+const { winningTicketGenerator, sortTicketNumber } = require("./helpers");
 const sleep = require("util").promisify(setTimeout);
 const { TicketDataAccount, TicketDataSchema } = require("./TicketDataBorsh.js");
 const _ = require("lodash");

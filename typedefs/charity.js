@@ -19,6 +19,7 @@ module.exports = gql`
     webURL: String!
     socialMedia: String
     nominationVotes: Int
+    lifeTimeNominationVotes:Int
     LastNominationVote: String
     publicKey: String!
   }

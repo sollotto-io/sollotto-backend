@@ -7,9 +7,6 @@ module.exports = gql`
     TokenValue: Int
   }
   extend type Query {
-    addUser(Userpk: String): Int!
-  }
-  extend type Query {
     getSingleUser(UserPK: String): User
   }
 `;
