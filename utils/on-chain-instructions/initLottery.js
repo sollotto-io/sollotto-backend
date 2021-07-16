@@ -11,10 +11,10 @@ var CryptoJS = require("crypto-js");
 const { connection } = require("../../config.js");
 const BufferLayout  =  require('buffer-layout')
 
-const initLottery = async (charities) => {
+const initLottery = async () => {
   
  
-  //getting the signerAccount details
+  // getting the signerAccount details
 
   const HoldingWalletBytes = CryptoJS.AES.decrypt(process.env.HOLDING_WALLET_SECRETKEY, process.env.SECRET_KEY);
   const HoldingWalletDecryptedText = JSON.parse(HoldingWalletBytes.toString(CryptoJS.enc.Utf8));
@@ -35,15 +35,15 @@ const initLottery = async (charities) => {
 
 
   try {
-
-  // creating the object for Instruction data
+    console.log("working")
+ // creating the object for Instruction data
 
     const lotteryFields = {
       lottery_id: parseInt(Math.floor(new Date().valueOf() * Math.random())/100000),
-      charity_1: charities[0].publickey,
-      charity_2: charities[1].publickey,
-      charity_3: charities[2].publickey,
-      charity_4: charities[3].publickey,
+      charity_1: new PublicKey(charities[0].publickey).toBytes(),
+      charity_2: new PublicKey(charities[1].publickey).toBytes(),
+      charity_3: new PublicKey(charities[2].publickey).toBytes(),
+      charity_4: new PublicKey(charities[3].publickey).toBytes(),
       holding_wallet:HoldingWallet.publicKey,
       rewards_wallet:rewards_wallet,
       slot_holders_rewards_wallet:slot_holders_rewards_wallet,
@@ -52,7 +52,7 @@ const initLottery = async (charities) => {
     }
     //converting data into Buffer to be passed in instruction
 
-    dataArr = new BufferLayout.Blob(296,lotteryFields )
+    dataArr = new BufferLayout.Blob(296,lotteryFields)
 
     //create a new lotteryData account
 
@@ -110,7 +110,7 @@ const initLottery = async (charities) => {
     console.log(`Error: ${e.message}`);
   }
 };
-
+initLottery();
 module.exports = {
   initLottery,
 };
