@@ -16,7 +16,8 @@ const drawingSchema = new Schema({
   Tickets: [{ type: Schema.Types.ObjectId, ref: "Ticket" }],
   isActive: { type: Schema.Types.Boolean },
   TotalRegistrations: { type: Number },
-  TotalPoolValue:{type: Number}
+  TotalPoolValue:{type: Number},
+  TransactionId:{type:String}
 });
 
 module.exports = model("Drawing", drawingSchema);

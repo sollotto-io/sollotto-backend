@@ -8,6 +8,7 @@ const cron = require("node-cron");
 const cors = require("cors");
 const path = require("path");
 const { changeDraw } = require("./utils/changeDraw");
+const {resetDb} = require("./utils/resetDB")
 // var CryptoJS = require("crypto-js");
 // const { Account } = require("@solana/web3.js");
 
@@ -36,6 +37,7 @@ mongoose
         .listen({ port: process.env.PORT || 5000 })
         .then((res) => {
           console.log(`Server running on ${res.url}`);
+          // resetDb();
         })
         .then(() => {
           console.log("inside cron then");
