@@ -2,6 +2,8 @@ const Charity = require("../models/Charity");
 const User = require("../models/User");
 const _ = require("lodash");
 const { CHARITY_STATUS } = require("../config");
+const { UserInputError } = require("apollo-server");
+const {ValidateUpdateProjectInput} = require('../utils/helpers')
 module.exports = {
   Mutation: {
     async addCharity(
@@ -10,6 +12,7 @@ module.exports = {
         charityInput: {
           charityName,
           projectDetails,
+          ImageURL,
           fundUse,
           addedBy,
           Status,
@@ -20,6 +23,7 @@ module.exports = {
           Impact,
           webURL,
           socialMedia,
+          publicKey,
         },
       },
       context,
@@ -30,6 +34,7 @@ module.exports = {
         projectDetails,
         fundUse,
         addedBy,
+        ImageURL,
         Status,
         Years,
         URL,
@@ -57,6 +62,32 @@ module.exports = {
       );
 
       return "Votes added successfully";
+    },
+    async deleteCharity(parent, { charityId ,Status }, context, info) {
+      await Charity.findByIdAndUpdate(charityId,{Status :Status })
+
+      return "Charity Status Updated";
+    },
+    async updateCharity(
+      parent,
+      {
+        charityId,
+        charityInput
+      },
+      context,
+      info
+    ) {
+      const { data, isValid, errors } = ValidateUpdateProjectInput(
+        charityInput
+      );
+      if (!isValid) throw new UserInputError("Errors", { errors });
+      try{
+       const updatedCharity =  await Charity.findByIdAndUpdate(charityId, {$set: data}, {new: true})
+       if(updatedCharity) return updatedCharity; 
+      }catch(e){
+        console.log(e)
+      }
+      throw new UserInputError("cannot update charity")
     },
   },
   Query: {
