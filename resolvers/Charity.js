@@ -1,8 +1,10 @@
 const Charity = require("../models/Charity");
 const User = require("../models/User");
+const { createWriteStream, existsSync, mkdirSync } = require("fs");
+const path = require("path");
 const _ = require("lodash");
 const { CHARITY_STATUS } = require("../config");
-const { UserInputError } = require("apollo-server");
+const { UserInputError } = require("apollo-server-express");
 const {ValidateUpdateProjectInput} = require('../utils/helpers')
 module.exports = {
   Mutation: {
@@ -89,7 +91,7 @@ module.exports = {
       }
       throw new UserInputError("cannot update charity")
     },
-  },
+     },
   Query: {
     async getAllCharities(_, args, context, info) {
       try {

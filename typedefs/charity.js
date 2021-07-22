@@ -1,4 +1,4 @@
-const gql = require("graphql-tag");
+const {gql} = require("apollo-server-express");
 
 module.exports = gql`
   type Charity {
@@ -40,7 +40,7 @@ module.exports = gql`
      socialMedia: String
     publicKey: String
   }
-
+  scalar Upload
   extend type Query {
     getAllCharities: [Charity]!
   }
