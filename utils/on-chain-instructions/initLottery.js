@@ -11,7 +11,7 @@ var CryptoJS = require("crypto-js");
 const { connection } = require("../../config.js");
 const BufferLayout  =  require('buffer-layout')
 
-const initLottery = async () => {
+const initLottery = async (charities) => {
   
  
   // getting the signerAccount details
