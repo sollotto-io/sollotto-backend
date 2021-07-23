@@ -32,6 +32,7 @@ const ValidateUpdateProjectInput = (input) => {
   let {
     charityName,
     projectDetails,
+    ImageURL,
     fundUse,
     addedBy,
     Status,
@@ -45,10 +46,11 @@ const ValidateUpdateProjectInput = (input) => {
     publicKey,
   } = input;
   if (isValid(charityName)) doc.charityName = charityName;
-  if (isValid(projectDetails)) doc.description = description;
+  if (isValid(projectDetails)) doc.projectDetails = projectDetails;
+  if (isValid(ImageURL)) doc.ImageURL = ImageURL;
   if (isValid(fundUse)) doc.fundUse = fundUse;
   if (isValid(addedBy)) doc.addedBy = addedBy;
-  if (isValid(Status)) doc.Status = Status;
+  if (typeof Status === "boolean") doc.Status = Status;
   if (isValid(Years)) doc.Years = Years;
   if (isValid(URL)) doc.URL = URL;
   if (isValid(Grade)) doc.Grade = Grade;
