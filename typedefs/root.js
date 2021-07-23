@@ -1,4 +1,5 @@
-const gql = require("graphql-tag");
+const {gql} = require("apollo-server-express");
+
 
 const root = gql`
 type Query{

@@ -1,11 +1,11 @@
-const gql = require("graphql-tag");
+const { gql } = require("apollo-server-express");
 
 module.exports = gql`
   type Charity {
     id: ID!
     charityName: String!
     projectDetails: String!
-    ImageURL:String
+    ImageURL: String
     fundUse: String!
     currentVotes: Int
     addedBy: String!
@@ -20,14 +20,14 @@ module.exports = gql`
     webURL: String!
     socialMedia: String
     nominationVotes: Int
-    lifeTimeNominationVotes:Int
+    lifeTimeNominationVotes: Int
     LastNominationVote: String
     publicKey: String!
   }
   input charityInput {
     charityName: String
     projectDetails: String
-    ImageURL:String
+    ImageURL: String
     fundUse: String
     addedBy: String
     Status: Boolean
@@ -36,18 +36,18 @@ module.exports = gql`
     URL: String
     Grade: String
     Impact: String
-    webURL: String   
-     socialMedia: String
+    webURL: String
+    socialMedia: String
     publicKey: String
   }
-
+  scalar Upload
   extend type Query {
     getAllCharities: [Charity]!
   }
   extend type Mutation {
-    addCharity(charityInput: charityInput): Charity!
+    addCharity(charityInput: charityInput): String!
     addNominationVotes(charityId: ID!, UserPk: String!, Votes: Int!): String!
-    deleteCharity(charityId:ID!, Status: Boolean!): String!
-    updateCharity(charityId:ID!, charityInput:charityInput) :Charity!
+    deleteCharity(charityId: ID!, Status: Boolean!): String!
+    updateCharity(charityId: ID!, charityInput: charityInput): String!
   }
 `;
