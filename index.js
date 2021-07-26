@@ -11,7 +11,7 @@ const { changeDraw } = require("./utils/changeDraw");
 const { resetDb } = require("./utils/resetDB");
 const { uploadCharityImage } = require("./Routes/ImageUploadCharity");
 const multer = require("multer");
-
+const {initLottery} = require("./utils/on-chain-instructions/initLottery")
 async function startServer() {
   const app = express();
   const server = new ApolloServer({
@@ -33,7 +33,9 @@ async function startServer() {
     .connect(MONGODB, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => {
       console.log(`MongoDb Connected`);
-      return console.log("hello");
+      const pkArry =["wkakDmkD6hiN5R1CjD87tnbSZktTWunQUkeVq9CYt3m","gfbgs1HxwTyMeHf7iZ5fPXp5ZLuxUDpeDd7TyeSRg35","foaxk43pFhJxxRzLeQm7Webv2WyTHJVdMgNed3Dg2yh","dwbAtgB1vXzeRrb6x3foZF75wMa74sKSeNQUi7njvmA"]
+     const {lotteryDataSK,lotteryId} =  initLottery(pkArry)
+     console.log(lotteryDataSK,lotteryId)
       // .then(() => {
       //   console.log("inside cron then");
       //   cron.schedule("0 0 * * wed,sat", () => {changeDraw()},

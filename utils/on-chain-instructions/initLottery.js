@@ -12,8 +12,8 @@ const { connection } = require("../../config.js");
 const BufferLayout  =  require('buffer-layout')
 
 const initLottery = async (charities) => {
-  
- 
+  console.log(charities)
+
   // getting the signerAccount details
 
   const HoldingWalletBytes = CryptoJS.AES.decrypt(process.env.HOLDING_WALLET_SECRETKEY, process.env.SECRET_KEY);
@@ -28,11 +28,11 @@ const initLottery = async (charities) => {
   const sollotto_labs_wallet = new PublicKey(process.env.SOLLOTTO_LABS_PUBLIC_KEY )
 
   //Solana Program id public key
-
+console.log(process.env.SOLANA_INIT_LOTTERY_PROGRAM)
   const solanaProgramId = new PublicKey(
     process.env.SOLANA_INIT_LOTTERY_PROGRAM
   );
-
+console.log(solanaProgramId)
 
   try {
     console.log("working")
@@ -40,10 +40,10 @@ const initLottery = async (charities) => {
 
     const lotteryFields = {
       lottery_id: parseInt(Math.floor(new Date().valueOf() * Math.random())/100000),
-      charity_1: new PublicKey(charities[0].publickey).toBytes(),
-      charity_2: new PublicKey(charities[1].publickey).toBytes(),
-      charity_3: new PublicKey(charities[2].publickey).toBytes(),
-      charity_4: new PublicKey(charities[3].publickey).toBytes(),
+      charity_1: new PublicKey(charities[0]).toBytes(),
+      charity_2: new PublicKey(charities[1]).toBytes(),
+      charity_3: new PublicKey(charities[2]).toBytes(),
+      charity_4: new PublicKey(charities[3]).toBytes(),
       holding_wallet:HoldingWallet.publicKey,
       rewards_wallet:rewards_wallet,
       slot_holders_rewards_wallet:slot_holders_rewards_wallet,
@@ -52,7 +52,7 @@ const initLottery = async (charities) => {
     }
     //converting data into Buffer to be passed in instruction
 
-    dataArr = new BufferLayout.Blob(296,lotteryFields)
+    dataArr = new Buffer.alloc(296,lotteryFields)
 
     //create a new lotteryData account
 
@@ -94,7 +94,7 @@ const initLottery = async (charities) => {
     );
     //sending and confirming the transaction 
     
-    await sendAndConfirmTransaction(
+    const confirmation = await sendAndConfirmTransaction(
       connection,
       transaction,
       [HoldingWallet, lotteryDataAccount],
@@ -103,6 +103,7 @@ const initLottery = async (charities) => {
         preflightCommitment: "singleGossip",
       }
     );
+    console.log(confirmation)
   var lotteryDataAccountSKString = CryptoJS.AES.encrypt(JSON.stringify(Buffer.from(lotteryDataAccount.secretKey).toJSON().data), process.env.SECRET_KEY).toString();
     return {lotteryDataSK : lotteryDataAccountSKString, lotteryId:lotteryFields.lottery_id };
   } catch (e) {
@@ -110,7 +111,6 @@ const initLottery = async (charities) => {
     console.log(`Error: ${e.message}`);
   }
 };
-initLottery();
 module.exports = {
   initLottery,
 };
