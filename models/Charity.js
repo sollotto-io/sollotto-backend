@@ -11,11 +11,16 @@ const charitySchema = new Schema({
     lifeTimeWins: {type:Number},    
     Status:String,
     Years: String,
-    watchURL:String,
-    watchGrade: String,
+    URL:String,
+    isWatch:Boolean,
+    Grade: String,
     Impact:String,
     webURL: String,
-    socialMedia:String
+    socialMedia:String,
+    nominationVotes:{type:Number},
+    lifeTimeNominationVotes:{type:Number},
+    LastNominationVote:String,
+    publicKey:String
 });
 
 module.exports = model('Charity', charitySchema);

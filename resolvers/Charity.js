@@ -1,4 +1,6 @@
 const Charity = require("../models/Charity");
+const User = require("../models/User");
+const _ = require("lodash");
 const { CHARITY_STATUS } = require("../config");
 module.exports = {
   Mutation: {
@@ -6,36 +8,37 @@ module.exports = {
       _,
       {
         charityInput: {
-        
           charityName,
           projectDetails,
           fundUse,
           addedBy,
           Status,
           Years,
-          watchURL,
-          watchGrade,
+          URL,
+          isWatch,
+          Grade,
           Impact,
           webURL,
-          socialMedia
+          socialMedia,
         },
       },
       context,
       info
     ) {
       const newCharity = new Charity({
-    
         charityName,
         projectDetails,
         fundUse,
         addedBy,
         Status,
         Years,
-        watchURL,
-        watchGrade,
+        URL,
+        isWatch,
+        Grade,
         Impact,
         webURL,
-        socialMedia
+        socialMedia,
+        publicKey,
       });
       const res = await newCharity.save();
       return {
@@ -43,23 +46,24 @@ module.exports = {
         id: res._id,
       };
     },
+    async addNominationVotes(_, { charityId, UserPk, Votes }, context, info) {
+      await Charity.findByIdAndUpdate(charityId, {
+        $inc: { nominationVotes: Votes, lifeTimeNominationVotes: Votes },
+        LastNominationVote: Date.now().toString(),
+      });
+      await User.findOneAndUpdate(
+        { UserPK: UserPk },
+        { $inc: { TokenValue: -Votes } }
+      );
+
+      return "Votes added successfully";
+    },
   },
   Query: {
     async getAllCharities(_, args, context, info) {
       try {
         const charities = await Charity.find().sort({ createdAt: -1 });
         return charities;
-      } catch (err) {
-        throw new Error(err);
-      }
-    },
-    async getActiveCharities(_, args, context, info) {
-      try {
-        const charities = await Charity.find().sort({ createdAt: -1 });
-        activeCharities = charities.filter(
-          (p) => p.Status === CHARITY_STATUS.VOTE_NOW
-        );
-        return activeCharities;
       } catch (err) {
         throw new Error(err);
       }
