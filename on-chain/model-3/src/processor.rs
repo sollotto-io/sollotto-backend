@@ -136,6 +136,7 @@ impl Processor {
         let accounts_iter = &mut accounts.iter();
 
         // TODO: check access
+        // TODO: check all participants (mint + amount > 0)
         // TODO: Find winner in participant list
         // TODO: Get the reward shares
         // TODO: Transfer reward
@@ -149,23 +150,9 @@ impl Processor {
 #[cfg(test)]
 mod test {
     use super::*;
-    use solana_program::{instruction::Instruction, program_pack::Pack};
-    use solana_sdk::account::{
-        create_account_for_test, create_is_signer_account_infos, Account as SolanaAccount,
-    };
-    use spl_token::state::{Account, Mint};
-
-    fn lottery_result_minimum_balance() -> u64 {
-        Rent::default().minimum_balance(LotteryResultData::get_packed_len())
-    }
-
-    fn mint_minimum_balance() -> u64 {
-        Rent::default().minimum_balance(Mint::get_packed_len())
-    }
-
-    fn account_minimum_balance() -> u64 {
-        Rent::default().minimum_balance(Account::get_packed_len())
-    }
+    use solana_program::instruction::Instruction;
+    use solana_sdk::account::{create_is_signer_account_infos, Account as SolanaAccount};
+    use spl_token::ui_amount_to_amount;
 
     fn do_process(instruction: Instruction, accounts: Vec<&mut SolanaAccount>) -> ProgramResult {
         let mut meta = instruction
@@ -181,7 +168,49 @@ mod test {
 
     #[test]
     fn test_deposit() {
-        // TODO
+        let program_id = crate::id();
+        let mut spl_token_acc = SolanaAccount::default();
+        let user_wallet_key = Pubkey::new_unique();
+        let mut user_wallet_acc = SolanaAccount::default();
+        let staking_pool_key = Pubkey::new_unique();
+        let mut staking_pool_acc = SolanaAccount::default();
+        let staking_pool_token_key = Pubkey::new_unique();
+        let mut staking_pool_token_acc = SolanaAccount::default();
+
+        let user_token_account_key = Pubkey::new_unique();
+        let mut user_token_account_acc = SolanaAccount::default();
+        let user_staking_pool_token_key = Pubkey::new_unique();
+        let mut user_staking_pool_token_acc = SolanaAccount::default();
+
+        let staking_pool_token_mint_key = Pubkey::new_unique();
+        let mut staking_pool_token_mint_acc = SolanaAccount::default();
+        let decimals = 9;
+
+        let amount = ui_amount_to_amount(1.0, decimals);
+
+        do_process(
+            crate::instruction::deposit(
+                &program_id,
+                amount,
+                &user_wallet_key,
+                &staking_pool_key,
+                &user_token_account_key,
+                &user_staking_pool_token_key,
+                &staking_pool_token_key,
+                &staking_pool_token_mint_key,
+            )
+            .unwrap(),
+            vec![
+                &mut user_wallet_acc,
+                &mut staking_pool_acc,
+                &mut user_token_account_acc,
+                &mut user_staking_pool_token_acc,
+                &mut staking_pool_token_acc,
+                &mut staking_pool_token_mint_acc,
+                &mut spl_token_acc,
+            ],
+        )
+        .unwrap();
     }
 
     #[test]
