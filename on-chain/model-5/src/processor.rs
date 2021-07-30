@@ -4,12 +4,16 @@ use crate::{
     instruction::LotteryInstruction,
     state::LotteryResultData,
 };
+use spl_token::{
+    state::{Mint, Account as SPLAccount}
+};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
     native_token::{lamports_to_sol, sol_to_lamports},
     program::invoke,
+    program_option::COption,
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
@@ -71,36 +75,56 @@ impl Processor {
         let user_slot_account       = next_account_info(accounts_iter)?;
         let fqticket_mint           = next_account_info(accounts_iter)?;
         let fqticket_mint_authority = next_account_info(accounts_iter)?;
-        let slot_mint               = next_account_info(accounts_iter)?;
+        let slot_mint_account       = next_account_info(accounts_iter)?;
         let slot_mint_authority     = next_account_info(accounts_iter)?;
         let sollotto_sol_account    = next_account_info(accounts_iter)?;
         let system_program_account  = next_account_info(accounts_iter)?;
         let spl_token_account       = next_account_info(accounts_iter)?;
 
-        /* TODO: Figure out how to get real non-sol tokens from lamports
-         *
-        let fqtickets_cap   = lamports_to_sol(user_slot_account.lamports()) as u64;
-        // How much fqtickets user already has
-        let fqtickets_owned = lamports_to_sol(user_slot_account.lamports()) as u64
-        if amount > fqtickets_cap {
-            msg!("Requested FQTickets exceeds SLOT amount for the user");
-            Err(ProgramError::SLOTCapExceeded)
-        }
-        */
-
         // TODO: Check for signed/writable attributes on fields that require them,
-        // Identify and decline transactions that try to spoof user SLOT balance.
-        // This can be achieved by ensuring that user's SLOT account has corrent mint
 
-        // Checks to determine if user tries to spoof
-        if user_slot_account.owner != slot_mint.key { // @@@ Prolly wrong
+        let user_slot_account = SPLAccount::unpack(
+            &user_slot_account.data.borrow()
+        )?;
+        let slot_mint = Mint::unpack(
+            &slot_mint_account.data.borrow()
+        )?;
+
+        // Checks to determine if user tries to spoof their SLOT account
+        //
+        // Assert that provided SLOT account belongs to user
+        if user_slot_account.owner != *user_sol_account.key {
             msg!("User provided incorrect SLOT account");
             return Err(LotteryError::InvalidSLOTAccount.into());
         }
-
-        if slot_mint.owner != slot_mint_authority.key {
+        // Assert that provided user's SLOT account has the corrent Mint
+        if user_slot_account.mint != *slot_mint_account.key {
+            msg!("User provided incorrect SLOT account");
+            return Err(LotteryError::InvalidSLOTAccount.into());
+        }
+        // If provided SLOT Mint account has no mint_authority, return Err
+        if let COption::Some(mint_authority) = slot_mint.mint_authority {
+            // Check if
+            if mint_authority != *slot_mint_authority.key {
+                msg!("SLOT Mint has incorrect mint_authority");
+                return Err(LotteryError::InvalidSLOTAccount.into());
+            }
+        } else {
             msg!("SLOT Mint has incorrect mint_authority");
             return Err(LotteryError::InvalidSLOTAccount.into());
+        }
+
+        // Temporary account variable to check user's fqticket balance
+        let _user_fqticket_account = SPLAccount::unpack(
+            &user_fqticket_account.data.borrow()
+        )?;
+        let fqtickets_owned = _user_fqticket_account.amount;
+        let fqtickets_cap   = user_slot_account.amount;
+
+        // How much fqtickets user already has
+        if (fqtickets_owned + (amount as u64)) > fqtickets_cap {
+            msg!("Requested FQTickets exceeds SLOT amount for the user");
+            return Err(LotteryError::SLOTCapExceeded.into());
         }
 
         let ticket_price = sol_to_lamports(0.1);
@@ -126,7 +150,7 @@ impl Processor {
                 &spl_token::id(),
                 fqticket_mint.key,
                 user_fqticket_account.key,
-                fqticket_mint.owner,
+                fqticket_mint_authority.key,
                 &[],
                 amount as u64
             )?,
