@@ -21,10 +21,12 @@ pub enum LotteryInstruction {
     /// 1. `[writable, signer]` User SOL account
     /// 2.                 `[]` User SLOT account
     /// 3.           `[signer]` FQTicket Mint (must be a system account)
-    /// 4.           `[signer]` SLOT Token mint_authority (must be a system account)
-    /// 5.         `[writable]` Sollotto SOL account (must be a system account)
-    /// 6.                 `[]` System program account
-    /// 7.                 `[]` SPL Token account (must be a system account)
+    /// 4.           `[signer]` FQTicket mint_authority (must be a system account)
+    /// 5.           `[signer]` SLOT Mint (must be a system account)
+    /// 6.           `[signer]` SLOT mint_authority (must be a system account)
+    /// 7.         `[writable]` Sollotto SOL account (must be a system account)
+    /// 8.                 `[]` System program account
+    /// 9.                 `[]` SPL Token account (must be a system account)
     PurchaseTicket {
         amount: u32
     },
