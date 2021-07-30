@@ -83,10 +83,13 @@ impl LotteryInstruction {
     /// Packs a LotteryInstruction into a byte buffer.
     pub fn pack(&self) -> Vec<u8> {
         let mut buf = Vec::with_capacity(size_of::<Self>());
-        /* @@@
         match self {
-        };
-        */
+            Self::PurchaseTicket { amount } => {
+                buf.push(0);
+                buf.extend_from_slice(&amount.to_le_bytes());
+            },
+            _ => unreachable!()
+        }
         buf
     }
 
@@ -110,21 +113,43 @@ impl LotteryInstruction {
     }
 }
 
-/* TODO: Implement those
 /// Creates a `PurchaseTicket` instruction
 pub fn purchase_ticket(
     program_id: &Pubkey,
-    charity: &Pubkey,
-    user_wallet_pk: &Pubkey,
-    ticket_number_arr: &[u8; 6],
-    user_ticket_key: &Pubkey,
-    holding_wallet_key: &Pubkey,
-    lottery_authority: &Pubkey,
+    amount: u32,
+    user_fqticket_acc: &Pubkey,
+    user_sol_acc: &Pubkey,
+    user_slot_acc: &Pubkey,
+    fqticket_mint: &Pubkey,
+    fqticket_mint_authority: &Pubkey,
+    slot_mint: &Pubkey,
+    slot_mint_authority: &Pubkey,
+    sollotto_sol_acc: &Pubkey
 ) -> Result<Instruction, ProgramError> {
-    // FIXME
-    Ok(())
+    let data = LotteryInstruction::PurchaseTicket {
+        amount
+    }.pack();
+
+    let mut accounts = Vec::with_capacity(10);
+    accounts.push(AccountMeta::new(*user_fqticket_acc, false));
+    accounts.push(AccountMeta::new(*user_sol_acc, false));
+    accounts.push(AccountMeta::new(*user_slot_acc, false));
+    accounts.push(AccountMeta::new(*fqticket_mint, false));
+    accounts.push(AccountMeta::new(*fqticket_mint_authority, false));
+    accounts.push(AccountMeta::new(*slot_mint, false));
+    accounts.push(AccountMeta::new(*slot_mint_authority, false));
+    accounts.push(AccountMeta::new(*sollotto_sol_acc, false));
+    accounts.push(AccountMeta::new_readonly(solana_program::system_program::id(), false));
+    accounts.push(AccountMeta::new_readonly(spl_token::id(), false));
+
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data
+    })
 }
 
+/*
 /// Creates a `RewardWinners` instruction
 pub fn reward_winners(
     program_id: &Pubkey,
