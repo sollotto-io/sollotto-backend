@@ -2,6 +2,7 @@
 use crate::{
     error::LotteryError,
     instruction::LotteryInstruction,
+    state::LotteryResultData,
 };
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -48,10 +49,10 @@ impl Processor {
                     amount
                 )
             },
-            LotteryInstruction::RewardWinners { idx, prize_pool } => {
+            LotteryInstruction::RewardWinners { lottery_id, idx, prize_pool } => {
                 msg!("Instruction: RewardWinners");
                 Self::process_reward_winners(
-                    program_id, accounts,
+                    program_id, accounts, lottery_id,
                     idx, prize_pool
                 )
             }
@@ -143,14 +144,60 @@ impl Processor {
     pub fn process_reward_winners(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
+        lottery_id: u32,
         idx: u64,
         prize_pool: u64
     ) -> ProgramResult {
-        Ok(())
-    }
+        let accounts_iter = &mut accounts.iter();
+        let idx = idx as usize;
 
-    fn write_winning_address(winning_addr: &Pubkey) -> ProgramResult {
-        // FIXME
+        let sollotto_sol_account     = next_account_info(accounts_iter)?;
+        let sollotto_rewards_account = next_account_info(accounts_iter)?;
+        let holder_rewards_account   = next_account_info(accounts_iter)?;
+        let sollotto_labs_account    = next_account_info(accounts_iter)?;
+        let sollotto_results_account = next_account_info(accounts_iter)?;
+        let system_program_account   = next_account_info(accounts_iter)?;
+        let participants             = accounts_iter.as_slice();
+
+        if participants.len() < idx {
+            msg!("Winner's index exceedes the number of participants");
+            return Err(LotteryError::InvalidParticipantsAccounts.into())
+        }
+
+        let winner = participants.get(idx).unwrap();
+
+        let sol_prize_pool       = lamports_to_sol(prize_pool);
+        let winners_cut          = sol_to_lamports(sol_prize_pool * 0.95);
+        let sollotto_rewards_cut = sol_to_lamports(sol_prize_pool * 0.04);
+        let holder_rewards_cut   = sol_to_lamports(sol_prize_pool * 0.006);
+        let sollotto_labs_cut    = sol_to_lamports(sol_prize_pool * 0.004);
+
+        for ( dest, cut ) in [
+            ( winner, winners_cut ),
+            ( sollotto_rewards_account, sollotto_rewards_cut ),
+            ( holder_rewards_account, holder_rewards_cut ),
+            ( sollotto_labs_account, sollotto_labs_cut )
+        ] {
+            Self::transfer_sol(
+                sollotto_sol_account.key,
+                dest.key,
+                cut,
+                &[
+                    sollotto_sol_account.clone(),
+                    dest.clone(),
+                    system_program_account.clone()
+                ]
+            )?;
+        }
+
+        LotteryResultData::pack(
+            LotteryResultData {
+                lottery_id: lottery_id,
+                winner: *winner.key,
+            },
+            &mut sollotto_results_account.data.borrow_mut()
+        );
+
         Ok(())
     }
 
