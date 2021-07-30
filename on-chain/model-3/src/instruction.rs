@@ -205,7 +205,7 @@ pub fn reward_winner(
     token_mint: &Pubkey,
     lottery_result: &Pubkey,
     staking_pool_token_mint: &Pubkey,
-    participants: &Vec<Pubkey>,
+    participants: &Vec<(Pubkey, Pubkey)>,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(program_id)?;
     let data = LotteryInstruction::RewardWinner {
@@ -223,6 +223,10 @@ pub fn reward_winner(
     accounts.push(AccountMeta::new_readonly(*staking_pool_token_mint, false));
     accounts.push(AccountMeta::new_readonly(spl_token::id(), false));
     accounts.push(AccountMeta::new_readonly(sysvar::rent::id(), false));
+    for participant in participants {
+        accounts.push(AccountMeta::new(participant.0, false));
+        accounts.push(AccountMeta::new(participant.1, false));
+    }
 
     Ok(Instruction {
         program_id: *program_id,

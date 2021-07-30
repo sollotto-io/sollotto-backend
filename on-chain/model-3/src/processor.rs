@@ -181,7 +181,7 @@ impl Processor {
     }
 
     pub fn process_reward_winner(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
         lottery_id: u32,
         random_number: u32,
@@ -200,6 +200,11 @@ impl Processor {
         if !token_prize_pool_owner.is_signer {
             msg!("Missing Custom SPL Token prize pool owner signature");
             return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        if lottery_result_account.owner != program_id {
+            msg!("Invalid owner for LotteryResult data account");
+            return Err(ProgramError::IncorrectProgramId);
         }
 
         let rent = Rent::from_account_info(rent_info)?;
@@ -248,8 +253,8 @@ impl Processor {
                 msg!("Participant Staking pool token amount 0");
                 return Err(LotteryError::InvalidParticipantsAccounts.into());
             }
-            if participant_staking_pool_token_account.mint == *staking_pool_token_mint.key {
-                msg!("Participant Staking pool token amount 0");
+            if participant_staking_pool_token_account.mint != *staking_pool_token_mint.key {
+                msg!("Invalid Staking Pool Mint");
                 return Err(LotteryError::InvalidParticipantsAccounts.into());
             }
         }
@@ -318,8 +323,22 @@ impl Processor {
 mod test {
     use super::*;
     use solana_program::instruction::Instruction;
-    use solana_sdk::account::{create_is_signer_account_infos, Account as SolanaAccount};
+    use solana_sdk::account::{
+        create_account_for_test, create_is_signer_account_infos, Account as SolanaAccount,
+    };
     use spl_token::ui_amount_to_amount;
+
+    fn mint_minimum_balance() -> u64 {
+        Rent::default().minimum_balance(spl_token::state::Mint::get_packed_len())
+    }
+
+    fn account_minimum_balance() -> u64 {
+        Rent::default().minimum_balance(spl_token::state::Account::get_packed_len())
+    }
+
+    fn lottery_result_minimum_balance() -> u64 {
+        Rent::default().minimum_balance(LotteryResultData::get_packed_len())
+    }
 
     fn do_process(instruction: Instruction, accounts: Vec<&mut SolanaAccount>) -> ProgramResult {
         let mut meta = instruction
@@ -429,6 +448,422 @@ mod test {
 
     #[test]
     fn test_reward_winner() {
-        // TODO
+        let program_id = crate::id();
+        let mut spl_token_acc = SolanaAccount::default();
+        let mut rent_acc = create_account_for_test(&Rent::default());
+
+        let prize_pool_owner_key = Pubkey::new_unique();
+        let mut prize_pool_owner_acc = SolanaAccount::default();
+
+        let token_mint_key = Pubkey::new_unique();
+        let mut token_mint_acc = SolanaAccount::new(
+            mint_minimum_balance(),
+            spl_token::state::Mint::get_packed_len(),
+            &spl_token::id(),
+        );
+        Mint::pack(
+            Mint {
+                is_initialized: true,
+                decimals: 9,
+                ..Default::default()
+            },
+            &mut token_mint_acc.data,
+        )
+        .unwrap();
+
+        let staking_pool_token_mint_key = Pubkey::new_unique();
+        let mut staking_pool_token_mint_acc = SolanaAccount::new(
+            mint_minimum_balance(),
+            spl_token::state::Mint::get_packed_len(),
+            &spl_token::id(),
+        );
+        Mint::pack(
+            Mint {
+                is_initialized: true,
+                decimals: 9,
+                ..Default::default()
+            },
+            &mut staking_pool_token_mint_acc.data,
+        )
+        .unwrap();
+
+        let prize_pool_token_account_key = Pubkey::new_unique();
+        let mut prize_pool_token_account_acc = SolanaAccount::new(
+            account_minimum_balance(),
+            spl_token::state::Account::get_packed_len(),
+            &spl_token::id(),
+        );
+        spl_token::state::Account::pack(
+            Account {
+                state: spl_token::state::AccountState::Initialized,
+                amount: 0,
+                mint: token_mint_key,
+                owner: prize_pool_owner_key,
+                ..Default::default()
+            },
+            &mut prize_pool_token_account_acc.data,
+        )
+        .unwrap();
+
+        let charity_token_account_key = Pubkey::new_unique();
+        let mut charity_token_account_acc = SolanaAccount::new(
+            account_minimum_balance(),
+            spl_token::state::Account::get_packed_len(),
+            &spl_token::id(),
+        );
+        spl_token::state::Account::pack(
+            Account {
+                state: spl_token::state::AccountState::Initialized,
+                mint: token_mint_key,
+                owner: Pubkey::new_unique(),
+                ..Default::default()
+            },
+            &mut prize_pool_token_account_acc.data,
+        )
+        .unwrap();
+
+        let user_1_auth = Pubkey::new_unique();
+        let user_1_token_key = Pubkey::new_unique();
+        let mut user_1_token_acc = SolanaAccount::new(
+            account_minimum_balance(),
+            spl_token::state::Account::get_packed_len(),
+            &spl_token::id(),
+        );
+        spl_token::state::Account::pack(
+            Account {
+                state: spl_token::state::AccountState::Initialized,
+                mint: token_mint_key,
+                owner: user_1_auth,
+                ..Default::default()
+            },
+            &mut user_1_token_acc.data,
+        )
+        .unwrap();
+        let user_1_staking_pool_token_key = Pubkey::new_unique();
+        let mut user_1_staking_pool_token_acc = SolanaAccount::new(
+            account_minimum_balance(),
+            spl_token::state::Account::get_packed_len(),
+            &spl_token::id(),
+        );
+        spl_token::state::Account::pack(
+            Account {
+                state: spl_token::state::AccountState::Initialized,
+                mint: staking_pool_token_mint_key,
+                owner: user_1_auth,
+                ..Default::default()
+            },
+            &mut user_1_staking_pool_token_acc.data,
+        )
+        .unwrap();
+
+        let user_2_auth = Pubkey::new_unique();
+        let user_2_token_key = Pubkey::new_unique();
+        let mut user_2_token_acc = SolanaAccount::new(
+            account_minimum_balance(),
+            spl_token::state::Account::get_packed_len(),
+            &spl_token::id(),
+        );
+        spl_token::state::Account::pack(
+            Account {
+                state: spl_token::state::AccountState::Initialized,
+                mint: token_mint_key,
+                owner: user_2_auth,
+                ..Default::default()
+            },
+            &mut user_2_token_acc.data,
+        )
+        .unwrap();
+        let user_2_staking_pool_token_key = Pubkey::new_unique();
+        let mut user_2_staking_pool_token_acc = SolanaAccount::new(
+            account_minimum_balance(),
+            spl_token::state::Account::get_packed_len(),
+            &spl_token::id(),
+        );
+        spl_token::state::Account::pack(
+            Account {
+                state: spl_token::state::AccountState::Initialized,
+                mint: staking_pool_token_mint_key,
+                owner: user_2_auth,
+                ..Default::default()
+            },
+            &mut user_2_staking_pool_token_acc.data,
+        )
+        .unwrap();
+
+        let lottery_id = 1;
+        let random_number = 1;
+
+        let lottery_result_key = Pubkey::new_unique();
+        let mut lottery_result_acc = SolanaAccount::new(
+            lottery_result_minimum_balance() - 1,
+            LotteryResultData::LEN,
+            &program_id,
+        );
+
+        // BadCase: LotteryResult account rent exempt
+        assert_eq!(
+            Err(ProgramError::AccountNotRentExempt),
+            do_process(
+                crate::instruction::reward_winner(
+                    &program_id,
+                    lottery_id,
+                    random_number,
+                    &prize_pool_owner_key,
+                    &prize_pool_token_account_key,
+                    &charity_token_account_key,
+                    &token_mint_key,
+                    &lottery_result_key,
+                    &staking_pool_token_mint_key,
+                    &vec![
+                        (user_1_token_key, user_1_staking_pool_token_key),
+                        (user_2_token_key, user_2_staking_pool_token_key),
+                    ],
+                )
+                .unwrap(),
+                vec![
+                    &mut prize_pool_owner_acc,
+                    &mut prize_pool_token_account_acc,
+                    &mut charity_token_account_acc,
+                    &mut token_mint_acc,
+                    &mut lottery_result_acc,
+                    &mut staking_pool_token_mint_acc,
+                    &mut spl_token_acc,
+                    &mut rent_acc,
+                    &mut user_1_token_acc,
+                    &mut user_1_staking_pool_token_acc,
+                    &mut user_2_token_acc,
+                    &mut user_2_staking_pool_token_acc,
+                ],
+            )
+        );
+
+        let mut lottery_result_acc = SolanaAccount::new(
+            lottery_result_minimum_balance(),
+            LotteryResultData::LEN,
+            &program_id,
+        );
+
+        // BadCase EmptyPrizePool
+        assert_eq!(
+            Err(LotteryError::EmptyPrizePool.into()),
+            do_process(
+                crate::instruction::reward_winner(
+                    &program_id,
+                    lottery_id,
+                    random_number,
+                    &prize_pool_owner_key,
+                    &prize_pool_token_account_key,
+                    &charity_token_account_key,
+                    &token_mint_key,
+                    &lottery_result_key,
+                    &staking_pool_token_mint_key,
+                    &vec![
+                        (user_1_token_key, user_1_staking_pool_token_key),
+                        (user_2_token_key, user_2_staking_pool_token_key),
+                    ],
+                )
+                .unwrap(),
+                vec![
+                    &mut prize_pool_owner_acc,
+                    &mut prize_pool_token_account_acc,
+                    &mut charity_token_account_acc,
+                    &mut token_mint_acc,
+                    &mut lottery_result_acc,
+                    &mut staking_pool_token_mint_acc,
+                    &mut spl_token_acc,
+                    &mut rent_acc,
+                    &mut user_1_token_acc,
+                    &mut user_1_staking_pool_token_acc,
+                    &mut user_2_token_acc,
+                    &mut user_2_staking_pool_token_acc,
+                ],
+            )
+        );
+
+        spl_token::state::Account::pack(
+            Account {
+                state: spl_token::state::AccountState::Initialized,
+                amount: ui_amount_to_amount(10.0, 9),
+                mint: token_mint_key,
+                owner: prize_pool_owner_key,
+                ..Default::default()
+            },
+            &mut prize_pool_token_account_acc.data,
+        )
+        .unwrap();
+
+        // BadCase: InvalidParticipantsAccounts size
+        assert_eq!(
+            Err(LotteryError::InvalidParticipantsAccounts.into()),
+            do_process(
+                crate::instruction::reward_winner(
+                    &program_id,
+                    lottery_id,
+                    random_number,
+                    &prize_pool_owner_key,
+                    &prize_pool_token_account_key,
+                    &charity_token_account_key,
+                    &token_mint_key,
+                    &lottery_result_key,
+                    &staking_pool_token_mint_key,
+                    &vec![
+                        (user_1_token_key, user_1_staking_pool_token_key),
+                        (user_2_token_key, user_2_staking_pool_token_key),
+                    ],
+                )
+                .unwrap(),
+                vec![
+                    &mut prize_pool_owner_acc,
+                    &mut prize_pool_token_account_acc,
+                    &mut charity_token_account_acc,
+                    &mut token_mint_acc,
+                    &mut lottery_result_acc,
+                    &mut staking_pool_token_mint_acc,
+                    &mut spl_token_acc,
+                    &mut rent_acc,
+                    &mut user_1_token_acc,
+                    &mut user_1_staking_pool_token_acc,
+                    &mut user_2_token_acc,
+                ],
+            )
+        );
+
+        // BadCase: InvalidParticipantsAccounts bad random number
+        let bad_random_number = 10;
+        assert_eq!(
+            Err(LotteryError::InvalidRandomNumber.into()),
+            do_process(
+                crate::instruction::reward_winner(
+                    &program_id,
+                    lottery_id,
+                    bad_random_number,
+                    &prize_pool_owner_key,
+                    &prize_pool_token_account_key,
+                    &charity_token_account_key,
+                    &token_mint_key,
+                    &lottery_result_key,
+                    &staking_pool_token_mint_key,
+                    &vec![
+                        (user_1_token_key, user_1_staking_pool_token_key),
+                        (user_2_token_key, user_2_staking_pool_token_key),
+                    ],
+                )
+                .unwrap(),
+                vec![
+                    &mut prize_pool_owner_acc,
+                    &mut prize_pool_token_account_acc,
+                    &mut charity_token_account_acc,
+                    &mut token_mint_acc,
+                    &mut lottery_result_acc,
+                    &mut staking_pool_token_mint_acc,
+                    &mut spl_token_acc,
+                    &mut rent_acc,
+                    &mut user_1_token_acc,
+                    &mut user_1_staking_pool_token_acc,
+                    &mut user_2_token_acc,
+                    &mut user_2_staking_pool_token_acc,
+                ],
+            )
+        );
+
+        // BadCase: InvalidParticipantsAccounts invalid staking pool token amount
+        assert_eq!(
+            Err(LotteryError::InvalidParticipantsAccounts.into()),
+            do_process(
+                crate::instruction::reward_winner(
+                    &program_id,
+                    lottery_id,
+                    random_number,
+                    &prize_pool_owner_key,
+                    &prize_pool_token_account_key,
+                    &charity_token_account_key,
+                    &token_mint_key,
+                    &lottery_result_key,
+                    &staking_pool_token_mint_key,
+                    &vec![
+                        (user_1_token_key, user_1_staking_pool_token_key),
+                        (user_2_token_key, user_2_staking_pool_token_key),
+                    ],
+                )
+                .unwrap(),
+                vec![
+                    &mut prize_pool_owner_acc,
+                    &mut prize_pool_token_account_acc,
+                    &mut charity_token_account_acc,
+                    &mut token_mint_acc,
+                    &mut lottery_result_acc,
+                    &mut staking_pool_token_mint_acc,
+                    &mut spl_token_acc,
+                    &mut rent_acc,
+                    &mut user_1_token_acc,
+                    &mut user_1_staking_pool_token_acc,
+                    &mut user_2_token_acc,
+                    &mut user_2_staking_pool_token_acc,
+                ],
+            )
+        );
+
+        spl_token::state::Account::pack(
+            Account {
+                state: spl_token::state::AccountState::Initialized,
+                amount: ui_amount_to_amount(1.0, 9),
+                mint: staking_pool_token_mint_key,
+                owner: user_1_auth,
+                ..Default::default()
+            },
+            &mut user_1_staking_pool_token_acc.data,
+        )
+        .unwrap();
+        spl_token::state::Account::pack(
+            Account {
+                state: spl_token::state::AccountState::Initialized,
+                amount: ui_amount_to_amount(1.0, 9),
+                mint: staking_pool_token_mint_key,
+                owner: user_2_auth,
+                ..Default::default()
+            },
+            &mut user_2_staking_pool_token_acc.data,
+        )
+        .unwrap();
+
+        do_process(
+            crate::instruction::reward_winner(
+                &program_id,
+                lottery_id,
+                random_number,
+                &prize_pool_owner_key,
+                &prize_pool_token_account_key,
+                &charity_token_account_key,
+                &token_mint_key,
+                &lottery_result_key,
+                &staking_pool_token_mint_key,
+                &vec![
+                    (user_1_token_key, user_1_staking_pool_token_key),
+                    (user_2_token_key, user_2_staking_pool_token_key),
+                ],
+            )
+            .unwrap(),
+            vec![
+                &mut prize_pool_owner_acc,
+                &mut prize_pool_token_account_acc,
+                &mut charity_token_account_acc,
+                &mut token_mint_acc,
+                &mut lottery_result_acc,
+                &mut staking_pool_token_mint_acc,
+                &mut spl_token_acc,
+                &mut rent_acc,
+                &mut user_1_token_acc,
+                &mut user_1_staking_pool_token_acc,
+                &mut user_2_token_acc,
+                &mut user_2_staking_pool_token_acc,
+            ],
+        )
+        .unwrap();
+
+        // Check LotteryResult account
+        let lottery_result_data =
+            LotteryResultData::unpack_unchecked(&lottery_result_acc.data).unwrap();
+        assert_eq!(lottery_result_data.lottery_id, lottery_id);
+        assert_eq!(lottery_result_data.winner, user_2_token_key);
     }
 }
