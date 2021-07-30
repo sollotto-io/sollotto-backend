@@ -11,6 +11,12 @@ pub enum LotteryError {
     /// Prize pool is empty
     #[error("Priez pool is empty")]
     EmptyPrizePool,
+    /// Invalid participants accounts size
+    #[error("Invalid participants accounts size")]
+    InvalidParticipantsAccounts,
+    /// Invalid random number
+    #[error("Invalid random number")]
+    InvalidRandomNumber,
 }
 
 impl From<LotteryError> for ProgramError {

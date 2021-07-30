@@ -5,6 +5,7 @@ use solana_program::{
     instruction::{AccountMeta, Instruction},
     program_error::ProgramError,
     pubkey::Pubkey,
+    sysvar,
 };
 use std::{convert::TryInto, mem::size_of};
 
@@ -16,8 +17,8 @@ pub enum LotteryInstruction {
     /// gets equivalent of SPL Token Staking pool token
     ///
     /// Accounts expected by this instruction:
-    /// 0. `[writable, signer]` User wallet
-    /// 1. `[writable, signer]` Sollotto Staking Pool authority
+    /// 0. `[signer]` User wallet
+    /// 1. `[signer]` Sollotto Staking Pool authority
     /// 2. `[writable]` User Custom token Account
     /// 3. `[writable]` User Sollotto Staking pool token Account
     /// 4. `[writable]` Sollotto Staking Pool Custom token Account
@@ -29,8 +30,8 @@ pub enum LotteryInstruction {
     /// and gets equivalent of Custom SPL token back
     ///
     /// Accounts expected by this instruction:
-    /// 0. `[writable, signer]` User wallet
-    /// 1. `[writable, signer]` Sollotto Staking Pool authority
+    /// 0. `[signer]` User wallet
+    /// 1. `[signer]` Sollotto Staking Pool authority
     /// 2. `[writable]` User Custom token Account
     /// 3. `[writable]` User Sollotto Staking pool token Account
     /// 4. `[writable]` Sollotto Staking Pool Custom token Account
@@ -43,9 +44,23 @@ pub enum LotteryInstruction {
     /// Lottery id, winner's wallet are recorded into chain.
     ///
     /// Accounts expected by this instruction:
-    /// TODO: accs
-    /// 7. `[]` SPL Token program
-    RewardWinner { lottery_id: u32, random_number: u32 },
+    /// 0. `[signer]` Custom SPL Token Prize Pool owner authority
+    /// 1. `[writable]` Custom SPL Token Prize Pool account
+    /// 2. `[writable]` Charity SPL Token Account (for getting reward share)
+    /// 3. `[writable]` Custom SPL Token Mint
+    /// 4. `[writable]` Lottery Result Data account
+    /// 5. `[]` Staking Pool Token Mint
+    /// 6. `[]` SPL Token program
+    /// 7. `[]` Rent sysvar
+    /// The accounts pairs for every lottery participant:
+    /// 0. `[writable]` User Custom SPL Token account (for getting reward)
+    /// 1. `[writable]` User Staking Pool Token account (for check validness)
+    RewardWinner {
+        /// Inner identifier for lottery (will be recorded on-chain)
+        lottery_id: u32,
+        /// Random winner number from 0 to participant count
+        random_number: u32,
+    },
 }
 
 impl LotteryInstruction {
@@ -179,38 +194,39 @@ pub fn unpool(
     })
 }
 
-// /// Creates a `RewardWinner` instruction
-// TODO:
-// pub fn reward_winner(
-//     program_id: &Pubkey,
-//     lottery_id: u32,
-//     lottery_result: &Pubkey,
-//     winner_wallet: &Pubkey,
-//     rewards_wallet: &Pubkey,
-//     slot_holders_wallet: &Pubkey,
-//     sollotto_labs_wallet: &Pubkey,
-//     staking_pool_wallet: &Pubkey,
-//     lottery_authority: &Pubkey,
-// ) -> Result<Instruction, ProgramError> {
-//     check_program_account(program_id)?;
-//     let data = LotteryInstruction::RewardWinner { lottery_id }.pack();
+/// Creates a `RewardWinner` instruction
+pub fn reward_winner(
+    program_id: &Pubkey,
+    lottery_id: u32,
+    random_number: u32,
+    prize_pool_owner: &Pubkey,
+    prize_pool_token_account: &Pubkey,
+    charity_token_account: &Pubkey,
+    token_mint: &Pubkey,
+    lottery_result: &Pubkey,
+    staking_pool_token_mint: &Pubkey,
+    participants: &Vec<Pubkey>,
+) -> Result<Instruction, ProgramError> {
+    check_program_account(program_id)?;
+    let data = LotteryInstruction::RewardWinner {
+        lottery_id,
+        random_number,
+    }
+    .pack();
 
-//     let mut accounts = Vec::with_capacity(8);
-//     accounts.push(AccountMeta::new_readonly(*lottery_authority, true));
-//     accounts.push(AccountMeta::new(*lottery_result, false));
-//     accounts.push(AccountMeta::new(*winner_wallet, false));
-//     accounts.push(AccountMeta::new(*staking_pool_wallet, true));
-//     accounts.push(AccountMeta::new(*rewards_wallet, false));
-//     accounts.push(AccountMeta::new(*slot_holders_wallet, false));
-//     accounts.push(AccountMeta::new(*sollotto_labs_wallet, false));
-//     accounts.push(AccountMeta::new_readonly(
-//         solana_program::system_program::id(),
-//         false,
-//     ));
+    let mut accounts = Vec::with_capacity(8 + participants.len());
+    accounts.push(AccountMeta::new_readonly(*prize_pool_owner, true));
+    accounts.push(AccountMeta::new(*prize_pool_token_account, false));
+    accounts.push(AccountMeta::new(*charity_token_account, false));
+    accounts.push(AccountMeta::new(*token_mint, false));
+    accounts.push(AccountMeta::new(*lottery_result, false));
+    accounts.push(AccountMeta::new_readonly(*staking_pool_token_mint, false));
+    accounts.push(AccountMeta::new_readonly(spl_token::id(), false));
+    accounts.push(AccountMeta::new_readonly(sysvar::rent::id(), false));
 
-//     Ok(Instruction {
-//         program_id: *program_id,
-//         accounts,
-//         data,
-//     })
-// }
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}

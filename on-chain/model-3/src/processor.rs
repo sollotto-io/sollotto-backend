@@ -7,14 +7,17 @@ use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
-    native_token::{lamports_to_sol, sol_to_lamports},
     program::invoke,
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
     rent::Rent,
-    system_instruction,
     sysvar::Sysvar,
+};
+use spl_token::{
+    amount_to_ui_amount,
+    state::{Account, Mint},
+    ui_amount_to_amount,
 };
 
 /// Program state handler.
@@ -178,20 +181,133 @@ impl Processor {
     }
 
     pub fn process_reward_winner(
-        program_id: &Pubkey,
+        _program_id: &Pubkey,
         accounts: &[AccountInfo],
         lottery_id: u32,
         random_number: u32,
     ) -> ProgramResult {
         let accounts_iter = &mut accounts.iter();
+        let token_prize_pool_owner = next_account_info(accounts_iter)?;
+        let token_prize_pool_account = next_account_info(accounts_iter)?;
+        let charity_token_account = next_account_info(accounts_iter)?;
+        let token_mint = next_account_info(accounts_iter)?;
+        let lottery_result_account = next_account_info(accounts_iter)?;
+        let staking_pool_token_mint = next_account_info(accounts_iter)?;
+        let spl_token_info = next_account_info(accounts_iter)?;
+        let rent_info = next_account_info(accounts_iter)?;
+        let participants_accounts = accounts_iter.as_slice();
 
-        // TODO: check access
-        // TODO: rent check
-        // TODO: check all participants (mint + amount > 0)
-        // TODO: Find winner in participant list
-        // TODO: Get the reward shares
-        // TODO: Transfer reward
-        // TODO: Save result on-chain
+        if !token_prize_pool_owner.is_signer {
+            msg!("Missing Custom SPL Token prize pool owner signature");
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        let rent = Rent::from_account_info(rent_info)?;
+        if !rent.is_exempt(lottery_result_account.lamports(), LotteryResultData::LEN) {
+            msg!("Rent exempt error for LotteryDataAccount");
+            return Err(ProgramError::AccountNotRentExempt);
+        }
+
+        let token_mint_data = Mint::unpack(&token_mint.data.borrow())?;
+        let token_prize_pool_account_data =
+            Account::unpack(&token_prize_pool_account.data.borrow())?;
+        if token_prize_pool_account_data.amount == 0 {
+            msg!("Custom SPL Token Prize pool is empty");
+            return Err(LotteryError::EmptyPrizePool.into());
+        }
+
+        let prize_pool = amount_to_ui_amount(
+            token_prize_pool_account_data.amount,
+            token_mint_data.decimals,
+        );
+
+        if participants_accounts.len() % 2 != 0 {
+            msg!(
+                "Invalid participants accounts size: {}",
+                participants_accounts.len()
+            );
+            return Err(LotteryError::InvalidParticipantsAccounts.into());
+        }
+        if random_number > participants_accounts.len() as u32 / 2 {
+            msg!("Invalid random number: {}", random_number);
+            return Err(LotteryError::InvalidRandomNumber.into());
+        }
+
+        // Check all participants validness (mint and amount)
+        for i in (0..participants_accounts.len()).step_by(2) {
+            let participant_token_account =
+                Account::unpack(&participants_accounts[i].data.borrow())?;
+            if participant_token_account.mint != *token_mint.key {
+                msg!("Invalid Custom SPL Token participant mint");
+                return Err(LotteryError::InvalidParticipantsAccounts.into());
+            }
+
+            let participant_staking_pool_token_account =
+                Account::unpack(&participants_accounts[i + 1].data.borrow())?;
+            if participant_staking_pool_token_account.amount == 0 {
+                msg!("Participant Staking pool token amount 0");
+                return Err(LotteryError::InvalidParticipantsAccounts.into());
+            }
+            if participant_staking_pool_token_account.mint == *staking_pool_token_mint.key {
+                msg!("Participant Staking pool token amount 0");
+                return Err(LotteryError::InvalidParticipantsAccounts.into());
+            }
+        }
+
+        // Find the winner's Custom SPL Token account in participant list
+        let winner_account = participants_accounts[(random_number * 2) as usize].clone();
+        // Find the reward shares
+        // 70% of the prize pool is transferred to the winner
+        let winner_share = prize_pool * 0.7;
+        // 30% to a charity provided by the partner project
+        let charity_share = prize_pool * 0.3;
+
+        // Transfer winner share
+        invoke(
+            &spl_token::instruction::transfer(
+                &spl_token::id(),
+                token_prize_pool_account.key,
+                winner_account.key,
+                token_prize_pool_owner.key,
+                &[],
+                ui_amount_to_amount(winner_share, token_mint_data.decimals),
+            )
+            .unwrap(),
+            &[
+                spl_token_info.clone(),
+                token_prize_pool_account.clone(),
+                winner_account.clone(),
+                token_prize_pool_owner.clone(),
+            ],
+        )?;
+
+        // Transfer charity share
+        invoke(
+            &spl_token::instruction::transfer(
+                &spl_token::id(),
+                token_prize_pool_account.key,
+                charity_token_account.key,
+                token_prize_pool_owner.key,
+                &[],
+                ui_amount_to_amount(charity_share, token_mint_data.decimals),
+            )
+            .unwrap(),
+            &[
+                spl_token_info.clone(),
+                token_prize_pool_account.clone(),
+                charity_token_account.clone(),
+                token_prize_pool_owner.clone(),
+            ],
+        )?;
+
+        // Save LotteryResult on-chain
+        LotteryResultData::pack(
+            LotteryResultData {
+                lottery_id: lottery_id,
+                winner: *winner_account.key,
+            },
+            &mut lottery_result_account.data.borrow_mut(),
+        )?;
 
         Ok(())
     }
