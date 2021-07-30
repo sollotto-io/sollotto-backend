@@ -29,8 +29,13 @@ pub enum LotteryInstruction {
     /// and gets equivalent of Custom SPL token back
     ///
     /// Accounts expected by this instruction:
-    // TODO: accs
-    /// 5. `[]` SPL Token program
+    /// 0. `[writable, signer]` User wallet
+    /// 1. `[writable, signer]` Sollotto Staking Pool authority
+    /// 2. `[writable]` User Custom token Account
+    /// 3. `[writable]` User Sollotto Staking pool token Account
+    /// 4. `[writable]` Sollotto Staking Pool Custom token Account
+    /// 5. `[writable]` SPL Token Staking pool token mint
+    /// 6. `[]` SPL Token program
     Unpool { amount: u64 },
 
     /// Get the random number, find winner and pay reward from prize pool.
@@ -144,38 +149,35 @@ pub fn deposit(
     })
 }
 
-// /// Creates a `Undeposit` instruction
-// TODO:
-// pub fn undeposit(
-//     program_id: &Pubkey,
-//     amount: u64,
-//     staking_pool_token_mint: &Pubkey,
-//     user_staking_pool_token_account: &Pubkey,
-//     staking_pool_wallet: &Pubkey,
-//     user_authority: &Pubkey,
-//     lottery_authority: &Pubkey,
-// ) -> Result<Instruction, ProgramError> {
-//     check_program_account(program_id)?;
-//     let data = LotteryInstruction::Undeposit { amount }.pack();
+/// Creates a `Unpool` instruction
+pub fn unpool(
+    program_id: &Pubkey,
+    amount: u64,
+    user_authority: &Pubkey,
+    staking_pool_authoruty: &Pubkey,
+    user_token_account: &Pubkey,
+    user_staking_pool_account: &Pubkey,
+    staking_pool_token_account: &Pubkey,
+    staking_pool_token_mint: &Pubkey,
+) -> Result<Instruction, ProgramError> {
+    check_program_account(program_id)?;
+    let data = LotteryInstruction::Unpool { amount }.pack();
 
-//     let mut accounts = Vec::with_capacity(7);
-//     accounts.push(AccountMeta::new(*lottery_authority, true));
-//     accounts.push(AccountMeta::new(*staking_pool_token_mint, false));
-//     accounts.push(AccountMeta::new(*user_authority, true));
-//     accounts.push(AccountMeta::new(*user_staking_pool_token_account, false));
-//     accounts.push(AccountMeta::new(*staking_pool_wallet, true));
-//     accounts.push(AccountMeta::new_readonly(spl_token::id(), false));
-//     accounts.push(AccountMeta::new_readonly(
-//         solana_program::system_program::id(),
-//         false,
-//     ));
+    let mut accounts = Vec::with_capacity(7);
+    accounts.push(AccountMeta::new(*user_authority, true));
+    accounts.push(AccountMeta::new(*staking_pool_authoruty, true));
+    accounts.push(AccountMeta::new(*user_token_account, false));
+    accounts.push(AccountMeta::new(*user_staking_pool_account, false));
+    accounts.push(AccountMeta::new(*staking_pool_token_account, false));
+    accounts.push(AccountMeta::new(*staking_pool_token_mint, false));
+    accounts.push(AccountMeta::new_readonly(spl_token::id(), false));
 
-//     Ok(Instruction {
-//         program_id: *program_id,
-//         accounts,
-//         data,
-//     })
-// }
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
 
 // /// Creates a `RewardWinner` instruction
 // TODO:

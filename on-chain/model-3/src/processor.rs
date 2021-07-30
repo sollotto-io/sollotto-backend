@@ -59,7 +59,7 @@ impl Processor {
         let sollotto_staking_pool_authority = next_account_info(accounts_iter)?;
         let user_token_acc = next_account_info(accounts_iter)?;
         let user_staking_pool_token_acc = next_account_info(accounts_iter)?;
-        let staking_pool_token_acc = next_account_info(accounts_iter)?;
+        let sollotto_token_acc = next_account_info(accounts_iter)?;
         let staking_pool_token_mint = next_account_info(accounts_iter)?;
         let spl_token_info = next_account_info(accounts_iter)?;
 
@@ -77,7 +77,7 @@ impl Processor {
             &spl_token::instruction::transfer(
                 &spl_token::id(),
                 user_token_acc.key,
-                staking_pool_token_acc.key,
+                sollotto_token_acc.key,
                 user_wallet.key,
                 &[],
                 amount,
@@ -86,7 +86,7 @@ impl Processor {
             &[
                 spl_token_info.clone(),
                 user_token_acc.clone(),
-                staking_pool_token_acc.clone(),
+                sollotto_token_acc.clone(),
                 user_wallet.clone(),
             ],
         )?;
@@ -114,15 +114,65 @@ impl Processor {
     }
 
     pub fn process_unpool(
-        program_id: &Pubkey,
+        _program_id: &Pubkey,
         accounts: &[AccountInfo],
         amount: u64,
     ) -> ProgramResult {
         let accounts_iter = &mut accounts.iter();
+        let user_wallet = next_account_info(accounts_iter)?;
+        let sollotto_staking_pool_authority = next_account_info(accounts_iter)?;
+        let user_token_acc = next_account_info(accounts_iter)?;
+        let user_staking_pool_token_acc = next_account_info(accounts_iter)?;
+        let sollotto_token_acc = next_account_info(accounts_iter)?;
+        let staking_pool_token_mint = next_account_info(accounts_iter)?;
+        let spl_token_info = next_account_info(accounts_iter)?;
 
-        // TODO: Check access
-        // TODO: Burn SPL Token Staking pool token from user
-        // TODO: transfer SPL Token from staking pool to user
+        if !user_wallet.is_signer {
+            msg!("Missing user wallet signature");
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+        if !sollotto_staking_pool_authority.is_signer {
+            msg!("Missing user wallet signature");
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Burn SPL Token Staking pool token from user
+        invoke(
+            &spl_token::instruction::burn(
+                &spl_token::id(),
+                user_staking_pool_token_acc.key,
+                staking_pool_token_mint.key,
+                user_wallet.key,
+                &[],
+                amount,
+            )
+            .unwrap(),
+            &[
+                spl_token_info.clone(),
+                user_staking_pool_token_acc.clone(),
+                staking_pool_token_mint.clone(),
+                user_wallet.clone(),
+            ],
+        )?;
+
+        // Transfer Custom SPL Token from staking pool to user
+        invoke(
+            &spl_token::instruction::transfer(
+                &spl_token::id(),
+                sollotto_token_acc.key,
+                user_token_acc.key,
+                sollotto_staking_pool_authority.key,
+                &[],
+                amount,
+            )
+            .unwrap(),
+            &[
+                spl_token_info.clone(),
+                sollotto_token_acc.clone(),
+                user_token_acc.clone(),
+                sollotto_staking_pool_authority.clone(),
+            ],
+        )?;
 
         Ok(())
     }
@@ -136,6 +186,7 @@ impl Processor {
         let accounts_iter = &mut accounts.iter();
 
         // TODO: check access
+        // TODO: rent check
         // TODO: check all participants (mint + amount > 0)
         // TODO: Find winner in participant list
         // TODO: Get the reward shares
@@ -215,7 +266,49 @@ mod test {
 
     #[test]
     fn test_unpool() {
-        // TODO
+        let program_id = crate::id();
+        let mut spl_token_acc = SolanaAccount::default();
+        let user_wallet_key = Pubkey::new_unique();
+        let mut user_wallet_acc = SolanaAccount::default();
+        let staking_pool_key = Pubkey::new_unique();
+        let mut staking_pool_acc = SolanaAccount::default();
+        let staking_pool_token_key = Pubkey::new_unique();
+        let mut staking_pool_token_acc = SolanaAccount::default();
+
+        let user_token_account_key = Pubkey::new_unique();
+        let mut user_token_account_acc = SolanaAccount::default();
+        let user_staking_pool_token_key = Pubkey::new_unique();
+        let mut user_staking_pool_token_acc = SolanaAccount::default();
+
+        let staking_pool_token_mint_key = Pubkey::new_unique();
+        let mut staking_pool_token_mint_acc = SolanaAccount::default();
+        let decimals = 9;
+
+        let amount = ui_amount_to_amount(1.0, decimals);
+
+        do_process(
+            crate::instruction::unpool(
+                &program_id,
+                amount,
+                &user_wallet_key,
+                &staking_pool_key,
+                &user_token_account_key,
+                &user_staking_pool_token_key,
+                &staking_pool_token_key,
+                &staking_pool_token_mint_key,
+            )
+            .unwrap(),
+            vec![
+                &mut user_wallet_acc,
+                &mut staking_pool_acc,
+                &mut user_token_account_acc,
+                &mut user_staking_pool_token_acc,
+                &mut staking_pool_token_acc,
+                &mut staking_pool_token_mint_acc,
+                &mut spl_token_acc,
+            ],
+        )
+        .unwrap();
     }
 
     #[test]
