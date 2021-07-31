@@ -11,7 +11,8 @@ const { changeDraw } = require("./utils/changeDraw");
 const { resetDb } = require("./utils/resetDB");
 const { uploadCharityImage } = require("./Routes/ImageUploadCharity");
 const multer = require("multer");
-
+const { initLottery } = require("./utils/on-chain-instructions/initLottery");
+const { uploadRaffleImage } = require("./Routes/imageUploadRaffle");
 async function startServer() {
   const app = express();
   const server = new ApolloServer({
@@ -33,7 +34,6 @@ async function startServer() {
     .connect(MONGODB, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => {
       console.log(`MongoDb Connected`);
-
       console.log("inside cron then");
       cron.schedule(
         "0 0 * * wed,sat",
@@ -60,6 +60,7 @@ async function startServer() {
       console.log(err);
     });
   uploadCharityImage(app, multer);
+  uploadRaffleImage(app, multer);
   app.listen({ port: process.env.PORT || 5000 }, () => {
     console.log("server running at port 5000");
   });
