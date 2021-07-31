@@ -7,8 +7,14 @@ module.exports = {
       {
         raffleInput: {
           raffleName,
-          publicKey,
-          ImageURL,
+          urlSlug,
+          raffleImage,
+          sollotoBranding,
+          testingWA,
+          liveWA,
+          operatorWa,
+          vanityUrl,
+          raffleStatus,
         },
       },
       context,
@@ -17,22 +23,57 @@ module.exports = {
       try {
         const newRaffle = new Raffle({
           raffleName,
-          publicKey,
-          ImageURL,
-          Status: false
+          urlSlug,
+          raffleImage,
+          sollotoBranding,
+          testingWA,
+          liveWA,
+          operatorWa,
+          vanityUrl,
+          raffleStatus,
         });
 
         await newRaffle.save();
-        return "Raffle Added Successfully"
+        return "Raffle Added Successfully";
       } catch (e) {
         console.log(e);
       }
     },
-    async changeRaffleStatus(_,{raffleId, Status}, context, info){
+    async changeRaffleStatus(_, { raffleId, raffleStatus }, context, info) {
+      await Raffle.findByIdAndUpdate(raffleId, { raffleStatus, raffleStatus });
+      return "Raffle Status Updated";
+    },
 
-        await Raffle.findByIdAndUpdate(raffleId, {Status, Status});
-        return "Raffle Status Updated"
-    }
+    async editRaffle(
+      _,
+      {
+        raffleId,
+        raffleName,
+        urlSlug,
+        raffleImage,
+        sollotoBranding,
+        testingWA,
+        liveWA,
+        operatorWa,
+        vanityUrl,
+        raffleStatus,
+      },
+      context,
+      info
+    ) {
+      await Raffle.findByIdAndUpdate(raffleId, {
+        raffleName,
+        urlSlug,
+        raffleImage,
+        sollotoBranding,
+        testingWA,
+        liveWA,
+        operatorWa,
+        vanityUrl,
+        raffleStatus,
+      });
+      return "Raffle Status Updated";
+    },
   },
   Query: {
     async getAllRaffle(_, args, context, info) {
@@ -43,13 +84,13 @@ module.exports = {
         throw new Error(err);
       }
     },
-    async getActiveRaffle(_, args, context, info){
-        try{
-            const raffle = await Raffle.findOne({Status:true})
-            return raffle;
-        }catch(e){
-            console.log(e)
-        }
-    }
+    async getActiveRaffle(_, args, context, info) {
+      try {
+        const raffle = await Raffle.findOne({ Status: true });
+        return raffle;
+      } catch (e) {
+        console.log(e);
+      }
+    },
   },
 };
