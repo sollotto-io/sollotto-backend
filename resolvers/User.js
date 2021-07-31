@@ -1,4 +1,4 @@
-const { UserInputError } = require("apollo-server");
+const { UserInputError } = require("apollo-server-express");
 const moment = require("moment");
 const User = require("../models/User");
 
