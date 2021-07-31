@@ -43,7 +43,7 @@ const initLottery = async (charities) => {
 
     const lotteryFields = {
       lottery_id: parseInt(
-        Math.floor(new Date().valueOf() * Math.random()) / 100000
+        Math.floor(new Date().valueOf() * Math.random()) % 10000
       ),
       charity_1: new PublicKey(charities[0]).toBytes(),
       charity_2: new PublicKey(charities[1]).toBytes(),
@@ -106,7 +106,7 @@ const initLottery = async (charities) => {
         preflightCommitment: "singleGossip",
       }
     );
-    console.log(confirmation);
+    console.log("confirmation",confirmation);
     var lotteryDataAccountSKString = CryptoJS.AES.encrypt(
       JSON.stringify(Buffer.from(lotteryDataAccount.secretKey).toJSON().data),
       process.env.SECRET_KEY
