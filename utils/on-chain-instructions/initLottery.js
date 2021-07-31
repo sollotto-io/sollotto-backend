@@ -26,7 +26,7 @@ const initLottery = async (charities) => {
   const rewards_wallet = new PublicKey(process.env.REWARD_WALLET_PUBLIC_KEY)
   const slot_holders_rewards_wallet = new PublicKey(process.env.SLOT_HOLDER_REWARDS_PUBLIC_KEY)
   const sollotto_labs_wallet = new PublicKey(process.env.SOLLOTTO_LABS_PUBLIC_KEY )
-
+  console.log("step1")
   //Solana Program id public key
 console.log(process.env.SOLANA_INIT_LOTTERY_PROGRAM)
   const solanaProgramId = new PublicKey(
@@ -53,7 +53,7 @@ console.log(solanaProgramId)
     //converting data into Buffer to be passed in instruction
 
     dataArr = new Buffer.alloc(296,lotteryFields)
-
+    console.log(dataArr)
     //create a new lotteryData account
 
     const lotteryDataAccount = new Account();

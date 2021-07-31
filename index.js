@@ -11,7 +11,8 @@ const { changeDraw } = require("./utils/changeDraw");
 const { resetDb } = require("./utils/resetDB");
 const { uploadCharityImage } = require("./Routes/ImageUploadCharity");
 const multer = require("multer");
-const {initLottery} = require("./utils/on-chain-instructions/initLottery")
+const { initLottery } = require("./utils/on-chain-instructions/initLottery");
+// const { uploadRaffleImage } = require("./Routes/imageUploadRaffle");
 async function startServer() {
   const app = express();
   const server = new ApolloServer({
@@ -33,32 +34,36 @@ async function startServer() {
     .connect(MONGODB, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => {
       console.log(`MongoDb Connected`);
-      const pkArry =["wkakDmkD6hiN5R1CjD87tnbSZktTWunQUkeVq9CYt3m","gfbgs1HxwTyMeHf7iZ5fPXp5ZLuxUDpeDd7TyeSRg35","foaxk43pFhJxxRzLeQm7Webv2WyTHJVdMgNed3Dg2yh","dwbAtgB1vXzeRrb6x3foZF75wMa74sKSeNQUi7njvmA"]
-     const {lotteryDataSK,lotteryId} =  initLottery(pkArry)
-     console.log(lotteryDataSK,lotteryId)
-      // .then(() => {
-      //   console.log("inside cron then");
-      //   cron.schedule("0 0 * * wed,sat", () => {changeDraw()},
+      const arr = ["wkakDmkD6hiN5R1CjD87tnbSZktTWunQUkeVq9CYt3m","gfbgs1HxwTyMeHf7iZ5fPXp5ZLuxUDpeDd7TyeSRg35","foaxk43pFhJxxRzLeQm7Webv2WyTHJVdMgNed3Dg2yh","dwbAtgB1vXzeRrb6x3foZF75wMa74sKSeNQUi7njvmAb"]
+      const {lotteryDataSK,lotteryId} = initLottery(arr)
+      console.log(lotteryDataSK,lotteryId)
+      // console.log("inside cron then");
+      // cron.schedule(
+      //   "0 0 * * wed,sat",
+      //   () => {
+      //     changeDraw();
+      //   },
       //   {
       //     scheduled: true,
-      //     timezone: "Atlantic/Azores"
+      //     timezone: "Atlantic/Azores",
       //   }
-      //   );
-      // })
-      // .then(() => {
-      //   console.log("inside cron then");
-      //   cron.schedule("*/1 * * * *", () => {changeDraw()},
-      //   {
-      //     scheduled: true,
-      //     timezone: "Atlantic/Azores"
-      //   }
-      //   );
-      // })
+      // );
+
+     
+        // console.log("inside cron then");
+        // cron.schedule("*/1 * * * *", () => {changeDraw()},
+        // {
+        //   scheduled: true,
+        //   timezone: "Atlantic/Azores"
+        // }
+        // );
+      
     })
     .catch((err) => {
       console.log(err);
     });
   uploadCharityImage(app, multer);
+  uploadRaffleImage(app, multer);
   app.listen({ port: process.env.PORT || 5000 }, () => {
     console.log("server running at port 5000");
   });
