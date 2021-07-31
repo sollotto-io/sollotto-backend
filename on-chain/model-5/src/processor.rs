@@ -2,10 +2,12 @@
 use crate::{
     error::LotteryError,
     instruction::LotteryInstruction,
-    state::LotteryResultData,
+    state::LotteryResultData
 };
 use spl_token::{
-    state::{Mint, Account as SPLAccount}
+    state::{Mint, Account as SPLAccount},
+    ui_amount_to_amount,
+    amount_to_ui_amount
 };
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -19,7 +21,7 @@ use solana_program::{
     pubkey::Pubkey,
     rent::Rent,
     system_instruction,
-    sysvar::Sysvar,
+    sysvar::Sysvar
 };
 
 // Sollotto program_id
@@ -93,7 +95,7 @@ impl Processor {
         // Checks to determine if user tries to spoof their SLOT account
         //
         // Assert that provided SLOT account belongs to user
-        if user_slot_account.owner != *user_sol_account.key {
+        if user_slot_account.owner != *user_sol_account.owner {
             msg!("User provided incorrect SLOT account");
             return Err(LotteryError::InvalidSLOTAccount.into());
         }
@@ -104,7 +106,6 @@ impl Processor {
         }
         // If provided SLOT Mint account has no mint_authority, return Err
         if let COption::Some(mint_authority) = slot_mint.mint_authority {
-            // Check if
             if mint_authority != *slot_mint_authority.key {
                 msg!("SLOT Mint has incorrect mint_authority");
                 return Err(LotteryError::InvalidSLOTAccount.into());
@@ -121,7 +122,6 @@ impl Processor {
         let fqtickets_owned = _user_fqticket_account.amount;
         let fqtickets_cap   = user_slot_account.amount;
 
-        // How much fqtickets user already has
         if (fqtickets_owned + (amount as u64)) > fqtickets_cap {
             msg!("Requested FQTickets exceeds SLOT amount for the user");
             return Err(LotteryError::SLOTCapExceeded.into());
@@ -150,7 +150,7 @@ impl Processor {
                 &spl_token::id(),
                 fqticket_mint.key,
                 user_fqticket_account.key,
-                fqticket_mint_authority.key,
+                user_fqticket_account.owner,
                 &[],
                 amount as u64
             )?,
@@ -243,25 +243,19 @@ impl Processor {
 #[cfg(test)]
 mod test {
     use super::*;
-    use solana_program::{instruction::Instruction, program_pack::Pack};
+    use solana_program::{instruction::Instruction, program_pack::Pack, rent::Rent};
     use solana_sdk::account::{
         create_account_for_test, create_is_signer_account_infos, Account as SolanaAccount,
         ReadableAccount,
     };
 
-    /*
-    fn lottery_minimum_balance() -> u64 {
-        Rent::default().minimum_balance(LotteryData::get_packed_len())
+    fn mint_minimum_balance() -> u64 {
+        Rent::default().minimum_balance(spl_token::state::Mint::get_packed_len())
     }
 
-    fn ticket_minimum_balance() -> u64 {
-        Rent::default().minimum_balance(TicketData::get_packed_len())
+    fn account_minimum_balance() -> u64 {
+        Rent::default().minimum_balance(spl_token::state::Account::get_packed_len())
     }
-
-    fn lottery_result_minimum_balance() -> u64 {
-        Rent::default().minimum_balance(LotteryResultData::get_packed_len())
-    }
-    */
 
     fn do_process(instruction: Instruction, accounts: Vec<&mut SolanaAccount>) -> ProgramResult {
         let mut meta = instruction
@@ -273,5 +267,238 @@ mod test {
 
         let account_infos = create_is_signer_account_infos(&mut meta);
         Processor::process(&instruction.program_id, &account_infos, &instruction.data)
+    }
+
+    #[test]
+    fn test_ticket_purchase() -> Result<(), Box<dyn std::error::Error>> {
+        let program_id = super::id();
+        let user_key = Pubkey::new_unique();
+        let user_fqticket_key = Pubkey::new_unique();
+        let mut user_fqticket_acc = SolanaAccount::new(
+            account_minimum_balance(),
+            SPLAccount::get_packed_len(),
+            &user_key
+        );
+        let user_sol_key = Pubkey::new_unique();
+        let mut user_sol_acc = SolanaAccount::new(
+            account_minimum_balance(),
+            SPLAccount::get_packed_len(),
+            &user_key
+        );
+        let user_slot_key = Pubkey::new_unique();
+        let mut user_slot_acc = SolanaAccount::new(
+            account_minimum_balance(),
+            SPLAccount::get_packed_len(),
+            &user_key
+        );
+        let fqticket_mint_key = Pubkey::new_unique();
+        let mut fqticket_mint = SolanaAccount::new(
+            mint_minimum_balance(),
+            Mint::get_packed_len(),
+            &spl_token::id()
+        );
+        let fqticket_mint_authority_key = Pubkey::new_unique();
+        let mut fqticket_mint_authority = SolanaAccount::default();
+        let slot_mint_key = Pubkey::new_unique();
+        let mut slot_mint = SolanaAccount::new(
+            mint_minimum_balance(),
+            Mint::get_packed_len(),
+            &spl_token::id()
+        );
+        let slot_mint_authority_key = Pubkey::new_unique();
+        let mut slot_mint_authority = SolanaAccount::default();
+        let sollotto_sol_key = Pubkey::new_unique();
+        let mut sollotto_sol_acc = SolanaAccount::default();
+        let mut system_program_acc  = SolanaAccount::default();
+        let mut spl_token_acc = SolanaAccount::default();
+
+        Mint::pack(
+            Mint {
+                mint_authority: COption::Some(fqticket_mint_authority_key),
+                supply: ui_amount_to_amount(10., 9),
+                decimals: 9,
+                is_initialized: true,
+                ..Default::default()
+            },
+            &mut fqticket_mint.data
+        );
+
+        Mint::pack(
+            Mint {
+                mint_authority: COption::Some(slot_mint_authority_key),
+                supply: ui_amount_to_amount(10., 9),
+                decimals: 9,
+                is_initialized: true,
+                ..Default::default()
+            },
+            &mut slot_mint.data
+        );
+
+        SPLAccount::pack(
+            SPLAccount {
+                mint: spl_token::id(),
+                owner: user_key,
+                amount: 0,
+                state: spl_token::state::AccountState::Initialized,
+                ..Default::default()
+            },
+            &mut user_fqticket_acc.data
+        );
+
+        SPLAccount::pack(
+            SPLAccount {
+                mint: slot_mint_key,
+                owner: user_key,
+                amount: 0,
+                state: spl_token::state::AccountState::Initialized,
+                ..Default::default()
+            },
+            &mut user_slot_acc.data
+        )?;
+
+        assert_eq!(
+            Err(LotteryError::SLOTCapExceeded.into()),
+            do_process(
+                crate::instruction::purchase_ticket(
+                    &program_id,
+                    5,
+                    &user_fqticket_key,
+                    &user_sol_key,
+                    &user_slot_key,
+                    &fqticket_mint_key,
+                    &fqticket_mint_authority_key,
+                    &slot_mint_key,
+                    &slot_mint_authority_key,
+                    &sollotto_sol_key
+                )
+                .unwrap(),
+                vec![
+                    &mut user_fqticket_acc,
+                    &mut user_sol_acc,
+                    &mut user_slot_acc,
+                    &mut fqticket_mint,
+                    &mut fqticket_mint_authority,
+                    &mut slot_mint,
+                    &mut slot_mint_authority,
+                    &mut sollotto_sol_acc,
+                    &mut system_program_acc,
+                    &mut spl_token_acc,
+                ]
+            )
+        );
+        msg!("SLOTCapExceeded test passed...");
+
+        SPLAccount::pack(
+            SPLAccount {
+                mint: slot_mint_key,
+                owner: user_key,
+                amount: ui_amount_to_amount(10., 9),
+                state: spl_token::state::AccountState::Initialized,
+                ..Default::default()
+            },
+            &mut user_slot_acc.data
+        )?;
+
+        assert_eq!(
+            Err(ProgramError::InsufficientFunds),
+            do_process(
+                crate::instruction::purchase_ticket(
+                    &program_id,
+                    5,
+                    &user_fqticket_key,
+                    &user_sol_key,
+                    &user_slot_key,
+                    &fqticket_mint_key,
+                    &fqticket_mint_authority_key,
+                    &slot_mint_key,
+                    &slot_mint_authority_key,
+                    &sollotto_sol_key
+                )
+                .unwrap(),
+                vec![
+                    &mut user_fqticket_acc,
+                    &mut user_sol_acc,
+                    &mut user_slot_acc,
+                    &mut fqticket_mint,
+                    &mut fqticket_mint_authority,
+                    &mut slot_mint,
+                    &mut slot_mint_authority,
+                    &mut sollotto_sol_acc,
+                    &mut system_program_acc,
+                    &mut spl_token_acc,
+                ]
+            )
+        );
+        msg!("InsufficientFunds test passed...");
+
+        let mut user_sol_acc = SolanaAccount::new(
+            sol_to_lamports(2.),
+            SPLAccount::get_packed_len(),
+            &user_key
+        );
+
+        let fqticket_account_data = SPLAccount::unpack(
+            &user_fqticket_acc.data.as_slice()
+        )?;
+        msg!("{:?}", user_fqticket_acc);
+        msg!("{:?}", fqticket_account_data);
+
+        /*
+        do_process(
+            spl_token::instruction::mint_to(
+                &program_id,
+                &fqticket_mint_key,
+                &user_fqticket_key,
+                &user_key,
+                // fqticket_mint_authority.key,
+                &[],
+                10000 as u64
+            )?,
+            vec![
+                &mut spl_token_acc.clone(),
+                &mut fqticket_mint.clone(),
+                &mut user_fqticket_acc.clone(),
+                &mut fqticket_mint_authority.clone()
+            ]
+        )?;
+        */
+
+
+        do_process(
+            crate::instruction::purchase_ticket(
+                &program_id,
+                5,
+                &user_fqticket_key,
+                &user_sol_key,
+                &user_slot_key,
+                &fqticket_mint_key,
+                &fqticket_mint_authority_key,
+                &slot_mint_key,
+                &slot_mint_authority_key,
+                &sollotto_sol_key
+            )
+            .unwrap(),
+            vec![
+                &mut user_fqticket_acc,
+                &mut user_sol_acc,
+                &mut user_slot_acc,
+                &mut fqticket_mint,
+                &mut fqticket_mint_authority,
+                &mut slot_mint,
+                &mut slot_mint_authority,
+                &mut sollotto_sol_acc,
+                &mut system_program_acc,
+                &mut spl_token_acc,
+            ]
+        )?;
+
+        let fqticket_account_data = SPLAccount::unpack(
+            &user_fqticket_acc.data.as_slice()
+        )?;
+        msg!("{:?}", user_fqticket_acc);
+        msg!("{:?}", fqticket_account_data);
+        panic!("");
+
+        Ok(())
     }
 }
