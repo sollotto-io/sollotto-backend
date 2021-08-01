@@ -15,6 +15,13 @@ pub struct LotteryResultData {
 
 impl Sealed for LotteryResultData {}
 
+// Just a meaningless code to get access to `unpack`
+impl IsInitialized for LotteryResultData {
+    fn is_initialized(&self) -> bool {
+        true
+    }
+}
+
 impl Pack for LotteryResultData {
     /// 4 + 32 = 36
     const LEN: usize = 36;

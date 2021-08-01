@@ -183,9 +183,9 @@ impl Processor {
         let system_program_account   = next_account_info(accounts_iter)?;
         let participants             = accounts_iter.as_slice();
 
-        if participants.len() < idx {
+        if (participants.len()+1) < idx {
             msg!("Winner's index exceedes the number of participants");
-            return Err(LotteryError::InvalidParticipantsAccounts.into())
+            return Err(ProgramError::NotEnoughAccountKeys);
         }
 
         let winner = participants.get(idx).unwrap();
@@ -440,29 +440,6 @@ mod test {
         let fqticket_account_data = SPLAccount::unpack(
             &user_fqticket_acc.data.as_slice()
         )?;
-        msg!("{:?}", user_fqticket_acc);
-        msg!("{:?}", fqticket_account_data);
-
-        /*
-        do_process(
-            spl_token::instruction::mint_to(
-                &program_id,
-                &fqticket_mint_key,
-                &user_fqticket_key,
-                &user_key,
-                // fqticket_mint_authority.key,
-                &[],
-                10000 as u64
-            )?,
-            vec![
-                &mut spl_token_acc.clone(),
-                &mut fqticket_mint.clone(),
-                &mut user_fqticket_acc.clone(),
-                &mut fqticket_mint_authority.clone()
-            ]
-        )?;
-        */
-
 
         do_process(
             crate::instruction::purchase_ticket(
@@ -488,16 +465,131 @@ mod test {
                 &mut slot_mint_authority,
                 &mut sollotto_sol_acc,
                 &mut system_program_acc,
-                &mut spl_token_acc,
+                &mut spl_token_acc
             ]
         )?;
 
         let fqticket_account_data = SPLAccount::unpack(
             &user_fqticket_acc.data.as_slice()
         )?;
-        msg!("{:?}", user_fqticket_acc);
-        msg!("{:?}", fqticket_account_data);
-        panic!("");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_reward_winners() -> Result<(), Box<dyn std::error::Error>> {
+        let program_id = super::id();
+        let lottery_id = 0xff;
+        let mut winning_idx = 5;
+        let prize_pool = sol_to_lamports(5.);
+        let sollotto_key = Pubkey::new_unique();
+        let sollotto_sol_key = Pubkey::new_unique();
+        let mut sollotto_sol_acc = SolanaAccount::new(
+            prize_pool,
+            SPLAccount::get_packed_len(),
+            &sollotto_key
+        );
+        let sollotto_rewards_key = Pubkey::new_unique();
+        let mut sollotto_rewards_acc = SolanaAccount::default();
+        let slot_holder_rewards_key = Pubkey::new_unique();
+        let mut slot_holder_rewards_acc = SolanaAccount::default();
+        let sollotto_labs_key = Pubkey::new_unique();
+        let mut sollotto_labs_acc = SolanaAccount::default();
+        let sollotto_result_key = Pubkey::new_unique();
+        let mut sollotto_result_acc = SolanaAccount::new(
+            account_minimum_balance(),
+            LotteryResultData::get_packed_len(),
+            &sollotto_key
+        );
+        LotteryResultData::pack(
+            LotteryResultData::default(),
+            &mut sollotto_result_acc.data
+        );
+        let mut system_program_acc  = SolanaAccount::default();
+
+        let participant_key0 = Pubkey::new_unique();
+        let participant_key1 = Pubkey::new_unique();
+        let participant_key2 = Pubkey::new_unique();
+
+        let mut participant_acc0 = SolanaAccount::default();
+        let mut participant_acc1 = SolanaAccount::default();
+        let mut participant_acc2 = SolanaAccount::new(
+            account_minimum_balance(),
+            SPLAccount::get_packed_len(),
+            &participant_key2
+        );
+
+        assert_eq!(
+            Err(ProgramError::NotEnoughAccountKeys),
+            do_process(
+                crate::instruction::reward_winners(
+                    &program_id,
+                    lottery_id,
+                    winning_idx,
+                    prize_pool,
+                    &sollotto_sol_key,
+                    &sollotto_rewards_key,
+                    &slot_holder_rewards_key,
+                    &sollotto_labs_key,
+                    &sollotto_result_key,
+                    &vec![participant_key0, participant_key1, participant_key2]
+                )
+                .unwrap(),
+                vec![
+                    &mut sollotto_sol_acc,
+                    &mut sollotto_rewards_acc,
+                    &mut slot_holder_rewards_acc,
+                    &mut sollotto_labs_acc,
+                    &mut sollotto_result_acc,
+                    &mut system_program_acc,
+                    &mut participant_acc0,
+                    &mut participant_acc1,
+                    &mut participant_acc2
+                ]
+            )
+        );
+        msg!("NotEnoughAccountKeys test passed...");
+
+        winning_idx = 2;
+
+        assert_eq!(
+            Ok(()),
+            do_process(
+                crate::instruction::reward_winners(
+                    &program_id,
+                    lottery_id,
+                    winning_idx,
+                    prize_pool,
+                    &sollotto_sol_key,
+                    &sollotto_rewards_key,
+                    &slot_holder_rewards_key,
+                    &sollotto_labs_key,
+                    &sollotto_result_key,
+                    &vec![participant_key0, participant_key1, participant_key2]
+                )
+                .unwrap(),
+                vec![
+                    &mut sollotto_sol_acc,
+                    &mut sollotto_rewards_acc,
+                    &mut slot_holder_rewards_acc,
+                    &mut sollotto_labs_acc,
+                    &mut sollotto_result_acc,
+                    &mut system_program_acc,
+                    &mut participant_acc0,
+                    &mut participant_acc1,
+                    &mut participant_acc2
+                ]
+            )
+        );
+
+        let _lottery_res = LotteryResultData::unpack(
+            &sollotto_result_acc.data.as_slice()
+        )?;
+
+        assert!(
+            (_lottery_res.lottery_id == lottery_id )
+            && (_lottery_res.winner == participant_key2)
+        );
 
         Ok(())
     }

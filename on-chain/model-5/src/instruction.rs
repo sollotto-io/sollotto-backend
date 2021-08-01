@@ -174,7 +174,7 @@ pub fn reward_winners(
     slot_holder_rewards: &Pubkey,
     sollotto_labs: &Pubkey,
     sollotto_result: &Pubkey,
-    participants: &[AccountMeta]
+    participants: &Vec<Pubkey>
 ) -> Result<Instruction, ProgramError> {
     let data = LotteryInstruction::RewardWinners {
         lottery_id,
@@ -188,7 +188,10 @@ pub fn reward_winners(
     accounts.push(AccountMeta::new(*slot_holder_rewards, false));
     accounts.push(AccountMeta::new(*sollotto_labs, false));
     accounts.push(AccountMeta::new(*sollotto_result, false));
-    accounts.extend_from_slice(participants);
+    accounts.push(AccountMeta::new_readonly(solana_program::system_program::id(), false));
+    for participant in participants {
+        accounts.push(AccountMeta::new(*participant, false));
+    }
     Ok(Instruction {
         program_id: *program_id,
         accounts,

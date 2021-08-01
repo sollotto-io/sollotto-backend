@@ -491,7 +491,7 @@ mod test {
         let mut prize_pool_token_account_acc = SolanaAccount::new(
             account_minimum_balance(),
             spl_token::state::Account::get_packed_len(),
-            &spl_token::id(),
+            &spl_token::id()
         );
         spl_token::state::Account::pack(
             Account {
@@ -509,7 +509,7 @@ mod test {
         let mut charity_token_account_acc = SolanaAccount::new(
             account_minimum_balance(),
             spl_token::state::Account::get_packed_len(),
-            &spl_token::id(),
+            &spl_token::id()
         );
         spl_token::state::Account::pack(
             Account {
@@ -527,7 +527,7 @@ mod test {
         let mut user_1_token_acc = SolanaAccount::new(
             account_minimum_balance(),
             spl_token::state::Account::get_packed_len(),
-            &spl_token::id(),
+            &spl_token::id()
         );
         spl_token::state::Account::pack(
             Account {
