@@ -20,7 +20,7 @@ pub enum LotteryInstruction {
     /// 0.         `[writable]` User FQTicket account
     /// 1. `[writable, signer]` User SOL account
     /// 2.                 `[]` User SLOT account
-    /// 3.                 `[]` FQTicket Mint
+    /// 3.         `[writable]` FQTicket Mint
     /// 4.           `[signer]` FQTicket mint_authority
     /// 5.                 `[]` SLOT Mint
     /// 6.           `[signer]` SLOT mint_authority
