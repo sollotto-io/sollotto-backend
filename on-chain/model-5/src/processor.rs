@@ -135,7 +135,7 @@ impl Processor {
             return Err(ProgramError::InsufficientFunds.into());
         }
 
-        // Take buyers SOL tokens.
+        // Transfer SOL tokens from the buyer's wallet.
         Self::transfer_sol(
             user_sol_account.key,
             sollotto_sol_account.key,
@@ -174,7 +174,6 @@ impl Processor {
     ) -> ProgramResult {
         let accounts_iter = &mut accounts.iter();
         let idx = idx as usize;
-        msg!("{} - {}", accounts.len(), idx);
 
         let sollotto_sol_account     = next_account_info(accounts_iter)?;
         let sollotto_rewards_account = next_account_info(accounts_iter)?;
@@ -184,7 +183,7 @@ impl Processor {
         let system_program_account   = next_account_info(accounts_iter)?;
         let participants             = accounts_iter.as_slice();
 
-        if (participants.len()/2) < idx {
+        if (participants.len() / 2) < idx {
             msg!("Winner's index exceedes the number of participants");
             return Err(ProgramError::NotEnoughAccountKeys);
         }
@@ -195,10 +194,11 @@ impl Processor {
             &participants.get(idx * 2 + 1).unwrap().data.borrow()
         )?;
 
+        /*
         if (winner_fq_acc.amount < 1) {
-            // FIXME: Create appropriate custom error
-            return Err(ProgramError::Custom(1));
+            return Err(LotteryError::NotEnoughFQTokens.into());
         }
+        */
 
         let sol_prize_pool       = lamports_to_sol(prize_pool);
         let winners_cut          = sol_to_lamports(sol_prize_pool * 0.95);
@@ -447,10 +447,6 @@ mod test {
             &user_key
         );
 
-        let fqticket_account_data = SPLAccount::unpack(
-            &user_fqticket_acc.data.as_slice()
-        )?;
-
         do_process(
             crate::instruction::purchase_ticket(
                 &program_id,
@@ -477,10 +473,6 @@ mod test {
                 &mut system_program_acc,
                 &mut spl_token_acc
             ]
-        )?;
-
-        let fqticket_account_data = SPLAccount::unpack(
-            &user_fqticket_acc.data.as_slice()
         )?;
 
         Ok(())

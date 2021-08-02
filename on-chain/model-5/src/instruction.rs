@@ -39,7 +39,7 @@ pub enum LotteryInstruction {
     /// 2.         `[writable]` SLOT Holder Rewards account (must be system account)
     /// 3.         `[writable]` Sollotto labs account (must be system account)
     /// 4.         `[writable]` Sollotto Result account
-    /// 5.                 `[]` System program account
+    /// 5.           `[signer]` System program account
     /// 5+N                `[]` N lottery participants (sol_acc, fqticket_acc)
     RewardWinners { lottery_id: u32, idx: u64, prize_pool: u64 },
 }
@@ -183,11 +183,11 @@ pub fn reward_winners(
     }.pack();
 
     let mut accounts = Vec::with_capacity(6 + participants.len());
-    accounts.push(AccountMeta::new(*sollotto_sol, false));
+    accounts.push(AccountMeta::new(*sollotto_sol, true));
     accounts.push(AccountMeta::new(*sollotto_rewards, false));
     accounts.push(AccountMeta::new(*slot_holder_rewards, false));
     accounts.push(AccountMeta::new(*sollotto_labs, false));
-    accounts.push(AccountMeta::new(*sollotto_result, false));
+    accounts.push(AccountMeta::new(*sollotto_result, true));
     accounts.push(AccountMeta::new_readonly(solana_program::system_program::id(), false));
     for participant in participants {
         accounts.push(AccountMeta::new((participant.0), false));

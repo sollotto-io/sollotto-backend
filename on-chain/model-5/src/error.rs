@@ -26,6 +26,9 @@ pub enum LotteryError {
     /// Invalid SLOT Account
     #[error("Invalid SLOT Account")]
     InvalidSLOTAccount,
+    /// Not enough Fixed-Quality Tokens
+    #[error("Not enough Fixed-Quality Tokens")]
+    NotEnoughFQTokens,
 }
 
 impl From<LotteryError> for ProgramError {
