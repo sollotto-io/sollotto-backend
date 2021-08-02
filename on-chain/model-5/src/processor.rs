@@ -174,6 +174,7 @@ impl Processor {
     ) -> ProgramResult {
         let accounts_iter = &mut accounts.iter();
         let idx = idx as usize;
+        msg!("{} - {}", accounts.len(), idx);
 
         let sollotto_sol_account     = next_account_info(accounts_iter)?;
         let sollotto_rewards_account = next_account_info(accounts_iter)?;
@@ -183,12 +184,21 @@ impl Processor {
         let system_program_account   = next_account_info(accounts_iter)?;
         let participants             = accounts_iter.as_slice();
 
-        if (participants.len()+1) < idx {
+        if (participants.len()/2) < idx {
             msg!("Winner's index exceedes the number of participants");
             return Err(ProgramError::NotEnoughAccountKeys);
         }
 
-        let winner = participants.get(idx).unwrap();
+        let winner = participants.get(idx * 2).unwrap();
+
+        let winner_fq_acc = SPLAccount::unpack(
+            &participants.get(idx * 2 + 1).unwrap().data.borrow()
+        )?;
+
+        if (winner_fq_acc.amount < 1) {
+            // FIXME: Create appropriate custom error
+            return Err(ProgramError::Custom(1));
+        }
 
         let sol_prize_pool       = lamports_to_sol(prize_pool);
         let winners_cut          = sol_to_lamports(sol_prize_pool * 0.95);
@@ -511,6 +521,10 @@ mod test {
         let participant_key1 = Pubkey::new_unique();
         let participant_key2 = Pubkey::new_unique();
 
+        let participant_fq_key0 = Pubkey::new_unique();
+        let participant_fq_key1 = Pubkey::new_unique();
+        let participant_fq_key2 = Pubkey::new_unique();
+
         let mut participant_acc0 = SolanaAccount::default();
         let mut participant_acc1 = SolanaAccount::default();
         let mut participant_acc2 = SolanaAccount::new(
@@ -518,6 +532,25 @@ mod test {
             SPLAccount::get_packed_len(),
             &participant_key2
         );
+
+        let mut participant_fq_acc0 = SolanaAccount::default();
+        let mut participant_fq_acc1 = SolanaAccount::default();
+        let mut participant_fq_acc2 = SolanaAccount::new(
+            account_minimum_balance(),
+            SPLAccount::get_packed_len(),
+            &participant_key2
+        );
+
+        SPLAccount::pack(
+            SPLAccount {
+                mint: spl_token::id(),
+                owner: participant_key2,
+                amount: 3,
+                state: spl_token::state::AccountState::Initialized,
+                ..Default::default()
+            },
+            &mut participant_fq_acc2.data
+        )?;
 
         assert_eq!(
             Err(ProgramError::NotEnoughAccountKeys),
@@ -532,7 +565,11 @@ mod test {
                     &slot_holder_rewards_key,
                     &sollotto_labs_key,
                     &sollotto_result_key,
-                    &vec![participant_key0, participant_key1, participant_key2]
+                    &vec![
+                        (participant_key0, participant_fq_key0),
+                        (participant_key1, participant_fq_key1),
+                        (participant_key2, participant_fq_key2)
+                    ]
                 )
                 .unwrap(),
                 vec![
@@ -543,8 +580,11 @@ mod test {
                     &mut sollotto_result_acc,
                     &mut system_program_acc,
                     &mut participant_acc0,
+                    &mut participant_fq_acc0,
                     &mut participant_acc1,
-                    &mut participant_acc2
+                    &mut participant_fq_acc1,
+                    &mut participant_acc2,
+                    &mut participant_fq_acc2
                 ]
             )
         );
@@ -552,6 +592,8 @@ mod test {
 
         winning_idx = 2;
 
+        msg!("{:?}", sollotto_sol_acc);
+        msg!("{:?}", participant_acc2);
         assert_eq!(
             Ok(()),
             do_process(
@@ -565,7 +607,11 @@ mod test {
                     &slot_holder_rewards_key,
                     &sollotto_labs_key,
                     &sollotto_result_key,
-                    &vec![participant_key0, participant_key1, participant_key2]
+                    &vec![
+                        (participant_key0, participant_fq_key0),
+                        (participant_key1, participant_fq_key1),
+                        (participant_key2, participant_fq_key2)
+                    ]
                 )
                 .unwrap(),
                 vec![
@@ -576,8 +622,11 @@ mod test {
                     &mut sollotto_result_acc,
                     &mut system_program_acc,
                     &mut participant_acc0,
+                    &mut participant_fq_acc0,
                     &mut participant_acc1,
-                    &mut participant_acc2
+                    &mut participant_fq_acc1,
+                    &mut participant_acc2,
+                    &mut participant_fq_acc2
                 ]
             )
         );
@@ -590,6 +639,9 @@ mod test {
             (_lottery_res.lottery_id == lottery_id )
             && (_lottery_res.winner == participant_key2)
         );
+        msg!("{:?}", sollotto_sol_acc);
+        msg!("{:?}", participant_acc2);
+        panic!("");
 
         Ok(())
     }

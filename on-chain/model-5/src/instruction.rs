@@ -20,13 +20,13 @@ pub enum LotteryInstruction {
     /// 0.         `[writable]` User FQTicket account
     /// 1. `[writable, signer]` User SOL account
     /// 2.                 `[]` User SLOT account
-    /// 3.           `[signer]` FQTicket Mint (must be a system account)
-    /// 4.           `[signer]` FQTicket mint_authority (must be a system account)
-    /// 5.           `[signer]` SLOT Mint (must be a system account)
-    /// 6.           `[signer]` SLOT mint_authority (must be a system account)
+    /// 3.                 `[]` FQTicket Mint
+    /// 4.           `[signer]` FQTicket mint_authority
+    /// 5.                 `[]` SLOT Mint
+    /// 6.           `[signer]` SLOT mint_authority
     /// 7.         `[writable]` Sollotto SOL account (must be a system account)
     /// 8.                 `[]` System program account
-    /// 9.                 `[]` SPL Token account (must be a system account)
+    /// 9.                 `[]` SPL Token account
     PurchaseTicket {
         amount: u32
     },
@@ -38,9 +38,9 @@ pub enum LotteryInstruction {
     /// 1.         `[writable]` Sollotto Rewards account (must be system account)
     /// 2.         `[writable]` SLOT Holder Rewards account (must be system account)
     /// 3.         `[writable]` Sollotto labs account (must be system account)
-    /// 4.         `[writable]` Sollotto Result Account (must be system account)
+    /// 4.         `[writable]` Sollotto Result account
     /// 5.                 `[]` System program account
-    /// 5+N                `[]` N lottery participants
+    /// 5+N                `[]` N lottery participants (sol_acc, fqticket_acc)
     RewardWinners { lottery_id: u32, idx: u64, prize_pool: u64 },
 }
 
@@ -174,7 +174,7 @@ pub fn reward_winners(
     slot_holder_rewards: &Pubkey,
     sollotto_labs: &Pubkey,
     sollotto_result: &Pubkey,
-    participants: &Vec<Pubkey>
+    participants: &Vec<(Pubkey, Pubkey)>
 ) -> Result<Instruction, ProgramError> {
     let data = LotteryInstruction::RewardWinners {
         lottery_id,
@@ -190,7 +190,8 @@ pub fn reward_winners(
     accounts.push(AccountMeta::new(*sollotto_result, false));
     accounts.push(AccountMeta::new_readonly(solana_program::system_program::id(), false));
     for participant in participants {
-        accounts.push(AccountMeta::new(*participant, false));
+        accounts.push(AccountMeta::new((participant.0), false));
+        accounts.push(AccountMeta::new((participant.1), false));
     }
     Ok(Instruction {
         program_id: *program_id,
