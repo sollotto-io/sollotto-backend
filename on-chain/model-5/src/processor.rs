@@ -592,8 +592,6 @@ mod test {
 
         winning_idx = 2;
 
-        msg!("{:?}", sollotto_sol_acc);
-        msg!("{:?}", participant_acc2);
         assert_eq!(
             Ok(()),
             do_process(
@@ -639,9 +637,6 @@ mod test {
             (_lottery_res.lottery_id == lottery_id )
             && (_lottery_res.winner == participant_key2)
         );
-        msg!("{:?}", sollotto_sol_acc);
-        msg!("{:?}", participant_acc2);
-        panic!("");
 
         Ok(())
     }
