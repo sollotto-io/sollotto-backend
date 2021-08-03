@@ -46,4 +46,3 @@ impl Pack for LotteryResultData {
         winner_dst.copy_from_slice(self.winner.as_ref());
     }
 }
-

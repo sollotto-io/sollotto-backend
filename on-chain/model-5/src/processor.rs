@@ -1,27 +1,23 @@
 //! Program state processor
-use crate::{
-    error::LotteryError,
-    instruction::LotteryInstruction,
-    state::LotteryResultData
-};
-use spl_token::{
-    state::{Mint, Account as SPLAccount},
-    ui_amount_to_amount,
-    amount_to_ui_amount
-};
+use crate::{error::LotteryError, instruction::LotteryInstruction, state::LotteryResultData};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
     native_token::{lamports_to_sol, sol_to_lamports},
     program::invoke,
-    program_option::COption,
     program_error::ProgramError,
+    program_option::COption,
     program_pack::Pack,
     pubkey::Pubkey,
     rent::Rent,
     system_instruction,
-    sysvar::Sysvar
+    sysvar::Sysvar,
+};
+use spl_token::{
+    amount_to_ui_amount,
+    state::{Account as SPLAccount, Mint},
+    ui_amount_to_amount,
 };
 
 // Sollotto program_id
@@ -49,18 +45,15 @@ impl Processor {
         match instruction {
             LotteryInstruction::PurchaseTicket { amount } => {
                 msg!("Instruction: PurchaseTicket");
-                Self::process_ticket_purchase(
-                    program_id,
-                    accounts,
-                    amount
-                )
-            },
-            LotteryInstruction::RewardWinners { lottery_id, idx, prize_pool } => {
+                Self::process_ticket_purchase(program_id, accounts, amount)
+            }
+            LotteryInstruction::RewardWinners {
+                lottery_id,
+                idx,
+                prize_pool,
+            } => {
                 msg!("Instruction: RewardWinners");
-                Self::process_reward_winners(
-                    program_id, accounts, lottery_id,
-                    idx, prize_pool
-                )
+                Self::process_reward_winners(program_id, accounts, lottery_id, idx, prize_pool)
             }
         }
     }
@@ -68,29 +61,38 @@ impl Processor {
     pub fn process_ticket_purchase(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        amount: u32
+        amount: u32,
     ) -> ProgramResult {
         let accounts_iter = &mut accounts.iter();
 
-        let user_fqticket_account   = next_account_info(accounts_iter)?;
-        let user_sol_account        = next_account_info(accounts_iter)?;
-        let user_slot_account       = next_account_info(accounts_iter)?;
-        let fqticket_mint           = next_account_info(accounts_iter)?;
+        let user_fqticket_account = next_account_info(accounts_iter)?;
+        let user_sol_account = next_account_info(accounts_iter)?;
+        let user_slot_account = next_account_info(accounts_iter)?;
+        let fqticket_mint = next_account_info(accounts_iter)?;
         let fqticket_mint_authority = next_account_info(accounts_iter)?;
-        let slot_mint_account       = next_account_info(accounts_iter)?;
-        let slot_mint_authority     = next_account_info(accounts_iter)?;
-        let sollotto_sol_account    = next_account_info(accounts_iter)?;
-        let system_program_account  = next_account_info(accounts_iter)?;
-        let spl_token_account       = next_account_info(accounts_iter)?;
+        let slot_mint_account = next_account_info(accounts_iter)?;
+        let slot_mint_authority = next_account_info(accounts_iter)?;
+        let sollotto_sol_account = next_account_info(accounts_iter)?;
+        let system_program_account = next_account_info(accounts_iter)?;
+        let spl_token_account = next_account_info(accounts_iter)?;
 
-        // TODO: Check for signed/writable attributes on fields that require them,
+        if !user_sol_account.is_signer {
+            msg!("Missing user wallet signature");
+            return Err(ProgramError::MissingRequiredSignature);
+        }
 
-        let user_slot_account = SPLAccount::unpack(
-            &user_slot_account.data.borrow()
-        )?;
-        let slot_mint = Mint::unpack(
-            &slot_mint_account.data.borrow()
-        )?;
+        if !fqticket_mint_authority.is_signer {
+            msg!("Missing FQTicket Mint Authority signature");
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        if !slot_mint_authority.is_signer {
+            msg!("Missing SLOT Mint Authority signature");
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        let user_slot_account = SPLAccount::unpack(&user_slot_account.data.borrow())?;
+        let slot_mint = Mint::unpack(&slot_mint_account.data.borrow())?;
 
         // Checks to determine if user tries to spoof their SLOT account
         //
@@ -116,11 +118,9 @@ impl Processor {
         }
 
         // Temporary account variable to check user's fqticket balance
-        let _user_fqticket_account = SPLAccount::unpack(
-            &user_fqticket_account.data.borrow()
-        )?;
+        let _user_fqticket_account = SPLAccount::unpack(&user_fqticket_account.data.borrow())?;
         let fqtickets_owned = _user_fqticket_account.amount;
-        let fqtickets_cap   = user_slot_account.amount;
+        let fqtickets_cap = user_slot_account.amount;
 
         if (fqtickets_owned + (amount as u64)) > fqtickets_cap {
             msg!("Requested FQTickets exceeds SLOT amount for the user");
@@ -128,7 +128,7 @@ impl Processor {
         }
 
         let ticket_price = sol_to_lamports(0.1);
-        let total_price  = ticket_price * (amount as u64);
+        let total_price = ticket_price * (amount as u64);
 
         if user_sol_account.lamports() < total_price {
             msg!("User cannot pay for the ticket");
@@ -140,8 +140,11 @@ impl Processor {
             user_sol_account.key,
             sollotto_sol_account.key,
             total_price,
-            &[ user_sol_account.clone(), sollotto_sol_account.clone(),
-               system_program_account.clone() ]
+            &[
+                user_sol_account.clone(),
+                sollotto_sol_account.clone(),
+                system_program_account.clone(),
+            ],
         )?;
 
         // Mint the corresponding Fixed-Quantity Tokens for taken SOL.
@@ -152,14 +155,14 @@ impl Processor {
                 user_fqticket_account.key,
                 fqticket_mint_authority.key,
                 &[fqticket_mint_authority.key],
-                amount as u64
+                amount as u64,
             )?,
             &[
                 spl_token_account.clone(),
                 fqticket_mint.clone(),
                 user_fqticket_account.clone(),
-                fqticket_mint_authority.clone()
-            ]
+                fqticket_mint_authority.clone(),
+            ],
         )?;
 
         Ok(())
@@ -170,18 +173,18 @@ impl Processor {
         accounts: &[AccountInfo],
         lottery_id: u32,
         idx: u64,
-        prize_pool: u64
+        prize_pool: u64,
     ) -> ProgramResult {
         let accounts_iter = &mut accounts.iter();
         let idx = idx as usize;
 
-        let sollotto_sol_account     = next_account_info(accounts_iter)?;
+        let sollotto_sol_account = next_account_info(accounts_iter)?;
         let sollotto_rewards_account = next_account_info(accounts_iter)?;
-        let holder_rewards_account   = next_account_info(accounts_iter)?;
-        let sollotto_labs_account    = next_account_info(accounts_iter)?;
+        let holder_rewards_account = next_account_info(accounts_iter)?;
+        let sollotto_labs_account = next_account_info(accounts_iter)?;
         let sollotto_results_account = next_account_info(accounts_iter)?;
-        let system_program_account   = next_account_info(accounts_iter)?;
-        let participants             = accounts_iter.as_slice();
+        let system_program_account = next_account_info(accounts_iter)?;
+        let participants = accounts_iter.as_slice();
 
         if (participants.len() / 2) < idx {
             msg!("Winner's index exceedes the number of participants");
@@ -190,25 +193,24 @@ impl Processor {
 
         let winner = participants.get(idx * 2).unwrap();
 
-        let winner_fq_acc = SPLAccount::unpack(
-            &participants.get(idx * 2 + 1).unwrap().data.borrow()
-        )?;
+        let winner_fq_acc =
+            SPLAccount::unpack(&participants.get(idx * 2 + 1).unwrap().data.borrow())?;
 
-        if (winner_fq_acc.amount < 1) {
+        if winner_fq_acc.amount < 1 {
             return Err(LotteryError::NotEnoughFQTokens.into());
         }
 
-        let sol_prize_pool       = lamports_to_sol(prize_pool);
-        let winners_cut          = sol_to_lamports(sol_prize_pool * 0.95);
+        let sol_prize_pool = lamports_to_sol(prize_pool);
+        let winners_cut = sol_to_lamports(sol_prize_pool * 0.95);
         let sollotto_rewards_cut = sol_to_lamports(sol_prize_pool * 0.04);
-        let holder_rewards_cut   = sol_to_lamports(sol_prize_pool * 0.006);
-        let sollotto_labs_cut    = sol_to_lamports(sol_prize_pool * 0.004);
+        let holder_rewards_cut = sol_to_lamports(sol_prize_pool * 0.006);
+        let sollotto_labs_cut = sol_to_lamports(sol_prize_pool * 0.004);
 
-        for ( dest, cut ) in [
-            ( winner, winners_cut ),
-            ( sollotto_rewards_account, sollotto_rewards_cut ),
-            ( holder_rewards_account, holder_rewards_cut ),
-            ( sollotto_labs_account, sollotto_labs_cut )
+        for (dest, cut) in [
+            (winner, winners_cut),
+            (sollotto_rewards_account, sollotto_rewards_cut),
+            (holder_rewards_account, holder_rewards_cut),
+            (sollotto_labs_account, sollotto_labs_cut),
         ] {
             Self::transfer_sol(
                 sollotto_sol_account.key,
@@ -217,8 +219,8 @@ impl Processor {
                 &[
                     sollotto_sol_account.clone(),
                     dest.clone(),
-                    system_program_account.clone()
-                ]
+                    system_program_account.clone(),
+                ],
             )?;
         }
 
@@ -227,7 +229,7 @@ impl Processor {
                 lottery_id: lottery_id,
                 winner: *winner.key,
             },
-            &mut sollotto_results_account.data.borrow_mut()
+            &mut sollotto_results_account.data.borrow_mut(),
         );
 
         Ok(())
@@ -238,12 +240,9 @@ impl Processor {
         dest: &Pubkey,
         src: &Pubkey,
         lamports: u64,
-        accounts: &[AccountInfo]
+        accounts: &[AccountInfo],
     ) -> ProgramResult {
-        invoke(
-            &system_instruction::transfer(dest, src, lamports),
-            accounts
-        )
+        invoke(&system_instruction::transfer(dest, src, lamports), accounts)
     }
 }
 
@@ -284,25 +283,25 @@ mod test {
         let mut user_sol_acc = SolanaAccount::new(
             account_minimum_balance(),
             SPLAccount::get_packed_len(),
-            &user_sol_key
+            &user_sol_key,
         );
         let user_fqticket_key = Pubkey::new_unique();
         let mut user_fqticket_acc = SolanaAccount::new(
             account_minimum_balance(),
             SPLAccount::get_packed_len(),
-            &user_sol_key
+            &user_sol_key,
         );
         let user_slot_key = Pubkey::new_unique();
         let mut user_slot_acc = SolanaAccount::new(
             account_minimum_balance(),
             SPLAccount::get_packed_len(),
-            &user_sol_key
+            &user_sol_key,
         );
         let fqticket_mint_key = Pubkey::new_unique();
         let mut fqticket_mint = SolanaAccount::new(
             mint_minimum_balance(),
             Mint::get_packed_len(),
-            &spl_token::id()
+            &spl_token::id(),
         );
         let fqticket_mint_authority_key = Pubkey::new_unique();
         let mut fqticket_mint_authority = SolanaAccount::default();
@@ -310,13 +309,13 @@ mod test {
         let mut slot_mint = SolanaAccount::new(
             mint_minimum_balance(),
             Mint::get_packed_len(),
-            &spl_token::id()
+            &spl_token::id(),
         );
         let slot_mint_authority_key = Pubkey::new_unique();
         let mut slot_mint_authority = SolanaAccount::default();
         let sollotto_sol_key = Pubkey::new_unique();
         let mut sollotto_sol_acc = SolanaAccount::default();
-        let mut system_program_acc  = SolanaAccount::default();
+        let mut system_program_acc = SolanaAccount::default();
         let mut spl_token_acc = SolanaAccount::default();
 
         Mint::pack(
@@ -327,7 +326,7 @@ mod test {
                 is_initialized: true,
                 ..Default::default()
             },
-            &mut fqticket_mint.data
+            &mut fqticket_mint.data,
         );
 
         Mint::pack(
@@ -338,7 +337,7 @@ mod test {
                 is_initialized: true,
                 ..Default::default()
             },
-            &mut slot_mint.data
+            &mut slot_mint.data,
         );
 
         SPLAccount::pack(
@@ -349,7 +348,7 @@ mod test {
                 state: spl_token::state::AccountState::Initialized,
                 ..Default::default()
             },
-            &mut user_fqticket_acc.data
+            &mut user_fqticket_acc.data,
         );
 
         SPLAccount::pack(
@@ -360,7 +359,7 @@ mod test {
                 state: spl_token::state::AccountState::Initialized,
                 ..Default::default()
             },
-            &mut user_slot_acc.data
+            &mut user_slot_acc.data,
         )?;
 
         assert_eq!(
@@ -403,7 +402,7 @@ mod test {
                 state: spl_token::state::AccountState::Initialized,
                 ..Default::default()
             },
-            &mut user_slot_acc.data
+            &mut user_slot_acc.data,
         )?;
 
         assert_eq!(
@@ -441,7 +440,7 @@ mod test {
         let mut user_sol_acc = SolanaAccount::new(
             sol_to_lamports(2.),
             SPLAccount::get_packed_len(),
-            &user_sol_key
+            &user_sol_key,
         );
 
         do_process(
@@ -455,7 +454,7 @@ mod test {
                 &fqticket_mint_authority_key,
                 &slot_mint_key,
                 &slot_mint_authority_key,
-                &sollotto_sol_key
+                &sollotto_sol_key,
             )
             .unwrap(),
             vec![
@@ -468,8 +467,8 @@ mod test {
                 &mut slot_mint_authority,
                 &mut sollotto_sol_acc,
                 &mut system_program_acc,
-                &mut spl_token_acc
-            ]
+                &mut spl_token_acc,
+            ],
         )?;
 
         Ok(())
@@ -483,11 +482,8 @@ mod test {
         let prize_pool = sol_to_lamports(5.);
         let sollotto_key = Pubkey::new_unique();
         let sollotto_sol_key = Pubkey::new_unique();
-        let mut sollotto_sol_acc = SolanaAccount::new(
-            prize_pool,
-            SPLAccount::get_packed_len(),
-            &sollotto_key
-        );
+        let mut sollotto_sol_acc =
+            SolanaAccount::new(prize_pool, SPLAccount::get_packed_len(), &sollotto_key);
         let sollotto_rewards_key = Pubkey::new_unique();
         let mut sollotto_rewards_acc = SolanaAccount::default();
         let slot_holder_rewards_key = Pubkey::new_unique();
@@ -498,13 +494,10 @@ mod test {
         let mut sollotto_result_acc = SolanaAccount::new(
             account_minimum_balance(),
             LotteryResultData::get_packed_len(),
-            &sollotto_key
+            &sollotto_key,
         );
-        LotteryResultData::pack(
-            LotteryResultData::default(),
-            &mut sollotto_result_acc.data
-        );
-        let mut system_program_acc  = SolanaAccount::default();
+        LotteryResultData::pack(LotteryResultData::default(), &mut sollotto_result_acc.data);
+        let mut system_program_acc = SolanaAccount::default();
 
         let participant_key0 = Pubkey::new_unique();
         let participant_key1 = Pubkey::new_unique();
@@ -519,7 +512,7 @@ mod test {
         let mut participant_acc2 = SolanaAccount::new(
             account_minimum_balance(),
             SPLAccount::get_packed_len(),
-            &participant_key2
+            &participant_key2,
         );
 
         let mut participant_fq_acc0 = SolanaAccount::default();
@@ -527,7 +520,7 @@ mod test {
         let mut participant_fq_acc2 = SolanaAccount::new(
             account_minimum_balance(),
             SPLAccount::get_packed_len(),
-            &participant_key2
+            &participant_key2,
         );
 
         SPLAccount::pack(
@@ -538,7 +531,7 @@ mod test {
                 state: spl_token::state::AccountState::Initialized,
                 ..Default::default()
             },
-            &mut participant_fq_acc2.data
+            &mut participant_fq_acc2.data,
         )?;
 
         assert_eq!(
@@ -618,13 +611,10 @@ mod test {
             )
         );
 
-        let _lottery_res = LotteryResultData::unpack(
-            &sollotto_result_acc.data.as_slice()
-        )?;
+        let _lottery_res = LotteryResultData::unpack(&sollotto_result_acc.data.as_slice())?;
 
         assert!(
-            (_lottery_res.lottery_id == lottery_id )
-            && (_lottery_res.winner == participant_key2)
+            (_lottery_res.lottery_id == lottery_id) && (_lottery_res.winner == participant_key2)
         );
 
         Ok(())

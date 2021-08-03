@@ -17,31 +17,33 @@ pub enum LotteryInstruction {
     /// User purchases new ticket.
     /// Accounts expected by this instruction:
     ///
-    /// 0.         `[writable]` User FQTicket account
+    /// 0. `[writable]` User FQTicket account
     /// 1. `[writable, signer]` User SOL account (must be a system account)
-    /// 2.                 `[]` User SLOT account
-    /// 3.         `[writable]` FQTicket Mint
-    /// 4.           `[signer]` FQTicket mint_authority
-    /// 5.                 `[]` SLOT Mint
-    /// 6.           `[signer]` SLOT mint_authority
-    /// 7.         `[writable]` Sollotto SOL account (must be a system account)
-    /// 8.                 `[]` System program account
-    /// 9.                 `[]` SPL Token account
-    PurchaseTicket {
-        amount: u32
-    },
+    /// 2. `[]` User SLOT account
+    /// 3. `[writable]` FQTicket Mint
+    /// 4. `[signer]` FQTicket mint_authority
+    /// 5. `[]` SLOT Mint
+    /// 6. `[signer]` SLOT mint_authority
+    /// 7. `[writable]` Sollotto SOL account (must be a system account)
+    /// 8. `[]` System program account
+    /// 9. `[]` SPL Token account
+    PurchaseTicket { amount: u32 },
 
     /// Rewarding the winners determined by indexing accounts with `idx`.
     /// Accounts expected by this instruction:
     ///
     /// 0. `[writable, signer]` Sollotto SOL account (must be system account)
-    /// 1.         `[writable]` Sollotto Rewards account (must be a system account)
-    /// 2.         `[writable]` SLOT Holder Rewards account (must be a system account)
-    /// 3.         `[writable]` Sollotto labs account (must be a system account)
-    /// 4.         `[writable]` Sollotto Result account
-    /// 5.           `[signer]` System program account
-    /// 5+N                `[]` N lottery participants (sol_acc, fqticket_acc)
-    RewardWinners { lottery_id: u32, idx: u64, prize_pool: u64 },
+    /// 1. `[writable]` Sollotto Rewards account (must be a system account)
+    /// 2. `[writable]` SLOT Holder Rewards account (must be a system account)
+    /// 3. `[writable]` Sollotto labs account (must be a system account)
+    /// 4. `[writable]` Sollotto Result account
+    /// 5. `[signer]` System program account
+    /// 5+N `[]` N lottery participants (sol_acc, fqticket_acc)
+    RewardWinners {
+        lottery_id: u32,
+        idx: u64,
+        prize_pool: u64,
+    },
 }
 
 impl LotteryInstruction {
@@ -55,10 +57,8 @@ impl LotteryInstruction {
                     .ok()
                     .map(u32::from_le_bytes)
                     .ok_or(InvalidInstruction)?;
-                Self::PurchaseTicket {
-                    amount
-                }
-            },
+                Self::PurchaseTicket { amount }
+            }
             1 => {
                 let (lottery_id, rest) = rest.split_at(4);
                 let lottery_id = lottery_id
@@ -81,10 +81,12 @@ impl LotteryInstruction {
                     .map(u64::from_le_bytes)
                     .ok_or(InvalidInstruction)?;
                 Self::RewardWinners {
-                    lottery_id, idx, prize_pool
+                    lottery_id,
+                    idx,
+                    prize_pool,
                 }
-            },
-            _ => return Err(InvalidInstruction.into())
+            }
+            _ => return Err(InvalidInstruction.into()),
         })
     }
 
@@ -95,14 +97,18 @@ impl LotteryInstruction {
             Self::PurchaseTicket { amount } => {
                 buf.push(0);
                 buf.extend_from_slice(&amount.to_le_bytes());
-            },
-            Self::RewardWinners { lottery_id, idx, prize_pool } => {
+            }
+            Self::RewardWinners {
+                lottery_id,
+                idx,
+                prize_pool,
+            } => {
                 buf.push(1);
                 buf.extend_from_slice(&lottery_id.to_le_bytes());
                 buf.extend_from_slice(&idx.to_le_bytes());
                 buf.extend_from_slice(&prize_pool.to_le_bytes());
-            },
-            _ => unreachable!()
+            }
+            _ => unreachable!(),
         }
         buf
     }
@@ -138,11 +144,9 @@ pub fn purchase_ticket(
     fqticket_mint_authority: &Pubkey,
     slot_mint: &Pubkey,
     slot_mint_authority: &Pubkey,
-    sollotto_sol_acc: &Pubkey
+    sollotto_sol_acc: &Pubkey,
 ) -> Result<Instruction, ProgramError> {
-    let data = LotteryInstruction::PurchaseTicket {
-        amount
-    }.pack();
+    let data = LotteryInstruction::PurchaseTicket { amount }.pack();
 
     let mut accounts = Vec::with_capacity(10);
     accounts.push(AccountMeta::new(*user_fqticket_acc, false));
@@ -153,13 +157,16 @@ pub fn purchase_ticket(
     accounts.push(AccountMeta::new(*slot_mint, false));
     accounts.push(AccountMeta::new(*slot_mint_authority, true));
     accounts.push(AccountMeta::new(*sollotto_sol_acc, false));
-    accounts.push(AccountMeta::new_readonly(solana_program::system_program::id(), false));
+    accounts.push(AccountMeta::new_readonly(
+        solana_program::system_program::id(),
+        false,
+    ));
     accounts.push(AccountMeta::new_readonly(spl_token::id(), false));
 
     Ok(Instruction {
         program_id: *program_id,
         accounts,
-        data
+        data,
     })
 }
 
@@ -174,13 +181,14 @@ pub fn reward_winners(
     slot_holder_rewards: &Pubkey,
     sollotto_labs: &Pubkey,
     sollotto_result: &Pubkey,
-    participants: &Vec<(Pubkey, Pubkey)>
+    participants: &Vec<(Pubkey, Pubkey)>,
 ) -> Result<Instruction, ProgramError> {
     let data = LotteryInstruction::RewardWinners {
         lottery_id,
         idx,
-        prize_pool
-    }.pack();
+        prize_pool,
+    }
+    .pack();
 
     let mut accounts = Vec::with_capacity(6 + participants.len());
     accounts.push(AccountMeta::new(*sollotto_sol, true));
@@ -188,14 +196,17 @@ pub fn reward_winners(
     accounts.push(AccountMeta::new(*slot_holder_rewards, false));
     accounts.push(AccountMeta::new(*sollotto_labs, false));
     accounts.push(AccountMeta::new(*sollotto_result, true));
-    accounts.push(AccountMeta::new_readonly(solana_program::system_program::id(), false));
+    accounts.push(AccountMeta::new_readonly(
+        solana_program::system_program::id(),
+        false,
+    ));
     for participant in participants {
-        accounts.push(AccountMeta::new((participant.0), false));
-        accounts.push(AccountMeta::new((participant.1), false));
+        accounts.push(AccountMeta::new(participant.0, false));
+        accounts.push(AccountMeta::new(participant.1, false));
     }
     Ok(Instruction {
         program_id: *program_id,
         accounts,
-        data
+        data,
     })
 }
