@@ -1,4 +1,5 @@
 use solana_program::{
+    program_error::ProgramError,
     hash::Hash,
     instruction::InstructionError,
     msg,
@@ -393,8 +394,38 @@ async fn test_reward_winners() -> Result<(), Box<std::error::Error>> {
     }
 
     let lottery_id = 1;
-    let winning_idx = 3;
+    let mut winning_idx = 5; // index out of range
     let prize_pool = 50.;
+
+    // Bad case: winning index is out of range of participants
+    let participants_fqticket_iter = participants_fqticket.iter();
+    assert_eq!(
+        TransactionError::InstructionError(
+            1,
+            InstructionError::NotEnoughAccountKeys
+        ),
+        reward_winner(
+            &mut banks_client,
+            &recent_blockhash,
+            &payer,
+            lottery_result_rent,
+            lottery_id,
+            winning_idx,
+            sol_to_lamports(prize_pool),
+            &sollotto_sol,
+            &sollotto_rewards.pubkey(),
+            &slot_holder_rewards.pubkey(),
+            &sollotto_labs.pubkey(),
+            &sollotto_result,
+            &participants_sol
+                .iter()
+                .zip(participants_fqticket_iter)
+                .map(|(fst, scnd)| (fst.pubkey(), scnd.pubkey()))
+                .collect(),
+        ).await.unwrap_err().unwrap()
+    );
+
+    winning_idx = 3;
 
     transfer_sol(
         &mut banks_client,
@@ -405,26 +436,27 @@ async fn test_reward_winners() -> Result<(), Box<std::error::Error>> {
     )
     .await?;
 
-    reward_winner(
-        &mut banks_client,
-        &recent_blockhash,
-        &payer,
-        lottery_result_rent,
-        lottery_id,
-        winning_idx,
-        sol_to_lamports(prize_pool),
-        &sollotto_sol,
-        &sollotto_rewards.pubkey(),
-        &slot_holder_rewards.pubkey(),
-        &sollotto_labs.pubkey(),
-        &sollotto_result,
-        &participants_sol
-            .iter()
-            .zip(participants_fqticket)
-            .map(|(fst, scnd)| (fst.pubkey(), scnd.pubkey()))
-            .collect(),
-    )
-    .await?;
+    assert!(
+        reward_winner(
+            &mut banks_client,
+            &recent_blockhash,
+            &payer,
+            lottery_result_rent,
+            lottery_id,
+            winning_idx,
+            sol_to_lamports(prize_pool),
+            &sollotto_sol,
+            &sollotto_rewards.pubkey(),
+            &slot_holder_rewards.pubkey(),
+            &sollotto_labs.pubkey(),
+            &sollotto_result,
+            &participants_sol
+                .iter()
+                .zip(participants_fqticket)
+                .map(|(fst, scnd)| (fst.pubkey(), scnd.pubkey()))
+                .collect(),
+        ).await.is_ok()
+    );
 
     check_balance(
         &mut banks_client,
