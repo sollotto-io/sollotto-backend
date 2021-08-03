@@ -17,6 +17,7 @@ use sollotto_model_5::{
     state::LotteryResultData,
 };
 use spl_token::state::{Account, Mint};
+use spl_token::ui_amount_to_amount;
 use {
     solana_program::pubkey::Pubkey,
     solana_sdk::{signature::Signer, transaction::Transaction},
@@ -30,7 +31,6 @@ async fn initialize_lottery(
     recent_blockhash: &Hash,
     mint_rent: u64,
     token_account_rent: u64,
-    sollotto_key: &Keypair,
     fqticket_mint: &Keypair,
     fqticket_mint_authority: &Keypair,
     slot_mint: &Keypair,
@@ -155,7 +155,7 @@ async fn mint_token(
     payer: &Keypair,
     mint: &Keypair,
     to: &Pubkey,
-    owner: &Pubkey,
+    mint_authority: &Keypair,
     amount: u64
 ) -> Result<(), TransportError> {
     let mut transaction = Transaction::new_with_payer(
@@ -163,13 +163,13 @@ async fn mint_token(
             &spl_token::id(),
             &mint.pubkey(),
             &to,
-            &owner,
-            &[&mint.pubkey()],
+            &mint_authority.pubkey(),
+            &[],
             amount)
         .unwrap()],
         Some(&payer.pubkey()),
     );
-    transaction.sign(&[payer, mint], *recent_blockhash);
+    transaction.sign(&[payer, mint_authority], *recent_blockhash);
     banks_client.process_transaction(transaction).await?;
     Ok(())
 }
@@ -205,6 +205,44 @@ async fn reward_winner(
         Some(&payer.pubkey()),
     );
     transaction.sign(&[payer, sollotto_sol, sollotto_result], *recent_blockhash);
+    banks_client.process_transaction(transaction).await?;
+    Ok(())
+}
+
+async fn purchase_tickets(
+    banks_client: &mut BanksClient,
+    recent_blockhash: &Hash,
+    payer: &Keypair,
+    amount: u32,
+    user_fqticket_acc: &Pubkey,
+    user_sol_acc: &Keypair,
+    user_slot_acc: &Pubkey,
+    fqticket_mint: &Pubkey,
+    fqticket_mint_authority: &Keypair,
+    slot_mint: &Pubkey,
+    slot_mint_authority: &Keypair,
+    sollotto_sol_acc: &Pubkey
+) -> Result<(), TransportError> {
+    let mut transaction = Transaction::new_with_payer(
+        &[sollotto_model_5::instruction::purchase_ticket(
+            &id(),
+            amount,
+            &user_fqticket_acc,
+            &user_sol_acc.pubkey(),
+            &user_slot_acc,
+            &fqticket_mint,
+            &fqticket_mint_authority.pubkey(),
+            &slot_mint,
+            &slot_mint_authority.pubkey(),
+            &sollotto_sol_acc
+        )
+        .unwrap()],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(
+        &[payer, user_sol_acc, fqticket_mint_authority, slot_mint_authority],
+        *recent_blockhash
+    );
     banks_client.process_transaction(transaction).await?;
     Ok(())
 }
@@ -273,7 +311,6 @@ async fn test_reward_winners() -> Result<(), Box<std::error::Error>> {
     let token_account_rent = rent.minimum_balance(Account::LEN);
     let lottery_result_rent = rent.minimum_balance(LotteryResultData::LEN);
 
-    let sollotto_key            = Keypair::new();
     let sollotto_sol            = Keypair::new();
     let fqticket_mint           = Keypair::new();
     let fqticket_mint_authority = Keypair::new();
@@ -306,7 +343,6 @@ async fn test_reward_winners() -> Result<(), Box<std::error::Error>> {
         &recent_blockhash,
         mint_rent,
         token_account_rent,
-        &sollotto_key,
         &fqticket_mint,
         &fqticket_mint_authority,
         &slot_mint,
@@ -339,19 +375,17 @@ async fn test_reward_winners() -> Result<(), Box<std::error::Error>> {
         .await
         .unwrap();
 
-        /* FIXME: This throws an error for some reason
         mint_token(
             &mut banks_client,
             &recent_blockhash,
             &payer,
-            &slot_mint,
-            &participants_slot[i].pubkey(),
-            &participants_sol[i].pubkey(),
+            &fqticket_mint,
+            &participants_fqticket[i].pubkey(),
+            &fqticket_mint_authority,
             10
         )
         .await
         .unwrap();
-        */
     }
 
     // Assert that created wallets have 0 SOL
@@ -383,28 +417,138 @@ async fn test_reward_winners() -> Result<(), Box<std::error::Error>> {
             .collect()
     ).await?;
 
+
     check_balance(
         &mut banks_client,
         participants_sol[winning_idx as usize].pubkey(),
-        (sol_to_lamports(prize_pool) as f64) * 0.95
-    );
+        prize_pool * 0.95
+    ).await;
 
     check_balance(
         &mut banks_client,
         sollotto_rewards.pubkey(),
-        (sol_to_lamports(prize_pool) as f64) * 0.04
-    );
+        prize_pool * 0.04
+    ).await;
 
     check_balance(
         &mut banks_client,
         slot_holder_rewards.pubkey(),
-        (sol_to_lamports(prize_pool) as f64) * 0.006
-    );
+        prize_pool * 0.006
+    ).await;
 
     check_balance(
         &mut banks_client,
         sollotto_labs.pubkey(),
-        (sol_to_lamports(prize_pool) as f64) * 0.004
+        prize_pool * 0.004
+    ).await;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_ticket_purchase() -> Result<(), Box<std::error::Error>> {
+    let program = ProgramTest::new("sollotto", id(), processor!(Processor::process));
+    let (mut banks_client, payer, recent_blockhash) = program.start().await;
+    let rent = banks_client.get_rent().await.unwrap();
+    let mint_rent = rent.minimum_balance(Mint::LEN);
+    let token_account_rent = rent.minimum_balance(Account::LEN);
+    let lottery_result_rent = rent.minimum_balance(LotteryResultData::LEN);
+
+    let user_fqticket = Keypair::new();
+    let user_sol = Keypair::new();
+    let user_slot = Keypair::new();
+    let fqticket_mint = Keypair::new();
+    let fqticket_mint_authority = Keypair::new();
+    let slot_mint = Keypair::new();
+    let slot_mint_authority = Keypair::new();
+    let sollotto_sol = Keypair::new();
+    let user_sol_balance = 1.;
+
+    initialize_lottery(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        mint_rent,
+        token_account_rent,
+        &fqticket_mint,
+        &fqticket_mint_authority,
+        &slot_mint,
+        &slot_mint_authority,
+        &sollotto_sol
+    ).await.unwrap();
+
+    // Create FQTicket and SLOT user accounts
+    create_token_account(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        &user_fqticket,
+        token_account_rent,
+        &fqticket_mint.pubkey(),
+        &user_sol.pubkey()
+    ).await.unwrap();
+
+    create_token_account(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        &user_slot,
+        token_account_rent,
+        &slot_mint.pubkey(),
+        &user_sol.pubkey()
+    ).await.unwrap();
+
+    // Initialize SLOT user account
+    mint_token(
+        &mut banks_client,
+        &recent_blockhash,
+        &payer,
+        &slot_mint,
+        &user_slot.pubkey(),
+        &slot_mint_authority,
+        ui_amount_to_amount(10., 9)
+    ).await.unwrap();
+
+    check_token_balance(
+        &mut banks_client,
+        user_slot.pubkey(),
+        10.
+    ).await;
+
+    transfer_sol(
+        &mut banks_client,
+        &recent_blockhash,
+        &payer,
+        &user_sol,
+        user_sol_balance
+    ).await.unwrap();
+
+    check_balance(
+        &mut banks_client,
+        user_sol.pubkey(),
+        user_sol_balance
+    ).await;
+
+    let amount = 4;
+
+    purchase_tickets(
+        &mut banks_client,
+        &recent_blockhash,
+        &payer,
+        amount,
+        &user_fqticket.pubkey(),
+        &user_sol,
+        &user_slot.pubkey(),
+        &fqticket_mint.pubkey(),
+        &fqticket_mint_authority,
+        &slot_mint.pubkey(),
+        &slot_mint_authority,
+        &sollotto_sol.pubkey()
+    ).await.unwrap();
+
+    assert_eq!(
+        banks_client.get_balance(user_sol.pubkey()).await.unwrap(),
+        sol_to_lamports(user_sol_balance - ((amount as f64) * 0.1))
     );
 
     Ok(())

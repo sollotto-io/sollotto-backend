@@ -18,7 +18,7 @@ pub enum LotteryInstruction {
     /// Accounts expected by this instruction:
     ///
     /// 0.         `[writable]` User FQTicket account
-    /// 1. `[writable, signer]` User SOL account
+    /// 1. `[writable, signer]` User SOL account (must be a system account)
     /// 2.                 `[]` User SLOT account
     /// 3.         `[writable]` FQTicket Mint
     /// 4.           `[signer]` FQTicket mint_authority
@@ -35,9 +35,9 @@ pub enum LotteryInstruction {
     /// Accounts expected by this instruction:
     ///
     /// 0. `[writable, signer]` Sollotto SOL account (must be system account)
-    /// 1.         `[writable]` Sollotto Rewards account (must be system account)
-    /// 2.         `[writable]` SLOT Holder Rewards account (must be system account)
-    /// 3.         `[writable]` Sollotto labs account (must be system account)
+    /// 1.         `[writable]` Sollotto Rewards account (must be a system account)
+    /// 2.         `[writable]` SLOT Holder Rewards account (must be a system account)
+    /// 3.         `[writable]` Sollotto labs account (must be a system account)
     /// 4.         `[writable]` Sollotto Result account
     /// 5.           `[signer]` System program account
     /// 5+N                `[]` N lottery participants (sol_acc, fqticket_acc)
@@ -146,12 +146,12 @@ pub fn purchase_ticket(
 
     let mut accounts = Vec::with_capacity(10);
     accounts.push(AccountMeta::new(*user_fqticket_acc, false));
-    accounts.push(AccountMeta::new(*user_sol_acc, false));
+    accounts.push(AccountMeta::new(*user_sol_acc, true));
     accounts.push(AccountMeta::new(*user_slot_acc, false));
     accounts.push(AccountMeta::new(*fqticket_mint, false));
-    accounts.push(AccountMeta::new(*fqticket_mint_authority, false));
+    accounts.push(AccountMeta::new(*fqticket_mint_authority, true));
     accounts.push(AccountMeta::new(*slot_mint, false));
-    accounts.push(AccountMeta::new(*slot_mint_authority, false));
+    accounts.push(AccountMeta::new(*slot_mint_authority, true));
     accounts.push(AccountMeta::new(*sollotto_sol_acc, false));
     accounts.push(AccountMeta::new_readonly(solana_program::system_program::id(), false));
     accounts.push(AccountMeta::new_readonly(spl_token::id(), false));

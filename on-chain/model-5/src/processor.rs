@@ -95,7 +95,7 @@ impl Processor {
         // Checks to determine if user tries to spoof their SLOT account
         //
         // Assert that provided SLOT account belongs to user
-        if user_slot_account.owner != *user_sol_account.owner {
+        if user_slot_account.owner != *user_sol_account.key {
             msg!("User provided incorrect SLOT account");
             return Err(LotteryError::InvalidSLOTAccount.into());
         }
@@ -150,8 +150,8 @@ impl Processor {
                 &spl_token::id(),
                 fqticket_mint.key,
                 user_fqticket_account.key,
-                user_fqticket_account.owner,
-                &[],
+                fqticket_mint_authority.key,
+                &[fqticket_mint_authority.key],
                 amount as u64
             )?,
             &[
@@ -194,11 +194,9 @@ impl Processor {
             &participants.get(idx * 2 + 1).unwrap().data.borrow()
         )?;
 
-        /*
         if (winner_fq_acc.amount < 1) {
             return Err(LotteryError::NotEnoughFQTokens.into());
         }
-        */
 
         let sol_prize_pool       = lamports_to_sol(prize_pool);
         let winners_cut          = sol_to_lamports(sol_prize_pool * 0.95);
@@ -282,24 +280,23 @@ mod test {
     #[test]
     fn test_ticket_purchase() -> Result<(), Box<dyn std::error::Error>> {
         let program_id = super::id();
-        let user_key = Pubkey::new_unique();
-        let user_fqticket_key = Pubkey::new_unique();
-        let mut user_fqticket_acc = SolanaAccount::new(
-            account_minimum_balance(),
-            SPLAccount::get_packed_len(),
-            &user_key
-        );
         let user_sol_key = Pubkey::new_unique();
         let mut user_sol_acc = SolanaAccount::new(
             account_minimum_balance(),
             SPLAccount::get_packed_len(),
-            &user_key
+            &user_sol_key
+        );
+        let user_fqticket_key = Pubkey::new_unique();
+        let mut user_fqticket_acc = SolanaAccount::new(
+            account_minimum_balance(),
+            SPLAccount::get_packed_len(),
+            &user_sol_key
         );
         let user_slot_key = Pubkey::new_unique();
         let mut user_slot_acc = SolanaAccount::new(
             account_minimum_balance(),
             SPLAccount::get_packed_len(),
-            &user_key
+            &user_sol_key
         );
         let fqticket_mint_key = Pubkey::new_unique();
         let mut fqticket_mint = SolanaAccount::new(
@@ -347,7 +344,7 @@ mod test {
         SPLAccount::pack(
             SPLAccount {
                 mint: spl_token::id(),
-                owner: user_key,
+                owner: user_sol_key,
                 amount: 0,
                 state: spl_token::state::AccountState::Initialized,
                 ..Default::default()
@@ -358,7 +355,7 @@ mod test {
         SPLAccount::pack(
             SPLAccount {
                 mint: slot_mint_key,
-                owner: user_key,
+                owner: user_sol_key,
                 amount: 0,
                 state: spl_token::state::AccountState::Initialized,
                 ..Default::default()
@@ -401,7 +398,7 @@ mod test {
         SPLAccount::pack(
             SPLAccount {
                 mint: slot_mint_key,
-                owner: user_key,
+                owner: user_sol_key,
                 amount: ui_amount_to_amount(10., 9),
                 state: spl_token::state::AccountState::Initialized,
                 ..Default::default()
@@ -444,7 +441,7 @@ mod test {
         let mut user_sol_acc = SolanaAccount::new(
             sol_to_lamports(2.),
             SPLAccount::get_packed_len(),
-            &user_key
+            &user_sol_key
         );
 
         do_process(
