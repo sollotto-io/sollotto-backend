@@ -11,10 +11,7 @@ use solana_sdk::{
     transport::TransportError,
 };
 use sollotto_model_5::{
-    processor::id,
-    processor::Processor,
-    state::LotteryResultData,
-    error::LotteryError
+    error::LotteryError, processor::id, processor::Processor, state::LotteryResultData,
 };
 use spl_token::state::{Account, Mint};
 use spl_token::ui_amount_to_amount;
@@ -169,26 +166,27 @@ async fn reward_winner(
 ) -> Result<(), TransportError> {
     let mut transaction = Transaction::new_with_payer(
         &[
-        system_instruction::create_account(
-            &payer.pubkey(),
-            &sollotto_result.pubkey(),
-            lottery_result_rent,
-            sollotto_model_5::state::LotteryResultData::LEN as u64,
-            &id()
-        ),
-        sollotto_model_5::instruction::reward_winners(
-            &id(),
-            lottery_id,
-            idx,
-            prize_pool,
-            &sollotto_sol.pubkey(),
-            &sollotto_rewards,
-            &slot_holder_rewards,
-            &sollotto_labs,
-            &sollotto_result.pubkey(),
-            &participants,
-        )
-        .unwrap()],
+            system_instruction::create_account(
+                &payer.pubkey(),
+                &sollotto_result.pubkey(),
+                lottery_result_rent,
+                sollotto_model_5::state::LotteryResultData::LEN as u64,
+                &id(),
+            ),
+            sollotto_model_5::instruction::reward_winners(
+                &id(),
+                lottery_id,
+                idx,
+                prize_pool,
+                &sollotto_sol.pubkey(),
+                &sollotto_rewards,
+                &slot_holder_rewards,
+                &sollotto_labs,
+                &sollotto_result.pubkey(),
+                &participants,
+            )
+            .unwrap(),
+        ],
         Some(&payer.pubkey()),
     );
     transaction.sign(&[payer, sollotto_sol, sollotto_result], *recent_blockhash);
@@ -357,10 +355,7 @@ async fn test_reward_winners() -> Result<(), Box<dyn std::error::Error>> {
     // Bad case: winning index is out of range of participants
     let participants_fqticket_iter = participants_fqticket.iter();
     assert_eq!(
-        TransactionError::InstructionError(
-            1,
-            InstructionError::NotEnoughAccountKeys
-        ),
+        TransactionError::InstructionError(1, InstructionError::NotEnoughAccountKeys),
         reward_winner(
             &mut banks_client,
             &recent_blockhash,
@@ -379,7 +374,10 @@ async fn test_reward_winners() -> Result<(), Box<dyn std::error::Error>> {
                 .zip(participants_fqticket_iter)
                 .map(|(fst, scnd)| (fst.pubkey(), scnd.pubkey()))
                 .collect(),
-        ).await.unwrap_err().unwrap()
+        )
+        .await
+        .unwrap_err()
+        .unwrap()
     );
 
     winning_idx = 3;
@@ -410,7 +408,10 @@ async fn test_reward_winners() -> Result<(), Box<dyn std::error::Error>> {
                 .zip(participants_fqticket_iter)
                 .map(|(fst, scnd)| (fst.pubkey(), scnd.pubkey()))
                 .collect(),
-        ).await.unwrap_err().unwrap()
+        )
+        .await
+        .unwrap_err()
+        .unwrap()
     );
 
     prize_pool = 50.;
@@ -444,7 +445,9 @@ async fn test_reward_winners() -> Result<(), Box<dyn std::error::Error>> {
                 .zip(participants_fqticket)
                 .map(|(fst, scnd)| (fst.pubkey(), scnd.pubkey()))
                 .collect(),
-        ).await.unwrap()
+        )
+        .await
+        .unwrap()
     );
 
     check_balance(
@@ -481,14 +484,10 @@ async fn test_reward_winners() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap()
         .unwrap();
 
-    let sollotto_result_data = LotteryResultData::unpack_from_slice(
-        sollotto_result_acc.data.as_slice()
-    ).unwrap();
+    let sollotto_result_data =
+        LotteryResultData::unpack_from_slice(sollotto_result_acc.data.as_slice()).unwrap();
 
-    assert_eq!(
-        sollotto_result_data.lottery_id,
-        lottery_id
-    );
+    assert_eq!(sollotto_result_data.lottery_id, lottery_id);
 
     assert_eq!(
         sollotto_result_data.winner,
@@ -580,28 +579,26 @@ async fn test_ticket_purchase() -> Result<(), Box<dyn std::error::Error>> {
     .unwrap();
     check_balance(&mut banks_client, user_sol.pubkey(), user_sol_balance).await;
 
-    assert!(
-        purchase_tickets(
-            &mut banks_client,
-            &recent_blockhash,
-            &payer,
-            amount,
-            &user_fqticket.pubkey(),
-            &user_sol,
-            &user_slot.pubkey(),
-            &fqticket_mint.pubkey(),
-            &fqticket_mint_authority,
-            &slot_mint.pubkey(),
-            &slot_mint_authority,
-            &sollotto_sol.pubkey(),
-        )
-        .await.is_ok()
-    );
+    assert!(purchase_tickets(
+        &mut banks_client,
+        &recent_blockhash,
+        &payer,
+        amount,
+        &user_fqticket.pubkey(),
+        &user_sol,
+        &user_slot.pubkey(),
+        &fqticket_mint.pubkey(),
+        &fqticket_mint_authority,
+        &slot_mint.pubkey(),
+        &slot_mint_authority,
+        &sollotto_sol.pubkey(),
+    )
+    .await
+    .is_ok());
 
     assert_eq!(
         banks_client.get_balance(user_sol.pubkey()).await.unwrap(),
-        sol_to_lamports(user_sol_balance) - (amount / 10)
-        // (amount / 10), since 1 FQTicket costs 0.1 SOL
+        sol_to_lamports(user_sol_balance) - (amount / 10) // (amount / 10), since 1 FQTicket costs 0.1 SOL
     );
 
     Ok(())

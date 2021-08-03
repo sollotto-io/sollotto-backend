@@ -117,10 +117,8 @@ impl Processor {
 
         // Temporary account variable to check user's fqticket balance
         let _user_fqticket_account = SPLAccount::unpack(&user_fqticket_account.data.borrow())?;
-        let fqtickets_owned = amount_to_ui_amount(
-            _user_fqticket_account.amount,
-            fqticket_mint_data.decimals
-        );
+        let fqtickets_owned =
+            amount_to_ui_amount(_user_fqticket_account.amount, fqticket_mint_data.decimals);
         let fqtickets_cap = amount_to_ui_amount(user_slot_account.amount, slot_mint.decimals);
 
         let amount_float = amount_to_ui_amount(amount, fqticket_mint_data.decimals);
@@ -284,12 +282,8 @@ impl Processor {
 mod test {
     use super::*;
     use solana_program::{instruction::Instruction, program_pack::Pack, rent::Rent};
-    use solana_sdk::account::{
-        create_is_signer_account_infos, Account as SolanaAccount,
-    };
-    use spl_token::{
-        ui_amount_to_amount
-    };
+    use solana_sdk::account::{create_is_signer_account_infos, Account as SolanaAccount};
+    use spl_token::ui_amount_to_amount;
 
     fn mint_minimum_balance() -> u64 {
         Rent::default().minimum_balance(spl_token::state::Mint::get_packed_len())
