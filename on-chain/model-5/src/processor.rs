@@ -206,23 +206,49 @@ impl Processor {
         let holder_rewards_cut = sol_to_lamports(sol_prize_pool * 0.006);
         let sollotto_labs_cut = sol_to_lamports(sol_prize_pool * 0.004);
 
-        for (dest, cut) in [
-            (winner, winners_cut),
-            (sollotto_rewards_account, sollotto_rewards_cut),
-            (holder_rewards_account, holder_rewards_cut),
-            (sollotto_labs_account, sollotto_labs_cut),
-        ] {
-            Self::transfer_sol(
-                sollotto_sol_account.key,
-                dest.key,
-                cut,
-                &[
-                    sollotto_sol_account.clone(),
-                    dest.clone(),
-                    system_program_account.clone(),
-                ],
-            )?;
-        }
+        Self::transfer_sol(
+            sollotto_sol_account.key,
+            winner.key,
+            winners_cut,
+            &[
+                sollotto_sol_account.clone(),
+                winner.clone(),
+                system_program_account.clone(),
+            ],
+        )?;
+
+        Self::transfer_sol(
+            sollotto_sol_account.key,
+            sollotto_rewards_account.key,
+            sollotto_rewards_cut,
+            &[
+                sollotto_sol_account.clone(),
+                sollotto_rewards_account.clone(),
+                system_program_account.clone(),
+            ],
+        )?;
+
+        Self::transfer_sol(
+            sollotto_sol_account.key,
+            holder_rewards_account.key,
+            holder_rewards_cut,
+            &[
+                sollotto_sol_account.clone(),
+                holder_rewards_account.clone(),
+                system_program_account.clone(),
+            ],
+        )?;
+
+        Self::transfer_sol(
+            sollotto_sol_account.key,
+            sollotto_labs_account.key,
+            sollotto_labs_cut,
+            &[
+                sollotto_sol_account.clone(),
+                sollotto_labs_account.clone(),
+                system_program_account.clone(),
+            ],
+        )?;
 
         LotteryResultData::pack(
             LotteryResultData {
