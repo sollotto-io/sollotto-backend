@@ -12,7 +12,12 @@ use solana_sdk::{
     signature::Keypair, system_transaction, transaction::TransactionError,
     transport::TransportError,
 };
-use sollotto_model_5::{processor::id, processor::Processor, state::LotteryResultData};
+use sollotto_model_5::{
+    processor::id,
+    processor::Processor,
+    state::LotteryResultData,
+    error::LotteryError
+};
 use spl_token::state::{Account, Mint};
 use spl_token::ui_amount_to_amount;
 use {
@@ -395,7 +400,7 @@ async fn test_reward_winners() -> Result<(), Box<std::error::Error>> {
 
     let lottery_id = 1;
     let mut winning_idx = 5; // index out of range
-    let prize_pool = 50.;
+    let mut prize_pool = 50.;
 
     // Bad case: winning index is out of range of participants
     let participants_fqticket_iter = participants_fqticket.iter();
@@ -426,6 +431,37 @@ async fn test_reward_winners() -> Result<(), Box<std::error::Error>> {
     );
 
     winning_idx = 3;
+    prize_pool = 0.;
+
+    // Bad case: empty prize pool
+    let participants_fqticket_iter = participants_fqticket.iter();
+    assert_eq!(
+        TransactionError::InstructionError(
+            1,
+            InstructionError::Custom(LotteryError::EmptyPrizePool as u32)
+        ),
+        reward_winner(
+            &mut banks_client,
+            &recent_blockhash,
+            &payer,
+            lottery_result_rent,
+            lottery_id,
+            winning_idx,
+            sol_to_lamports(prize_pool),
+            &sollotto_sol,
+            &sollotto_rewards.pubkey(),
+            &slot_holder_rewards.pubkey(),
+            &sollotto_labs.pubkey(),
+            &sollotto_result,
+            &participants_sol
+                .iter()
+                .zip(participants_fqticket_iter)
+                .map(|(fst, scnd)| (fst.pubkey(), scnd.pubkey()))
+                .collect(),
+        ).await.unwrap_err().unwrap()
+    );
+
+    prize_pool = 50.;
 
     transfer_sol(
         &mut banks_client,
@@ -436,7 +472,8 @@ async fn test_reward_winners() -> Result<(), Box<std::error::Error>> {
     )
     .await?;
 
-    assert!(
+    assert_eq!(
+        (),
         reward_winner(
             &mut banks_client,
             &recent_blockhash,
@@ -455,7 +492,7 @@ async fn test_reward_winners() -> Result<(), Box<std::error::Error>> {
                 .zip(participants_fqticket)
                 .map(|(fst, scnd)| (fst.pubkey(), scnd.pubkey()))
                 .collect(),
-        ).await.is_ok()
+        ).await.unwrap()
     );
 
     check_balance(
@@ -580,9 +617,9 @@ async fn test_ticket_purchase() -> Result<(), Box<std::error::Error>> {
     )
     .await
     .unwrap();
-
     check_token_balance(&mut banks_client, user_slot.pubkey(), 10.).await;
 
+    let amount = ui_amount_to_amount(4., 9);
     transfer_sol(
         &mut banks_client,
         &recent_blockhash,
@@ -592,28 +629,25 @@ async fn test_ticket_purchase() -> Result<(), Box<std::error::Error>> {
     )
     .await
     .unwrap();
-
     check_balance(&mut banks_client, user_sol.pubkey(), user_sol_balance).await;
 
-    // let amount = 4;
-    let amount = ui_amount_to_amount(4., 9);
-
-    purchase_tickets(
-        &mut banks_client,
-        &recent_blockhash,
-        &payer,
-        amount,
-        &user_fqticket.pubkey(),
-        &user_sol,
-        &user_slot.pubkey(),
-        &fqticket_mint.pubkey(),
-        &fqticket_mint_authority,
-        &slot_mint.pubkey(),
-        &slot_mint_authority,
-        &sollotto_sol.pubkey(),
-    )
-    .await
-    .unwrap();
+    assert!(
+        purchase_tickets(
+            &mut banks_client,
+            &recent_blockhash,
+            &payer,
+            amount,
+            &user_fqticket.pubkey(),
+            &user_sol,
+            &user_slot.pubkey(),
+            &fqticket_mint.pubkey(),
+            &fqticket_mint_authority,
+            &slot_mint.pubkey(),
+            &slot_mint_authority,
+            &sollotto_sol.pubkey(),
+        )
+        .await.is_ok()
+    );
 
     assert_eq!(
         banks_client.get_balance(user_sol.pubkey()).await.unwrap(),

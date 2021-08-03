@@ -137,7 +137,7 @@ impl Processor {
 
         if (user_sol_account.lamports() as f64) < total_price {
             msg!("User cannot pay for the ticket");
-            return Err(ProgramError::InsufficientFunds.into());
+            return Err(ProgramError::InsufficientFunds);
         }
 
         // Transfer SOL tokens from the buyer's wallet.
@@ -194,6 +194,11 @@ impl Processor {
         if (participants.len() / 2) <= idx {
             msg!("Winner's index exceedes the number of participants");
             return Err(ProgramError::NotEnoughAccountKeys);
+        }
+
+        if prize_pool == 0 {
+            msg!("Empty prize pool");
+            return Err(LotteryError::EmptyPrizePool.into());
         }
 
         let winner = participants.get(idx * 2).unwrap();

@@ -29,6 +29,9 @@ pub enum LotteryError {
     /// Not enough Fixed-Quality Tokens
     #[error("Not enough Fixed-Quality Tokens")]
     NotEnoughFQTokens,
+    /// Empty Prize Pool
+    #[error("Empty Prize Pool")]
+    EmptyPrizePool,
 }
 
 impl From<LotteryError> for ProgramError {
