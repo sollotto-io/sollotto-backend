@@ -1,7 +1,7 @@
 //! Lottery program
 
 use solana_program::{entrypoint::ProgramResult, program_error::ProgramError, pubkey::Pubkey};
-// mod entrypoint;
+mod entrypoint;
 pub mod error;
 pub mod instruction;
 pub mod processor;
