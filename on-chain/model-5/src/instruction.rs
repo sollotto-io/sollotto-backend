@@ -37,7 +37,7 @@ pub enum LotteryInstruction {
     /// 2. `[writable]` SLOT Holder Rewards account (must be a system account)
     /// 3. `[writable]` Sollotto labs account (must be a system account)
     /// 4. `[writable]` Sollotto Result account
-    /// 5. `[signer]` System program account
+    /// 5. `[]` System program account
     /// 5+N `[]` N lottery participants (sol_acc, fqticket_acc)
     RewardWinners {
         lottery_id: u32,

@@ -186,7 +186,7 @@ impl Processor {
         let system_program_account = next_account_info(accounts_iter)?;
         let participants = accounts_iter.as_slice();
 
-        if (participants.len() / 2) < idx {
+        if (participants.len() / 2) <= idx {
             msg!("Winner's index exceedes the number of participants");
             return Err(ProgramError::NotEnoughAccountKeys);
         }
@@ -256,7 +256,7 @@ impl Processor {
                 winner: *winner.key,
             },
             &mut sollotto_results_account.data.borrow_mut(),
-        );
+        )?;
 
         Ok(())
     }

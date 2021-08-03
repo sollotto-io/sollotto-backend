@@ -170,6 +170,7 @@ async fn reward_winner(
     banks_client: &mut BanksClient,
     recent_blockhash: &Hash,
     payer: &Keypair,
+    lottery_result_rent: u64,
     lottery_id: u32,
     idx: u64,
     prize_pool: u64,
@@ -181,7 +182,15 @@ async fn reward_winner(
     participants: &Vec<(Pubkey, Pubkey)>,
 ) -> Result<(), TransportError> {
     let mut transaction = Transaction::new_with_payer(
-        &[sollotto_model_5::instruction::reward_winners(
+        &[
+        system_instruction::create_account(
+            &payer.pubkey(),
+            &sollotto_result.pubkey(),
+            lottery_result_rent,
+            sollotto_model_5::state::LotteryResultData::LEN as u64,
+            &id()
+        ),
+        sollotto_model_5::instruction::reward_winners(
             &id(),
             lottery_id,
             idx,
@@ -384,7 +393,7 @@ async fn test_reward_winners() -> Result<(), Box<std::error::Error>> {
     }
 
     let lottery_id = 1;
-    let winning_idx = 2;
+    let winning_idx = 3;
     let prize_pool = 50.;
 
     transfer_sol(
@@ -400,6 +409,7 @@ async fn test_reward_winners() -> Result<(), Box<std::error::Error>> {
         &mut banks_client,
         &recent_blockhash,
         &payer,
+        lottery_result_rent,
         lottery_id,
         winning_idx,
         sol_to_lamports(prize_pool),
@@ -443,6 +453,26 @@ async fn test_reward_winners() -> Result<(), Box<std::error::Error>> {
         prize_pool * 0.004,
     )
     .await;
+
+    let sollotto_result_acc = banks_client
+        .get_account(sollotto_result.pubkey())
+        .await
+        .unwrap()
+        .unwrap();
+
+    let sollotto_result_data = LotteryResultData::unpack_from_slice(
+        sollotto_result_acc.data.as_slice()
+    ).unwrap();
+
+    assert_eq!(
+        sollotto_result_data.lottery_id,
+        lottery_id
+    );
+
+    assert_eq!(
+        sollotto_result_data.winner,
+        participants_sol.get(winning_idx as usize).unwrap().pubkey()
+    );
 
     Ok(())
 }
