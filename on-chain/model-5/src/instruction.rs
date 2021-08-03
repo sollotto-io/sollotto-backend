@@ -27,7 +27,7 @@ pub enum LotteryInstruction {
     /// 7. `[writable]` Sollotto SOL account (must be a system account)
     /// 8. `[]` System program account
     /// 9. `[]` SPL Token account
-    PurchaseTicket { amount: u32 },
+    PurchaseTicket { amount: u64 },
 
     /// Rewarding the winners determined by indexing accounts with `idx`.
     /// Accounts expected by this instruction:
@@ -51,11 +51,11 @@ impl LotteryInstruction {
         let (tag, rest) = input.split_first().ok_or(InvalidInstruction)?;
         Ok(match tag {
             0 => {
-                let (amount, _) = rest.split_at(4);
+                let (amount, _) = rest.split_at(8);
                 let amount = amount
                     .try_into()
                     .ok()
-                    .map(u32::from_le_bytes)
+                    .map(u64::from_le_bytes)
                     .ok_or(InvalidInstruction)?;
                 Self::PurchaseTicket { amount }
             }
@@ -136,7 +136,7 @@ impl LotteryInstruction {
 /// Creates a `PurchaseTicket` instruction
 pub fn purchase_ticket(
     program_id: &Pubkey,
-    amount: u32,
+    amount: u64,
     user_fqticket_acc: &Pubkey,
     user_sol_acc: &Pubkey,
     user_slot_acc: &Pubkey,

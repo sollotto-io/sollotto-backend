@@ -61,7 +61,7 @@ impl Processor {
     pub fn process_ticket_purchase(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        amount: u32,
+        amount: u64,
     ) -> ProgramResult {
         let accounts_iter = &mut accounts.iter();
 
@@ -93,6 +93,7 @@ impl Processor {
 
         let user_slot_account = SPLAccount::unpack(&user_slot_account.data.borrow())?;
         let slot_mint = Mint::unpack(&slot_mint_account.data.borrow())?;
+        let fqticket_mint_data = Mint::unpack(&fqticket_mint.data.borrow())?;
 
         // Checks to determine if user tries to spoof their SLOT account
         //
@@ -119,18 +120,22 @@ impl Processor {
 
         // Temporary account variable to check user's fqticket balance
         let _user_fqticket_account = SPLAccount::unpack(&user_fqticket_account.data.borrow())?;
-        let fqtickets_owned = _user_fqticket_account.amount;
-        let fqtickets_cap = user_slot_account.amount;
+        let fqtickets_owned = amount_to_ui_amount(
+            _user_fqticket_account.amount,
+            fqticket_mint_data.decimals
+        );
+        let fqtickets_cap = amount_to_ui_amount(user_slot_account.amount, slot_mint.decimals);
 
-        if (fqtickets_owned + (amount as u64)) > fqtickets_cap {
+        let amount_float = amount_to_ui_amount(amount, fqticket_mint_data.decimals);
+        let ticket_price = sol_to_lamports(0.1);
+        let total_price = (ticket_price as f64) * amount_float;
+
+        if (fqtickets_owned + amount_float) > fqtickets_cap {
             msg!("Requested FQTickets exceeds SLOT amount for the user");
             return Err(LotteryError::SLOTCapExceeded.into());
         }
 
-        let ticket_price = sol_to_lamports(0.1);
-        let total_price = ticket_price * (amount as u64);
-
-        if user_sol_account.lamports() < total_price {
+        if (user_sol_account.lamports() as f64) < total_price {
             msg!("User cannot pay for the ticket");
             return Err(ProgramError::InsufficientFunds.into());
         }
@@ -139,7 +144,7 @@ impl Processor {
         Self::transfer_sol(
             user_sol_account.key,
             sollotto_sol_account.key,
-            total_price,
+            total_price as u64,
             &[
                 user_sol_account.clone(),
                 sollotto_sol_account.clone(),
@@ -393,7 +398,7 @@ mod test {
             do_process(
                 crate::instruction::purchase_ticket(
                     &program_id,
-                    5,
+                    ui_amount_to_amount(5., 9),
                     &user_fqticket_key,
                     &user_sol_key,
                     &user_slot_key,
@@ -436,7 +441,7 @@ mod test {
             do_process(
                 crate::instruction::purchase_ticket(
                     &program_id,
-                    5,
+                    ui_amount_to_amount(5., 9),
                     &user_fqticket_key,
                     &user_sol_key,
                     &user_slot_key,
@@ -469,33 +474,36 @@ mod test {
             &user_sol_key,
         );
 
-        do_process(
-            crate::instruction::purchase_ticket(
-                &program_id,
-                5,
-                &user_fqticket_key,
-                &user_sol_key,
-                &user_slot_key,
-                &fqticket_mint_key,
-                &fqticket_mint_authority_key,
-                &slot_mint_key,
-                &slot_mint_authority_key,
-                &sollotto_sol_key,
+        assert_eq!(
+            Ok(()),
+            do_process(
+                crate::instruction::purchase_ticket(
+                    &program_id,
+                    ui_amount_to_amount(5., 9),
+                    &user_fqticket_key,
+                    &user_sol_key,
+                    &user_slot_key,
+                    &fqticket_mint_key,
+                    &fqticket_mint_authority_key,
+                    &slot_mint_key,
+                    &slot_mint_authority_key,
+                    &sollotto_sol_key,
+                )
+                .unwrap(),
+                vec![
+                    &mut user_fqticket_acc,
+                    &mut user_sol_acc,
+                    &mut user_slot_acc,
+                    &mut fqticket_mint,
+                    &mut fqticket_mint_authority,
+                    &mut slot_mint,
+                    &mut slot_mint_authority,
+                    &mut sollotto_sol_acc,
+                    &mut system_program_acc,
+                    &mut spl_token_acc,
+                ],
             )
-            .unwrap(),
-            vec![
-                &mut user_fqticket_acc,
-                &mut user_sol_acc,
-                &mut user_slot_acc,
-                &mut fqticket_mint,
-                &mut fqticket_mint_authority,
-                &mut slot_mint,
-                &mut slot_mint_authority,
-                &mut sollotto_sol_acc,
-                &mut system_program_acc,
-                &mut spl_token_acc,
-            ],
-        )?;
+        );
 
         Ok(())
     }

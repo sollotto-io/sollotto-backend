@@ -215,7 +215,7 @@ async fn purchase_tickets(
     banks_client: &mut BanksClient,
     recent_blockhash: &Hash,
     payer: &Keypair,
-    amount: u32,
+    amount: u64,
     user_fqticket_acc: &Pubkey,
     user_sol_acc: &Keypair,
     user_slot_acc: &Pubkey,
@@ -595,7 +595,8 @@ async fn test_ticket_purchase() -> Result<(), Box<std::error::Error>> {
 
     check_balance(&mut banks_client, user_sol.pubkey(), user_sol_balance).await;
 
-    let amount = 4;
+    // let amount = 4;
+    let amount = ui_amount_to_amount(4., 9);
 
     purchase_tickets(
         &mut banks_client,
@@ -616,7 +617,8 @@ async fn test_ticket_purchase() -> Result<(), Box<std::error::Error>> {
 
     assert_eq!(
         banks_client.get_balance(user_sol.pubkey()).await.unwrap(),
-        sol_to_lamports(user_sol_balance - ((amount as f64) * 0.1))
+        sol_to_lamports(user_sol_balance) - (amount / 10)
+        // (amount / 10), since 1 FQTicket costs 0.1 SOL
     );
 
     Ok(())
