@@ -1,12 +1,9 @@
 //! Instruction types
 use crate::error::LotteryError::InvalidInstruction;
-use crate::processor::check_program_account;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
-    msg,
     program_error::ProgramError,
     pubkey::Pubkey,
-    sysvar,
 };
 use std::{convert::TryInto, mem::size_of};
 
@@ -108,28 +105,8 @@ impl LotteryInstruction {
                 buf.extend_from_slice(&idx.to_le_bytes());
                 buf.extend_from_slice(&prize_pool.to_le_bytes());
             }
-            _ => unreachable!(),
         }
         buf
-    }
-
-    fn unpack_pubkey(input: &[u8]) -> Result<(Pubkey, &[u8]), ProgramError> {
-        if input.len() < 32 {
-            msg!("Pubkey cannot be unpacked");
-            return Err(InvalidInstruction.into());
-        }
-        let (key, rest) = input.split_at(32);
-        let pk = Pubkey::new(key);
-        Ok((pk, rest))
-    }
-
-    fn unpack_ticket_number_arr(input: &[u8]) -> Result<(&[u8; 6], &[u8]), ProgramError> {
-        if input.len() < 6 {
-            msg!("Cannot be unpacked");
-            return Err(InvalidInstruction.into());
-        }
-        let (bytes, rest) = input.split_at(6);
-        Ok((bytes.try_into().map_err(|_| InvalidInstruction)?, rest))
     }
 }
 

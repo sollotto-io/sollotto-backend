@@ -10,14 +10,11 @@ use solana_program::{
     program_option::COption,
     program_pack::Pack,
     pubkey::Pubkey,
-    rent::Rent,
     system_instruction,
-    sysvar::Sysvar,
 };
 use spl_token::{
     amount_to_ui_amount,
     state::{Account as SPLAccount, Mint},
-    ui_amount_to_amount,
 };
 
 // Sollotto program_id
@@ -59,7 +56,7 @@ impl Processor {
     }
 
     pub fn process_ticket_purchase(
-        program_id: &Pubkey,
+        _program_id: &Pubkey,
         accounts: &[AccountInfo],
         amount: u64,
     ) -> ProgramResult {
@@ -174,7 +171,7 @@ impl Processor {
     }
 
     pub fn process_reward_winners(
-        program_id: &Pubkey,
+        _program_id: &Pubkey,
         accounts: &[AccountInfo],
         lottery_id: u32,
         idx: u64,
@@ -288,8 +285,10 @@ mod test {
     use super::*;
     use solana_program::{instruction::Instruction, program_pack::Pack, rent::Rent};
     use solana_sdk::account::{
-        create_account_for_test, create_is_signer_account_infos, Account as SolanaAccount,
-        ReadableAccount,
+        create_is_signer_account_infos, Account as SolanaAccount,
+    };
+    use spl_token::{
+        ui_amount_to_amount
     };
 
     fn mint_minimum_balance() -> u64 {
@@ -363,7 +362,7 @@ mod test {
                 ..Default::default()
             },
             &mut fqticket_mint.data,
-        );
+        )?;
 
         Mint::pack(
             Mint {
@@ -374,7 +373,7 @@ mod test {
                 ..Default::default()
             },
             &mut slot_mint.data,
-        );
+        )?;
 
         SPLAccount::pack(
             SPLAccount {
@@ -385,7 +384,7 @@ mod test {
                 ..Default::default()
             },
             &mut user_fqticket_acc.data,
-        );
+        )?;
 
         SPLAccount::pack(
             SPLAccount {
@@ -535,7 +534,7 @@ mod test {
             LotteryResultData::get_packed_len(),
             &sollotto_key,
         );
-        LotteryResultData::pack(LotteryResultData::default(), &mut sollotto_result_acc.data);
+        LotteryResultData::pack(LotteryResultData::default(), &mut sollotto_result_acc.data)?;
         let mut system_program_acc = SolanaAccount::default();
 
         let participant_key0 = Pubkey::new_unique();

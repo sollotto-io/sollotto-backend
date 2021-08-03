@@ -1,9 +1,7 @@
 use solana_program::{
-    program_error::ProgramError,
     hash::Hash,
     instruction::InstructionError,
-    msg,
-    native_token::{lamports_to_sol, sol_to_lamports},
+    native_token::sol_to_lamports,
     program_pack::Pack,
     system_instruction::{self},
 };
@@ -32,12 +30,10 @@ async fn initialize_lottery(
     payer: &Keypair,
     recent_blockhash: &Hash,
     mint_rent: u64,
-    token_account_rent: u64,
     fqticket_mint: &Keypair,
     fqticket_mint_authority: &Keypair,
     slot_mint: &Keypair,
     slot_mint_authority: &Keypair,
-    sollotto_sol: &Keypair,
 ) -> Result<(), TransportError> {
     let mut transaction = Transaction::new_with_payer(
         &[
@@ -105,22 +101,6 @@ async fn create_token_account(
             )
             .unwrap(),
         ],
-        Some(&payer.pubkey()),
-    );
-    transaction.sign(&[payer, account], *recent_blockhash);
-    banks_client.process_transaction(transaction).await?;
-    Ok(())
-}
-
-async fn allocate_account(
-    banks_client: &mut BanksClient,
-    payer: &Keypair,
-    recent_blockhash: &Hash,
-    account: &Keypair,
-    space: u64,
-) -> Result<(), TransportError> {
-    let mut transaction = Transaction::new_with_payer(
-        &[system_instruction::allocate(&account.pubkey(), space)],
         Some(&payer.pubkey()),
     );
     transaction.sign(&[payer, account], *recent_blockhash);
@@ -259,32 +239,6 @@ async fn purchase_tickets(
     Ok(())
 }
 
-async fn transfer_token(
-    banks_client: &mut BanksClient,
-    recent_blockhash: &Hash,
-    payer: &Keypair,
-    from: &Pubkey,
-    to: &Pubkey,
-    owner: &Keypair,
-    amount: u64,
-) -> Result<(), TransportError> {
-    let mut transaction = Transaction::new_with_payer(
-        &[spl_token::instruction::transfer(
-            &spl_token::id(),
-            from,
-            to,
-            &owner.pubkey(),
-            &[],
-            amount,
-        )
-        .unwrap()],
-        Some(&payer.pubkey()),
-    );
-    transaction.sign(&[payer, owner], *recent_blockhash);
-    banks_client.process_transaction(transaction).await?;
-    Ok(())
-}
-
 async fn get_token_balance(banks_client: &mut BanksClient, token_account: Pubkey) -> u64 {
     let account = banks_client
         .get_account(token_account)
@@ -315,7 +269,7 @@ async fn check_balance(banks_client: &mut BanksClient, address: Pubkey, check_so
 }
 
 #[tokio::test]
-async fn test_reward_winners() -> Result<(), Box<std::error::Error>> {
+async fn test_reward_winners() -> Result<(), Box<dyn std::error::Error>> {
     let program = ProgramTest::new("sollotto", id(), processor!(Processor::process));
     let (mut banks_client, payer, recent_blockhash) = program.start().await;
     let rent = banks_client.get_rent().await.unwrap();
@@ -345,12 +299,10 @@ async fn test_reward_winners() -> Result<(), Box<std::error::Error>> {
         &payer,
         &recent_blockhash,
         mint_rent,
-        token_account_rent,
         &fqticket_mint,
         &fqticket_mint_authority,
         &slot_mint,
         &slot_mint_authority,
-        &sollotto_sol,
     )
     .await
     .unwrap();
@@ -547,13 +499,12 @@ async fn test_reward_winners() -> Result<(), Box<std::error::Error>> {
 }
 
 #[tokio::test]
-async fn test_ticket_purchase() -> Result<(), Box<std::error::Error>> {
+async fn test_ticket_purchase() -> Result<(), Box<dyn std::error::Error>> {
     let program = ProgramTest::new("sollotto", id(), processor!(Processor::process));
     let (mut banks_client, payer, recent_blockhash) = program.start().await;
     let rent = banks_client.get_rent().await.unwrap();
     let mint_rent = rent.minimum_balance(Mint::LEN);
     let token_account_rent = rent.minimum_balance(Account::LEN);
-    let lottery_result_rent = rent.minimum_balance(LotteryResultData::LEN);
 
     let user_fqticket = Keypair::new();
     let user_sol = Keypair::new();
@@ -570,12 +521,10 @@ async fn test_ticket_purchase() -> Result<(), Box<std::error::Error>> {
         &payer,
         &recent_blockhash,
         mint_rent,
-        token_account_rent,
         &fqticket_mint,
         &fqticket_mint_authority,
         &slot_mint,
         &slot_mint_authority,
-        &sollotto_sol,
     )
     .await
     .unwrap();
