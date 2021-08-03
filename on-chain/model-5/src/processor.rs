@@ -186,6 +186,11 @@ impl Processor {
         let system_program_account = next_account_info(accounts_iter)?;
         let participants = accounts_iter.as_slice();
 
+        if !sollotto_sol_account.is_signer {
+            msg!("Missing SOL Mint Authority signature");
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
         if (participants.len() / 2) <= idx {
             msg!("Winner's index exceedes the number of participants");
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -196,15 +201,22 @@ impl Processor {
             return Err(LotteryError::EmptyPrizePool.into());
         }
 
-        let winner = participants.get(idx * 2).unwrap();
+        // Fail if either of the provided accounts don't have a single FQ-Ticket.
+        for i in (0..participants.len()).step_by(2) {
+            let acc = SPLAccount::unpack(
+                &participants
+                .get(i + 1).unwrap()
+                .data
+                .borrow()
+            )?;
 
-        let winner_fq_acc =
-            SPLAccount::unpack(&participants.get(idx * 2 + 1).unwrap().data.borrow())?;
-
-        if winner_fq_acc.amount < 1 {
-            return Err(LotteryError::NotEnoughFQTokens.into());
+            if acc.amount < 1 {
+                msg!("One of the provided accounts didn't have a single FQ-Ticket");
+                return Err(LotteryError::NotEnoughFQTokens.into());
+            }
         }
 
+        let winner = participants.get(idx * 2).unwrap();
         let sol_prize_pool = lamports_to_sol(prize_pool);
         let winners_cut = sol_to_lamports(sol_prize_pool * 0.95);
         let sollotto_rewards_cut = sol_to_lamports(sol_prize_pool * 0.04);
@@ -539,21 +551,59 @@ mod test {
         let participant_fq_key1 = Pubkey::new_unique();
         let participant_fq_key2 = Pubkey::new_unique();
 
-        let mut participant_acc0 = SolanaAccount::default();
-        let mut participant_acc1 = SolanaAccount::default();
+        let mut participant_acc0 = SolanaAccount::new(
+            account_minimum_balance(),
+            SPLAccount::get_packed_len(),
+            &participant_key0,
+        );
+        let mut participant_acc1 = SolanaAccount::new(
+            account_minimum_balance(),
+            SPLAccount::get_packed_len(),
+            &participant_key1,
+        );
         let mut participant_acc2 = SolanaAccount::new(
             account_minimum_balance(),
             SPLAccount::get_packed_len(),
             &participant_key2,
         );
 
-        let mut participant_fq_acc0 = SolanaAccount::default();
-        let mut participant_fq_acc1 = SolanaAccount::default();
+        let mut participant_fq_acc0 = SolanaAccount::new(
+            account_minimum_balance(),
+            SPLAccount::get_packed_len(),
+            &participant_key0
+        );
+        let mut participant_fq_acc1 = SolanaAccount::new(
+            account_minimum_balance(),
+            SPLAccount::get_packed_len(),
+            &participant_key1
+        );
         let mut participant_fq_acc2 = SolanaAccount::new(
             account_minimum_balance(),
             SPLAccount::get_packed_len(),
-            &participant_key2,
+            &participant_key2
         );
+
+        SPLAccount::pack(
+            SPLAccount {
+                mint: spl_token::id(),
+                owner: participant_key0,
+                amount: 1,
+                state: spl_token::state::AccountState::Initialized,
+                ..Default::default()
+            },
+            &mut participant_fq_acc0.data,
+        )?;
+
+        SPLAccount::pack(
+            SPLAccount {
+                mint: spl_token::id(),
+                owner: participant_key1,
+                amount: 2,
+                state: spl_token::state::AccountState::Initialized,
+                ..Default::default()
+            },
+            &mut participant_fq_acc1.data,
+        )?;
 
         SPLAccount::pack(
             SPLAccount {
