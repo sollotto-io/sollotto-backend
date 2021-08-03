@@ -1,13 +1,14 @@
 use solana_program::{
     hash::Hash,
+    instruction::InstructionError,
     native_token::sol_to_lamports,
     program_pack::Pack,
     system_instruction::{self},
 };
 use solana_program_test::*;
-use solana_sdk::{signature::Keypair, transport::TransportError};
-use sollotto_model_3::{id, processor::Processor, state::LotteryResultData};
-use spl_token::ui_amount_to_amount;
+use solana_sdk::{signature::Keypair, transaction::TransactionError, transport::TransportError};
+use sollotto_model_3::{error::LotteryError, id, processor::Processor, state::LotteryResultData};
+use spl_token::{error::TokenError, ui_amount_to_amount};
 use {
     solana_program::pubkey::Pubkey,
     solana_sdk::{signature::Signer, transaction::Transaction},
@@ -348,7 +349,32 @@ async fn test_lottery() {
         )
         .await
         .unwrap();
+    }
 
+    // BadCase: User deposit insufficiet funds
+    assert_eq!(
+        TransactionError::InstructionError(
+            0,
+            InstructionError::Custom(TokenError::InsufficientFunds as u32)
+        ),
+        deposit(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            ui_amount_to_amount(2.0, decimals),
+            &users_wallets[0],
+            &staking_pool_owner,
+            &users_token_accs[0].pubkey(),
+            &users_staking_pool_token_accs[0].pubkey(),
+            &staking_pool_custom_token_acc.pubkey(),
+            &staking_pool_token_mint.pubkey(),
+        )
+        .await
+        .unwrap_err()
+        .unwrap()
+    );
+
+    for i in 0..number_of_users {
         mint_token(
             &mut banks_client,
             &payer,
@@ -415,7 +441,7 @@ async fn test_lottery() {
     )
     .await;
 
-    // Lottery #1. Initialize Charity and Filling the prize pool
+    // Lottery #1. Initialize Charity
     let charity_token_account = Keypair::new();
     let charity_owner = Keypair::new();
     create_token_account(
@@ -426,20 +452,6 @@ async fn test_lottery() {
         account_rent,
         &custom_token_mint.pubkey(),
         &charity_owner.pubkey(),
-    )
-    .await
-    .unwrap();
-
-    let prize_pool_ui_amount = 10.0;
-    let prize_pool_amount = ui_amount_to_amount(prize_pool_ui_amount, decimals);
-    mint_token(
-        &mut banks_client,
-        &payer,
-        &recent_blockhash,
-        prize_pool_amount,
-        &custom_token_mint.pubkey(),
-        &token_prize_pool_account.pubkey(),
-        &custom_mint_authority,
     )
     .await
     .unwrap();
@@ -455,6 +467,47 @@ async fn test_lottery() {
             users_staking_pool_token_accs[i].pubkey(),
         ));
     }
+
+    // BadCase: empty prize pool
+    assert_eq!(
+        TransactionError::InstructionError(
+            1,
+            InstructionError::Custom(LotteryError::EmptyPrizePool as u32)
+        ),
+        reward_winner(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            lottery_result_rent,
+            11223344,
+            random_number,
+            &lottery_result,
+            &token_prize_pool_owner,
+            &token_prize_pool_account.pubkey(),
+            &charity_token_account.pubkey(),
+            &custom_token_mint.pubkey(),
+            &staking_pool_token_mint.pubkey(),
+            &participants,
+        )
+        .await
+        .unwrap_err()
+        .unwrap()
+    );
+
+    // Filling the prize pool
+    let prize_pool_ui_amount = 10.0;
+    let prize_pool_amount = ui_amount_to_amount(prize_pool_ui_amount, decimals);
+    mint_token(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        prize_pool_amount,
+        &custom_token_mint.pubkey(),
+        &token_prize_pool_account.pubkey(),
+        &custom_mint_authority,
+    )
+    .await
+    .unwrap();
 
     reward_winner(
         &mut banks_client,
