@@ -38,8 +38,12 @@ pub enum LotteryInstruction {
     /// 1. `[writable]` Users ticket data account
     /// 2. `[writable,signer]` User funding account (must be a system account)
     /// 3. `[writable]` Sollotto holding wallet account (must be a system account)
-    /// 4. `[]` Rent sysvar
-    /// 5. `[]` System program account
+    /// 4. `[wirtable]` User's SolLotto Lifetime Ticket Account
+    /// 5. `[signer]` SolLotto Lifetime Ticket mint authority
+    /// 6. `[writable]` SolLotto Lifetime Ticket Mint
+    /// 7. `[]` Rent sysvar
+    /// 8. `[]` System program account
+    /// 9. `[]` SPL Token program account
     PurchaseTicket {
         charity: Pubkey,
         user_wallet_pk: Pubkey,
@@ -323,6 +327,9 @@ pub fn purchase_ticket(
     user_ticket_key: &Pubkey,
     holding_wallet_key: &Pubkey,
     lottery_authority: &Pubkey,
+    user_lifetime_ticket_account: &Pubkey,
+    lifetime_ticket_owner: &Pubkey,
+    lifetime_ticket_mint: &Pubkey,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(program_id)?;
     let data = LotteryInstruction::PurchaseTicket {
@@ -332,16 +339,20 @@ pub fn purchase_ticket(
     }
     .pack();
 
-    let mut accounts = Vec::with_capacity(6);
+    let mut accounts = Vec::with_capacity(9);
     accounts.push(AccountMeta::new(*lottery_authority, true));
     accounts.push(AccountMeta::new(*user_ticket_key, false));
     accounts.push(AccountMeta::new(*user_wallet_pk, true));
     accounts.push(AccountMeta::new(*holding_wallet_key, false));
+    accounts.push(AccountMeta::new(*user_lifetime_ticket_account, false));
+    accounts.push(AccountMeta::new_readonly(*lifetime_ticket_owner, true));
+    accounts.push(AccountMeta::new(*lifetime_ticket_mint, false));
     accounts.push(AccountMeta::new_readonly(sysvar::rent::id(), false));
     accounts.push(AccountMeta::new_readonly(
         solana_program::system_program::id(),
         false,
     ));
+    accounts.push(AccountMeta::new_readonly(spl_token::id(), false));
 
     Ok(Instruction {
         program_id: *program_id,

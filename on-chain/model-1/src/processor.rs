@@ -17,6 +17,7 @@ use solana_program::{
     system_instruction,
     sysvar::Sysvar,
 };
+use spl_token::{state::Mint, ui_amount_to_amount};
 
 // Sollotto program_id
 solana_program::declare_id!("urNhxed8ocNiFApoooLSAJ1xnWSMUiC9S6fKcRon1rk");
@@ -203,8 +204,12 @@ impl Processor {
         let ticket_data_account = next_account_info(accounts_iter)?;
         let user_funding_account = next_account_info(accounts_iter)?;
         let holding_wallet_account = next_account_info(accounts_iter)?;
+        let user_lifetime_ticket_account = next_account_info(accounts_iter)?;
+        let lifetime_ticket_owner_account = next_account_info(accounts_iter)?;
+        let lifetime_ticket_mint_account = next_account_info(accounts_iter)?;
         let rent = &Rent::from_account_info(next_account_info(accounts_iter)?)?;
         let system_program_info = next_account_info(accounts_iter)?;
+        let spl_token_info = next_account_info(accounts_iter)?;
 
         if lottery_data_account.owner != program_id {
             msg!("Lottery Data account does not have the correct program id");
@@ -219,6 +224,9 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
         if !user_funding_account.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+        if !lifetime_ticket_owner_account.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
@@ -316,6 +324,27 @@ impl Processor {
                 user_funding_account.clone(),
                 holding_wallet_account.clone(),
                 system_program_info.clone(),
+            ],
+        )?;
+
+        // Mint 1.0 Lifetime Ticket Token to user
+        let decimals = Mint::unpack(&lifetime_ticket_mint_account.data.borrow())?.decimals;
+        let amount = ui_amount_to_amount(1.0, decimals);
+        invoke(
+            &spl_token::instruction::mint_to(
+                &spl_token::id(),
+                lifetime_ticket_mint_account.key,
+                user_lifetime_ticket_account.key,
+                lifetime_ticket_owner_account.key,
+                &[],
+                amount,
+            )
+            .unwrap(),
+            &[
+                spl_token_info.clone(),
+                lifetime_ticket_mint_account.clone(),
+                user_lifetime_ticket_account.clone(),
+                lifetime_ticket_owner_account.clone(),
             ],
         )?;
 
@@ -572,7 +601,7 @@ impl Processor {
                 system_program_info.clone(),
             ],
         )?;
-        
+
         lottery_data.prize_pool_amount -= slot_holders_reward;
 
         // 9. 0.4% of the prize pool is transferred to a "Sollotto Labs" wallet address
@@ -730,6 +759,7 @@ mod test {
         create_account_for_test, create_is_signer_account_infos, Account as SolanaAccount,
         ReadableAccount,
     };
+    use spl_token::state::Account;
 
     fn lottery_minimum_balance() -> u64 {
         Rent::default().minimum_balance(LotteryData::get_packed_len())
@@ -741,6 +771,14 @@ mod test {
 
     fn lottery_result_minimum_balance() -> u64 {
         Rent::default().minimum_balance(LotteryResultData::get_packed_len())
+    }
+
+    fn mint_minimum_balance() -> u64 {
+        Rent::default().minimum_balance(spl_token::state::Mint::LEN)
+    }
+
+    fn account_minimum_balance() -> u64 {
+        Rent::default().minimum_balance(spl_token::state::Account::LEN)
     }
 
     fn do_process(instruction: Instruction, accounts: Vec<&mut SolanaAccount>) -> ProgramResult {
@@ -888,6 +926,7 @@ mod test {
         );
         let mut rent_sysvar_acc = create_account_for_test(&Rent::default());
         let mut system_acc = SolanaAccount::default();
+        let mut spl_token_acc = SolanaAccount::default();
         let charity_1 = Pubkey::new_unique();
         let charity_2 = Pubkey::new_unique();
         let charity_3 = Pubkey::new_unique();
@@ -898,6 +937,24 @@ mod test {
         let slot_holders_rewards_wallet = Pubkey::new_unique();
         let sollotto_labs_wallet = Pubkey::new_unique();
         let user_charity = charity_1;
+
+        let user_lifetime_ticket_key = Pubkey::new_unique();
+        let mut user_lifetime_ticket_acc =
+            SolanaAccount::new(account_minimum_balance(), Account::LEN, &spl_token::id());
+        let lifetime_ticket_mint_key = Pubkey::new_unique();
+        let mut lifetime_ticket_mint_acc =
+            SolanaAccount::new(mint_minimum_balance(), Mint::LEN, &spl_token::id());
+        let lifetime_ticket_owner_key = Pubkey::new_unique();
+        let mut lifetime_ticket_owner_acc = SolanaAccount::default();
+
+        Mint::pack(
+            Mint {
+                is_initialized: true,
+                ..Default::default()
+            },
+            &mut lifetime_ticket_mint_acc.data,
+        )
+        .unwrap();
 
         // BadCase: Lottery is not initialized
         assert_eq!(
@@ -911,6 +968,9 @@ mod test {
                     &user_ticket_key,
                     &holding_wallet,
                     &lottery_key,
+                    &user_lifetime_ticket_key,
+                    &lifetime_ticket_owner_key,
+                    &lifetime_ticket_mint_key,
                 )
                 .unwrap(),
                 vec![
@@ -918,8 +978,12 @@ mod test {
                     &mut user_ticket_acc,
                     &mut user_funding_acc,
                     &mut holding_wallet_acc,
+                    &mut user_lifetime_ticket_acc,
+                    &mut lifetime_ticket_owner_acc,
+                    &mut lifetime_ticket_mint_acc,
                     &mut rent_sysvar_acc,
-                    &mut system_acc
+                    &mut system_acc,
+                    &mut spl_token_acc,
                 ]
             )
         );
@@ -955,6 +1019,9 @@ mod test {
                     &user_ticket_key,
                     &holding_wallet,
                     &lottery_key,
+                    &user_lifetime_ticket_key,
+                    &lifetime_ticket_owner_key,
+                    &lifetime_ticket_mint_key,
                 )
                 .unwrap(),
                 vec![
@@ -962,8 +1029,12 @@ mod test {
                     &mut user_ticket_acc,
                     &mut user_funding_acc,
                     &mut holding_wallet_acc,
+                    &mut user_lifetime_ticket_acc,
+                    &mut lifetime_ticket_owner_acc,
+                    &mut lifetime_ticket_mint_acc,
                     &mut rent_sysvar_acc,
-                    &mut system_acc
+                    &mut system_acc,
+                    &mut spl_token_acc,
                 ]
             )
         );
@@ -987,6 +1058,9 @@ mod test {
                     &user_ticket_key,
                     &holding_wallet,
                     &lottery_key,
+                    &user_lifetime_ticket_key,
+                    &lifetime_ticket_owner_key,
+                    &lifetime_ticket_mint_key,
                 )
                 .unwrap(),
                 vec![
@@ -994,8 +1068,12 @@ mod test {
                     &mut bad_ticket_acc,
                     &mut user_funding_acc,
                     &mut holding_wallet_acc,
+                    &mut user_lifetime_ticket_acc,
+                    &mut lifetime_ticket_owner_acc,
+                    &mut lifetime_ticket_mint_acc,
                     &mut rent_sysvar_acc,
-                    &mut system_acc
+                    &mut system_acc,
+                    &mut spl_token_acc,
                 ]
             )
         );
@@ -1012,6 +1090,9 @@ mod test {
                     &user_ticket_key,
                     &holding_wallet,
                     &lottery_key,
+                    &user_lifetime_ticket_key,
+                    &lifetime_ticket_owner_key,
+                    &lifetime_ticket_mint_key,
                 )
                 .unwrap(),
                 vec![
@@ -1019,8 +1100,12 @@ mod test {
                     &mut user_ticket_acc,
                     &mut user_funding_acc,
                     &mut holding_wallet_acc,
+                    &mut user_lifetime_ticket_acc,
+                    &mut lifetime_ticket_owner_acc,
+                    &mut lifetime_ticket_mint_acc,
                     &mut rent_sysvar_acc,
-                    &mut system_acc
+                    &mut system_acc,
+                    &mut spl_token_acc,
                 ]
             )
         );
@@ -1036,6 +1121,9 @@ mod test {
                     &user_ticket_key,
                     &holding_wallet,
                     &lottery_key,
+                    &user_lifetime_ticket_key,
+                    &lifetime_ticket_owner_key,
+                    &lifetime_ticket_mint_key,
                 )
                 .unwrap(),
                 vec![
@@ -1043,8 +1131,12 @@ mod test {
                     &mut user_ticket_acc,
                     &mut user_funding_acc,
                     &mut holding_wallet_acc,
+                    &mut user_lifetime_ticket_acc,
+                    &mut lifetime_ticket_owner_acc,
+                    &mut lifetime_ticket_mint_acc,
                     &mut rent_sysvar_acc,
-                    &mut system_acc
+                    &mut system_acc,
+                    &mut spl_token_acc,
                 ]
             )
         );
@@ -1060,6 +1152,9 @@ mod test {
                     &user_ticket_key,
                     &holding_wallet,
                     &lottery_key,
+                    &user_lifetime_ticket_key,
+                    &lifetime_ticket_owner_key,
+                    &lifetime_ticket_mint_key,
                 )
                 .unwrap(),
                 vec![
@@ -1067,8 +1162,12 @@ mod test {
                     &mut user_ticket_acc,
                     &mut user_funding_acc,
                     &mut holding_wallet_acc,
+                    &mut user_lifetime_ticket_acc,
+                    &mut lifetime_ticket_owner_acc,
+                    &mut lifetime_ticket_mint_acc,
                     &mut rent_sysvar_acc,
-                    &mut system_acc
+                    &mut system_acc,
+                    &mut spl_token_acc,
                 ]
             )
         );
@@ -1082,6 +1181,9 @@ mod test {
                 &user_ticket_key,
                 &holding_wallet,
                 &lottery_key,
+                &user_lifetime_ticket_key,
+                &lifetime_ticket_owner_key,
+                &lifetime_ticket_mint_key,
             )
             .unwrap(),
             vec![
@@ -1089,8 +1191,12 @@ mod test {
                 &mut user_ticket_acc,
                 &mut user_funding_acc,
                 &mut holding_wallet_acc,
+                &mut user_lifetime_ticket_acc,
+                &mut lifetime_ticket_owner_acc,
+                &mut lifetime_ticket_mint_acc,
                 &mut rent_sysvar_acc,
                 &mut system_acc,
+                &mut spl_token_acc,
             ],
         )
         .unwrap();
@@ -1112,6 +1218,9 @@ mod test {
                     &user_ticket_key,
                     &holding_wallet,
                     &lottery_key,
+                    &user_lifetime_ticket_key,
+                    &lifetime_ticket_owner_key,
+                    &lifetime_ticket_mint_key,
                 )
                 .unwrap(),
                 vec![
@@ -1119,8 +1228,12 @@ mod test {
                     &mut user_ticket_acc,
                     &mut user_funding_acc,
                     &mut holding_wallet_acc,
+                    &mut user_lifetime_ticket_acc,
+                    &mut lifetime_ticket_owner_acc,
+                    &mut lifetime_ticket_mint_acc,
                     &mut rent_sysvar_acc,
-                    &mut system_acc
+                    &mut system_acc,
+                    &mut spl_token_acc,
                 ]
             )
         );
@@ -1156,6 +1269,9 @@ mod test {
                     &user_ticket_key,
                     &holding_wallet,
                     &lottery_key,
+                    &user_lifetime_ticket_key,
+                    &lifetime_ticket_owner_key,
+                    &lifetime_ticket_mint_key,
                 )
                 .unwrap(),
                 vec![
@@ -1163,8 +1279,12 @@ mod test {
                     &mut user_ticket_acc,
                     &mut user_funding_acc,
                     &mut holding_wallet_acc,
+                    &mut user_lifetime_ticket_acc,
+                    &mut lifetime_ticket_owner_acc,
+                    &mut lifetime_ticket_mint_acc,
                     &mut rent_sysvar_acc,
-                    &mut system_acc
+                    &mut system_acc,
+                    &mut spl_token_acc,
                 ]
             )
         );
@@ -1300,6 +1420,7 @@ mod test {
             &program_id,
         );
         let mut system_acc = SolanaAccount::default();
+        let mut spl_token_acc = SolanaAccount::default();
         let mut rent_sysvar_acc = create_account_for_test(&Rent::default());
         let charity_1 = Pubkey::new_unique();
         let mut charity_1_acc = SolanaAccount::default();
@@ -1334,6 +1455,27 @@ mod test {
             TicketData::get_packed_len(),
             &program_id,
         );
+
+        let user1_lifetime_ticket_key = Pubkey::new_unique();
+        let mut user1_lifetime_ticket_acc =
+            SolanaAccount::new(account_minimum_balance(), Account::LEN, &spl_token::id());
+        let user2_lifetime_ticket_key = Pubkey::new_unique();
+        let mut user2_lifetime_ticket_acc =
+            SolanaAccount::new(account_minimum_balance(), Account::LEN, &spl_token::id());
+        let lifetime_ticket_mint_key = Pubkey::new_unique();
+        let mut lifetime_ticket_mint_acc =
+            SolanaAccount::new(mint_minimum_balance(), Mint::LEN, &spl_token::id());
+        let lifetime_ticket_owner_key = Pubkey::new_unique();
+        let mut lifetime_ticket_owner_acc = SolanaAccount::default();
+
+        Mint::pack(
+            Mint {
+                is_initialized: true,
+                ..Default::default()
+            },
+            &mut lifetime_ticket_mint_acc.data,
+        )
+        .unwrap();
 
         // BadCase: Lottery is not initialized
         assert_eq!(
@@ -1439,6 +1581,9 @@ mod test {
                     &user1_ticket,
                     &holding_wallet,
                     &lottery_key,
+                    &user1_lifetime_ticket_key,
+                    &lifetime_ticket_owner_key,
+                    &lifetime_ticket_mint_key,
                 )
                 .unwrap(),
                 vec![
@@ -1446,8 +1591,12 @@ mod test {
                     &mut user1_ticket_acc,
                     &mut user1_wallet_acc,
                     &mut holding_wallet_acc,
+                    &mut user1_lifetime_ticket_acc,
+                    &mut lifetime_ticket_owner_acc,
+                    &mut lifetime_ticket_mint_acc,
                     &mut rent_sysvar_acc,
                     &mut system_acc,
+                    &mut spl_token_acc,
                 ],
             )
         );
@@ -1463,6 +1612,9 @@ mod test {
                 &user1_ticket,
                 &holding_wallet,
                 &lottery_key,
+                &user1_lifetime_ticket_key,
+                &lifetime_ticket_owner_key,
+                &lifetime_ticket_mint_key,
             )
             .unwrap(),
             vec![
@@ -1470,8 +1622,12 @@ mod test {
                 &mut user1_ticket_acc,
                 &mut user1_wallet_acc,
                 &mut holding_wallet_acc,
+                &mut user1_lifetime_ticket_acc,
+                &mut lifetime_ticket_owner_acc,
+                &mut lifetime_ticket_mint_acc,
                 &mut rent_sysvar_acc,
                 &mut system_acc,
+                &mut spl_token_acc,
             ],
         )
         .unwrap();
@@ -1487,6 +1643,9 @@ mod test {
                 &user2_ticket,
                 &holding_wallet,
                 &lottery_key,
+                &user2_lifetime_ticket_key,
+                &lifetime_ticket_owner_key,
+                &lifetime_ticket_mint_key,
             )
             .unwrap(),
             vec![
@@ -1494,8 +1653,12 @@ mod test {
                 &mut user2_ticket_acc,
                 &mut user2_wallet_acc,
                 &mut holding_wallet_acc,
+                &mut user2_lifetime_ticket_acc,
+                &mut lifetime_ticket_owner_acc,
+                &mut lifetime_ticket_mint_acc,
                 &mut rent_sysvar_acc,
                 &mut system_acc,
+                &mut spl_token_acc,
             ],
         )
         .unwrap();
