@@ -29,7 +29,7 @@ pub enum LotteryInstruction {
     /// Rewarding the winners determined by indexing accounts with `idx`.
     /// Accounts expected by this instruction:
     ///
-    /// 0. `[writable, signer]` Sollotto SOL account (must be system account)
+    /// 0. `[writable, signer]` Sollotto SOL Prize pool account (must be system account)
     /// 1. `[writable]` Sollotto Rewards account (must be a system account)
     /// 2. `[writable]` SLOT Holder Rewards account (must be a system account)
     /// 3. `[writable]` Sollotto labs account (must be a system account)
@@ -38,8 +38,7 @@ pub enum LotteryInstruction {
     /// 5+N `[]` N lottery participants (sol_acc, fqticket_acc)
     RewardWinners {
         lottery_id: u32,
-        idx: u64,
-        prize_pool: u64,
+        random_number: u32,
     },
 }
 
@@ -64,23 +63,16 @@ impl LotteryInstruction {
                     .map(u32::from_le_bytes)
                     .ok_or(InvalidInstruction)?;
 
-                let (idx, rest) = rest.split_at(8);
-                let idx = idx
+                let (random_number, _) = rest.split_at(4);
+                let random_number = random_number
                     .try_into()
                     .ok()
-                    .map(u64::from_le_bytes)
+                    .map(u32::from_le_bytes)
                     .ok_or(InvalidInstruction)?;
 
-                let (prize_pool, _) = rest.split_at(8);
-                let prize_pool = prize_pool
-                    .try_into()
-                    .ok()
-                    .map(u64::from_le_bytes)
-                    .ok_or(InvalidInstruction)?;
                 Self::RewardWinners {
                     lottery_id,
-                    idx,
-                    prize_pool,
+                    random_number,
                 }
             }
             _ => return Err(InvalidInstruction.into()),
@@ -97,13 +89,11 @@ impl LotteryInstruction {
             }
             Self::RewardWinners {
                 lottery_id,
-                idx,
-                prize_pool,
+                random_number,
             } => {
                 buf.push(1);
                 buf.extend_from_slice(&lottery_id.to_le_bytes());
-                buf.extend_from_slice(&idx.to_le_bytes());
-                buf.extend_from_slice(&prize_pool.to_le_bytes());
+                buf.extend_from_slice(&random_number.to_le_bytes());
             }
         }
         buf
@@ -151,9 +141,8 @@ pub fn purchase_ticket(
 pub fn reward_winners(
     program_id: &Pubkey,
     lottery_id: u32,
-    idx: u64,
-    prize_pool: u64,
-    sollotto_sol: &Pubkey,
+    random_number: u32,
+    prize_pool_sol: &Pubkey,
     sollotto_rewards: &Pubkey,
     slot_holder_rewards: &Pubkey,
     sollotto_labs: &Pubkey,
@@ -162,13 +151,12 @@ pub fn reward_winners(
 ) -> Result<Instruction, ProgramError> {
     let data = LotteryInstruction::RewardWinners {
         lottery_id,
-        idx,
-        prize_pool,
+        random_number,
     }
     .pack();
 
     let mut accounts = Vec::with_capacity(6 + participants.len());
-    accounts.push(AccountMeta::new(*sollotto_sol, true));
+    accounts.push(AccountMeta::new(*prize_pool_sol, true));
     accounts.push(AccountMeta::new(*sollotto_rewards, false));
     accounts.push(AccountMeta::new(*slot_holder_rewards, false));
     accounts.push(AccountMeta::new(*sollotto_labs, false));

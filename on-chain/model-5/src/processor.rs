@@ -46,11 +46,10 @@ impl Processor {
             }
             LotteryInstruction::RewardWinners {
                 lottery_id,
-                idx,
-                prize_pool,
+                random_number,
             } => {
                 msg!("Instruction: RewardWinners");
-                Self::process_reward_winners(program_id, accounts, lottery_id, idx, prize_pool)
+                Self::process_reward_winners(program_id, accounts, lottery_id, random_number)
             }
         }
     }
@@ -169,16 +168,15 @@ impl Processor {
     }
 
     pub fn process_reward_winners(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
         lottery_id: u32,
-        idx: u64,
-        prize_pool: u64,
+        random_number: u32,
     ) -> ProgramResult {
         let accounts_iter = &mut accounts.iter();
-        let idx = idx as usize;
+        let idx = random_number as usize;
 
-        let sollotto_sol_account = next_account_info(accounts_iter)?;
+        let prize_pool_sol_account = next_account_info(accounts_iter)?;
         let sollotto_rewards_account = next_account_info(accounts_iter)?;
         let holder_rewards_account = next_account_info(accounts_iter)?;
         let sollotto_labs_account = next_account_info(accounts_iter)?;
@@ -186,9 +184,14 @@ impl Processor {
         let system_program_account = next_account_info(accounts_iter)?;
         let participants = accounts_iter.as_slice();
 
-        if !sollotto_sol_account.is_signer {
+        if !prize_pool_sol_account.is_signer {
             msg!("Missing SOL Mint Authority signature");
             return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        if sollotto_results_account.owner != program_id {
+            msg!("Invalid owner for LotteryResult data account");
+            return Err(ProgramError::IncorrectProgramId);
         }
 
         if (participants.len() / 2) <= idx {
@@ -196,7 +199,7 @@ impl Processor {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
 
-        if prize_pool == 0 {
+        if prize_pool_sol_account.lamports() == 0 {
             msg!("Empty prize pool");
             return Err(LotteryError::EmptyPrizePool.into());
         }
@@ -217,51 +220,51 @@ impl Processor {
         }
 
         let winner = participants.get(idx * 2).unwrap();
-        let sol_prize_pool = lamports_to_sol(prize_pool);
+        let sol_prize_pool = lamports_to_sol(prize_pool_sol_account.lamports());
         let winners_cut = sol_to_lamports(sol_prize_pool * 0.95);
         let sollotto_rewards_cut = sol_to_lamports(sol_prize_pool * 0.04);
         let holder_rewards_cut = sol_to_lamports(sol_prize_pool * 0.006);
         let sollotto_labs_cut = sol_to_lamports(sol_prize_pool * 0.004);
 
         Self::transfer_sol(
-            sollotto_sol_account.key,
+            prize_pool_sol_account.key,
             winner.key,
             winners_cut,
             &[
-                sollotto_sol_account.clone(),
+                prize_pool_sol_account.clone(),
                 winner.clone(),
                 system_program_account.clone(),
             ],
         )?;
 
         Self::transfer_sol(
-            sollotto_sol_account.key,
+            prize_pool_sol_account.key,
             sollotto_rewards_account.key,
             sollotto_rewards_cut,
             &[
-                sollotto_sol_account.clone(),
+                prize_pool_sol_account.clone(),
                 sollotto_rewards_account.clone(),
                 system_program_account.clone(),
             ],
         )?;
 
         Self::transfer_sol(
-            sollotto_sol_account.key,
+            prize_pool_sol_account.key,
             holder_rewards_account.key,
             holder_rewards_cut,
             &[
-                sollotto_sol_account.clone(),
+                prize_pool_sol_account.clone(),
                 holder_rewards_account.clone(),
                 system_program_account.clone(),
             ],
         )?;
 
         Self::transfer_sol(
-            sollotto_sol_account.key,
+            prize_pool_sol_account.key,
             sollotto_labs_account.key,
             sollotto_labs_cut,
             &[
-                sollotto_sol_account.clone(),
+                prize_pool_sol_account.clone(),
                 sollotto_labs_account.clone(),
                 system_program_account.clone(),
             ],
@@ -538,7 +541,7 @@ mod test {
         let mut sollotto_result_acc = SolanaAccount::new(
             account_minimum_balance(),
             LotteryResultData::get_packed_len(),
-            &sollotto_key,
+            &program_id,
         );
         LotteryResultData::pack(LotteryResultData::default(), &mut sollotto_result_acc.data)?;
         let mut system_program_acc = SolanaAccount::default();
@@ -623,7 +626,6 @@ mod test {
                     &program_id,
                     lottery_id,
                     winning_idx,
-                    prize_pool,
                     &sollotto_sol_key,
                     &sollotto_rewards_key,
                     &slot_holder_rewards_key,
@@ -663,7 +665,6 @@ mod test {
                     &program_id,
                     lottery_id,
                     winning_idx,
-                    prize_pool,
                     &sollotto_sol_key,
                     &sollotto_rewards_key,
                     &slot_holder_rewards_key,

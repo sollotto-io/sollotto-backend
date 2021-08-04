@@ -155,9 +155,8 @@ async fn reward_winner(
     payer: &Keypair,
     lottery_result_rent: u64,
     lottery_id: u32,
-    idx: u64,
-    prize_pool: u64,
-    sollotto_sol: &Keypair,
+    random_number: u32,
+    prize_pool_sol: &Keypair,
     sollotto_rewards: &Pubkey,
     slot_holder_rewards: &Pubkey,
     sollotto_labs: &Pubkey,
@@ -176,9 +175,8 @@ async fn reward_winner(
             sollotto_model_5::instruction::reward_winners(
                 &id(),
                 lottery_id,
-                idx,
-                prize_pool,
-                &sollotto_sol.pubkey(),
+                random_number,
+                &prize_pool_sol.pubkey(),
                 &sollotto_rewards,
                 &slot_holder_rewards,
                 &sollotto_labs,
@@ -189,7 +187,7 @@ async fn reward_winner(
         ],
         Some(&payer.pubkey()),
     );
-    transaction.sign(&[payer, sollotto_sol, sollotto_result], *recent_blockhash);
+    transaction.sign(&[payer, prize_pool_sol, sollotto_result], *recent_blockhash);
     banks_client.process_transaction(transaction).await?;
     Ok(())
 }
@@ -350,7 +348,6 @@ async fn test_reward_winners() -> Result<(), Box<dyn std::error::Error>> {
 
     let lottery_id = 1;
     let mut winning_idx = 5; // index out of range
-    let mut prize_pool = 50.;
 
     // Bad case: winning index is out of range of participants
     let participants_fqticket_iter = participants_fqticket.iter();
@@ -363,7 +360,6 @@ async fn test_reward_winners() -> Result<(), Box<dyn std::error::Error>> {
             lottery_result_rent,
             lottery_id,
             winning_idx,
-            sol_to_lamports(prize_pool),
             &sollotto_sol,
             &sollotto_rewards.pubkey(),
             &slot_holder_rewards.pubkey(),
@@ -381,7 +377,6 @@ async fn test_reward_winners() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     winning_idx = 3;
-    prize_pool = 0.;
 
     // Bad case: empty prize pool
     let participants_fqticket_iter = participants_fqticket.iter();
@@ -397,7 +392,6 @@ async fn test_reward_winners() -> Result<(), Box<dyn std::error::Error>> {
             lottery_result_rent,
             lottery_id,
             winning_idx,
-            sol_to_lamports(prize_pool),
             &sollotto_sol,
             &sollotto_rewards.pubkey(),
             &slot_holder_rewards.pubkey(),
@@ -414,14 +408,15 @@ async fn test_reward_winners() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap()
     );
 
-    prize_pool = 50.;
+    let prize_pool_wallet = Keypair::new();
+    let prize_pool_amount_sol = 50.;
 
     transfer_sol(
         &mut banks_client,
         &recent_blockhash,
         &payer,
-        &sollotto_sol,
-        prize_pool,
+        &prize_pool_wallet,
+        prize_pool_amount_sol,
     )
     .await?;
 
@@ -434,8 +429,7 @@ async fn test_reward_winners() -> Result<(), Box<dyn std::error::Error>> {
             lottery_result_rent,
             lottery_id,
             winning_idx,
-            sol_to_lamports(prize_pool),
-            &sollotto_sol,
+            &prize_pool_wallet,
             &sollotto_rewards.pubkey(),
             &slot_holder_rewards.pubkey(),
             &sollotto_labs.pubkey(),
@@ -453,28 +447,28 @@ async fn test_reward_winners() -> Result<(), Box<dyn std::error::Error>> {
     check_balance(
         &mut banks_client,
         participants_sol[winning_idx as usize].pubkey(),
-        prize_pool * 0.95,
+        prize_pool_amount_sol * 0.95,
     )
     .await;
 
     check_balance(
         &mut banks_client,
         sollotto_rewards.pubkey(),
-        prize_pool * 0.04,
+        prize_pool_amount_sol * 0.04,
     )
     .await;
 
     check_balance(
         &mut banks_client,
         slot_holder_rewards.pubkey(),
-        prize_pool * 0.006,
+        prize_pool_amount_sol * 0.006,
     )
     .await;
 
     check_balance(
         &mut banks_client,
         sollotto_labs.pubkey(),
-        prize_pool * 0.004,
+        prize_pool_amount_sol * 0.004,
     )
     .await;
 
