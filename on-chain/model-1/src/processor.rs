@@ -1,4 +1,6 @@
 //! Program state processor
+use std::collections::HashMap;
+
 use crate::{
     error::LotteryError,
     instruction::LotteryInstruction,
@@ -498,13 +500,45 @@ impl Processor {
             }
         }
 
-        // Check winning numbers and find winner
-        let mut winners = Vec::new();
+        // Check winning numbers and find winners
+        let mut winners_3_num = Vec::new();
+        let mut winners_4_num = Vec::new();
+        let mut winners_5_num = Vec::new();
+        let mut full_winners = Vec::new();
         for i in (0..participants_accounts.len()).step_by(2) {
             let ticket = TicketData::unpack_unchecked(&participants_accounts[i].data.borrow())?;
-            if ticket.ticket_number_arr == lottery_data.winning_numbers {
-                msg!("Finded winner {}", participants_accounts[i + 1].key);
-                winners.push(&participants_accounts[i + 1]);
+
+            let mut user_numbers_map: HashMap<u8, u8> = HashMap::with_capacity(6);
+            for number in &ticket.ticket_number_arr {
+                user_numbers_map.insert(*number, 0);
+            }
+
+            for number in &lottery_data.winning_numbers {
+                if user_numbers_map.contains_key(number) {
+                    *user_numbers_map.get_mut(number).unwrap() += 1;
+                }
+            }
+
+            let mut number_counter = 0;
+            for counter in user_numbers_map.values() {
+                number_counter += *counter;
+            }
+
+            // The full winner
+            if number_counter == 6 {
+                full_winners.push(&participants_accounts[i + 1])
+            }
+            // The 5/6 numbers winner
+            else if number_counter == 5 {
+                winners_5_num.push(&participants_accounts[i + 1])
+            }
+            // The 4/6 numbers winner
+            else if number_counter == 4 {
+                winners_4_num.push(&participants_accounts[i + 1])
+            }
+            // The 3/6 numbers winner
+            else if number_counter == 3 {
+                winners_3_num.push(&participants_accounts[i + 1])
             }
         }
 
@@ -624,22 +658,32 @@ impl Processor {
         lottery_data.prize_pool_amount -= sollotto_labs_reward;
 
         // 14. If there is just one winner, transfer the remaining portion (65%) of the prize pool to the
-        let winners_pool = prize_pool * 0.65;
-        let winner_reward;
-        if winners.len() != 0 {
-            winner_reward = sol_to_lamports(winners_pool / winners.len() as f64);
-        } else {
-            winner_reward = 0;
+        let mut full_winner_percent = 0.65;
+        if winners_5_num.len() != 0 {
+            full_winner_percent -= 0.05;
         }
-        msg!("Winners number {}", winners.len());
-        msg!("Winner reward in lamports: {}", winner_reward);
-        for winner in winners {
+        if winners_4_num.len() != 0 {
+            full_winner_percent -= 0.02;
+        }
+
+        let mut full_winners_pool = prize_pool * full_winner_percent;
+        full_winners_pool -= winners_3_num.len() as f64 * 0.1;
+
+        // Reward the full winners
+        let mut full_winner_reward = 0;
+        if full_winners.len() != 0 {
+            full_winner_reward = sol_to_lamports(full_winners_pool / full_winners.len() as f64);
+        }
+
+        msg!("Full Winners number {}", full_winners.len());
+        msg!("Full Winner reward in lamports: {}", full_winner_reward);
+        for winner in full_winners {
             // Transfer from lottery_data.holding_wallet to winner_wallet
             invoke(
                 &system_instruction::transfer(
                     &lottery_data.holding_wallet,
                     &winner.key,
-                    winner_reward,
+                    full_winner_reward,
                 ),
                 &[
                     holding_wallet_account.clone(),
@@ -648,7 +692,83 @@ impl Processor {
                 ],
             )?;
 
-            lottery_data.prize_pool_amount -= winner_reward;
+            lottery_data.prize_pool_amount -= full_winner_reward;
+        }
+
+        // Reward the 5/6 winners
+        let winners_5_full_reward = prize_pool * 0.05;
+        let mut winners_5_reward = 0;
+        if winners_5_num.len() != 0 {
+            winners_5_reward = sol_to_lamports(winners_5_full_reward / winners_5_num.len() as f64);
+        }
+
+        msg!("5/6 Winners number {}", winners_5_num.len());
+        msg!("5/6 Winner reward in lamports: {}", winners_5_reward);
+        for winner in winners_5_num {
+            // Transfer from lottery_data.holding_wallet to winner_wallet
+            invoke(
+                &system_instruction::transfer(
+                    &lottery_data.holding_wallet,
+                    &winner.key,
+                    winners_5_reward,
+                ),
+                &[
+                    holding_wallet_account.clone(),
+                    winner.clone(),
+                    system_program_info.clone(),
+                ],
+            )?;
+
+            lottery_data.prize_pool_amount -= winners_5_reward;
+        }
+
+        // Reward the 4/6 winners
+        let winners_4_prize_pool = prize_pool * 0.02;
+        let mut winners_4_reward = 0;
+        if winners_4_num.len() != 0 {
+            winners_4_reward = sol_to_lamports(winners_4_prize_pool / winners_4_num.len() as f64);
+        }
+
+        msg!("4/6 Winners number {}", winners_4_num.len());
+        msg!("4/6 Winner reward in lamports: {}", winners_4_reward);
+        for winner in winners_4_num {
+            // Transfer from lottery_data.holding_wallet to winner_wallet
+            invoke(
+                &system_instruction::transfer(
+                    &lottery_data.holding_wallet,
+                    &winner.key,
+                    winners_4_reward,
+                ),
+                &[
+                    holding_wallet_account.clone(),
+                    winner.clone(),
+                    system_program_info.clone(),
+                ],
+            )?;
+
+            lottery_data.prize_pool_amount -= winners_4_reward;
+        }
+
+        // Reward the 3/6 winners
+        let winners_3_reward = sol_to_lamports(0.1);
+        msg!("3/6 Winners number {}", winners_3_num.len());
+        msg!("3/6 Winner reward in lamports: {}", winners_3_reward);
+        for winner in winners_3_num {
+            // Transfer from lottery_data.holding_wallet to winner_wallet
+            invoke(
+                &system_instruction::transfer(
+                    &lottery_data.holding_wallet,
+                    &winner.key,
+                    winners_3_reward,
+                ),
+                &[
+                    holding_wallet_account.clone(),
+                    winner.clone(),
+                    system_program_info.clone(),
+                ],
+            )?;
+
+            lottery_data.prize_pool_amount -= winners_3_reward;
         }
 
         // Create lottery result acc info
@@ -1608,7 +1728,7 @@ mod test {
                 &program_id,
                 &user1_charity,
                 &user1_wallet,
-                &[1, 2, 3, 4, 55, 6],
+                &[11, 22, 33, 44, 51, 1],
                 &user1_ticket,
                 &holding_wallet,
                 &lottery_key,
