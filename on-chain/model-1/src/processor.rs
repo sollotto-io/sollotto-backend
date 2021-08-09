@@ -508,20 +508,23 @@ impl Processor {
         for i in (0..participants_accounts.len()).step_by(2) {
             let ticket = TicketData::unpack_unchecked(&participants_accounts[i].data.borrow())?;
 
-            let mut user_numbers_map: HashMap<u8, u8> = HashMap::with_capacity(6);
-            for number in &ticket.ticket_number_arr {
-                user_numbers_map.insert(*number, 0);
-            }
-
+            let mut winning_numbers_map: HashMap<u8, i8> = HashMap::with_capacity(6);
             for number in &lottery_data.winning_numbers {
-                if user_numbers_map.contains_key(number) {
-                    *user_numbers_map.get_mut(number).unwrap() += 1;
+                if winning_numbers_map.contains_key(number) {
+                    *winning_numbers_map.get_mut(number).unwrap() += 1;
+                } else {
+                    winning_numbers_map.insert(*number, 1);
                 }
             }
 
             let mut number_counter = 0;
-            for counter in user_numbers_map.values() {
-                number_counter += *counter;
+            for number in &ticket.ticket_number_arr {
+                if winning_numbers_map.contains_key(number)
+                    && *winning_numbers_map.get(number).unwrap() != 0
+                {
+                    *winning_numbers_map.get_mut(number).unwrap() -= 1;
+                    number_counter += 1;
+                }
             }
 
             // The full winner
