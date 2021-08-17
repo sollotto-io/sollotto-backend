@@ -61,6 +61,17 @@ module.exports = {
       context,
       info
     ) {
+      console.log({
+        raffleName,
+        urlSlug,
+        raffleImage,
+        sollotoBranding,
+        testingWA,
+        liveWA,
+        operatorWa,
+        vanityUrl,
+        raffleStatus,
+      });
       await Raffle.findByIdAndUpdate(raffleId, {
         raffleName,
         urlSlug,
