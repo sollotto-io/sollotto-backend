@@ -12,6 +12,7 @@ module.exports = gql`
     operatorWa: String!
     vanityUrl: String!
     raffleStatus: String!
+    status: Boolean!
   }
 
   extend type Query {
@@ -32,7 +33,7 @@ module.exports = gql`
 
   extend type Mutation {
     addRaffle(raffleInput: raffleInput): String
-    changeRaffleStatus(raffleId: ID!, Status: Boolean): String
+    changeRaffleStatus(raffleId: ID!, status: Boolean): String
     editRaffle(raffleId: ID!, raffleInput: raffleInput): String
   }
 `;

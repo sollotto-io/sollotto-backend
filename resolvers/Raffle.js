@@ -39,15 +39,13 @@ module.exports = {
         console.log(e);
       }
     },
-    async changeRaffleStatus(_, { raffleId, raffleStatus }, context, info) {
-      await Raffle.findByIdAndUpdate(raffleId, { raffleStatus, raffleStatus });
+    async changeRaffleStatus(_, { raffleId, status }, context, info) {
+      await Raffle.findByIdAndUpdate(raffleId, { status });
       return "Raffle Status Updated";
     },
 
-    async editRaffle(
-      _,
-      {
-        raffleId,
+    async editRaffle(parent, { raffleId, raffleInput }, context, info) {
+      const {
         raffleName,
         urlSlug,
         raffleImage,
@@ -57,21 +55,8 @@ module.exports = {
         operatorWa,
         vanityUrl,
         raffleStatus,
-      },
-      context,
-      info
-    ) {
-      console.log({
-        raffleName,
-        urlSlug,
-        raffleImage,
-        sollotoBranding,
-        testingWA,
-        liveWA,
-        operatorWa,
-        vanityUrl,
-        raffleStatus,
-      });
+      } = raffleInput;
+
       await Raffle.findByIdAndUpdate(raffleId, {
         raffleName,
         urlSlug,
