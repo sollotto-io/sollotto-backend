@@ -10,9 +10,9 @@ const {
 var CryptoJS = require("crypto-js");
 const { connection } = require("../../config.js");
 const BufferLayout = require("buffer-layout");
+const Lottery = require("../../models/Lottery.js");
 
 const initLottery = async (charities) => {
-  console.log(charities);
 
   // getting the signerAccount details
 
@@ -32,7 +32,7 @@ const initLottery = async (charities) => {
   const sollotto_labs_wallet = new PublicKey(process.env.SOLLOTTO_LABS_PUBLIC_KEY )
  
   //Solana Program id public key
-  console.log(process.env.SOLANA_INIT_LOTTERY_PROGRAM);
+  
   const solanaProgramId = new PublicKey(
     process.env.SOLANA_INIT_LOTTERY_PROGRAM
   );
@@ -88,6 +88,7 @@ const initLottery = async (charities) => {
       ],
       data: dataArr,
     });
+    console.log(typeof dataArr)
 
     // creating transaction
 
@@ -111,10 +112,10 @@ const initLottery = async (charities) => {
       JSON.stringify(Buffer.from(lotteryDataAccount.secretKey).toJSON().data),
       process.env.SECRET_KEY
     ).toString();
-    return {
-      lotteryDataSK: lotteryDataAccountSKString,
-      lotteryId: lotteryFields.lottery_id,
-    };
+ 
+      console.log(lotteryDataAccountSKString,lotteryFields.lottery_id)
+    await Lottery.findByIdAndUpdate(process.env.LOTTERY_ID, {LotteryDataAccount: lotteryDataAccountSKString, LotteryId :lotteryFields.lottery_id
+  })
   } catch (e) {
     console.warn(e);
     console.log(`Error: ${e.message}`);

@@ -20,6 +20,7 @@
 	"dependencies": {
 		"@solana/web3.js": "^1.20.2",
 		"apollo-server": "^2.25.2",
+		"apollo-server-core": "^3.1.2",
 		"apollo-server-express": "^3.0.2",
 		"borsh": "^0.4.0",
 		"buffer-layout": "^1.2.2",
