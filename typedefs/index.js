@@ -6,7 +6,8 @@ const lottery = require('./lottery')
 const ticket = require('./ticket')
 const user = require('./user')
 const raffle = require('./raffle')
-const typedefs = [root,charity, ticket,drawing,lottery,user,raffle]
+const launch = require('./launchpad') 
+const typedefs = [root,charity, ticket,drawing,lottery,user,raffle, launch]
 
 
 module.exports = typedefs;

@@ -4,12 +4,14 @@ const lotteryResolvers = require("./Lottery");
 const drawingResolvers = require("./Drawing");
 const userResolvers = require('./User')
 const raffleResolvers = require('./Raffle')
+const LaunchPadResolvers = require('./LaunchPad')
 module.exports = {
 	Mutation: {
 		...charityResolvers.Mutation,
 		...ticketResolvers.Mutation,
 		...drawingResolvers.Mutation,
 		...raffleResolvers.Mutations,
+		...LaunchPadResolvers.Mutation
 	},
 	Query: {
 		...charityResolvers.Query,
@@ -18,6 +20,6 @@ module.exports = {
 		...lotteryResolvers.Query,
 		...userResolvers.Query,
 		...raffleResolvers.Query,
-
+		...LaunchPadResolvers.Query
 	},
 };

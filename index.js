@@ -38,9 +38,9 @@ async function startServer() {
     .connect(MONGODB, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(async() => {
       console.log(`MongoDb Connected`);
-      const arr = ["wkakDmkD6hiN5R1CjD87tnbSZktTWunQUkeVq9CYt3m","gfbgs1HxwTyMeHf7iZ5fPXp5ZLuxUDpeDd7TyeSRg35","foaxk43pFhJxxRzLeQm7Webv2WyTHJVdMgNed3Dg2yh","dwbAtgB1vXzeRrb6x3foZF75wMa74sKSeNQUi7njvmA"]
-      await initLottery(arr)
-      console.log("lottery Initiated")
+      // const arr = ["wkakDmkD6hiN5R1CjD87tnbSZktTWunQUkeVq9CYt3m","gfbgs1HxwTyMeHf7iZ5fPXp5ZLuxUDpeDd7TyeSRg35","foaxk43pFhJxxRzLeQm7Webv2WyTHJVdMgNed3Dg2yh","dwbAtgB1vXzeRrb6x3foZF75wMa74sKSeNQUi7njvmA"]
+      // await initLottery(arr)
+      // console.log("lottery Initiated")
       // console.log("inside cron then");
       
       

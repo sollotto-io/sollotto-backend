@@ -37,7 +37,7 @@ const raffleSchema = new Schema({
     type: String,
     require: true,
   },
-  status: {
+  Status: {
     type: Boolean,
     require: true,
     default: true,
