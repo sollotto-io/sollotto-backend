@@ -27,7 +27,6 @@ module.exports = {
         LaunchPadInput: {
           PoolName,
           PoolImage,
-          Status,
           TotalWinners,
           TimeRemaining,
           MaxDeposit,
@@ -39,8 +38,8 @@ module.exports = {
       const newLaunch = new LaunchPad({
         PoolName,
         PoolImage,
-        Status,
         TotalWinners,
+        Status: true,
         TimeRemaining,
         MaxDeposit,
       });

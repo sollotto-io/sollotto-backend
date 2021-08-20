@@ -13,7 +13,6 @@ module.exports = gql`
   input LaunchPadInput {
     PoolName: String
     PoolImage: String
-    Status: Boolean
     TotalWinners: Int
     TimeRemaining: String
     MaxDeposit: Int
