@@ -9,24 +9,12 @@ const poolSchema = new Schema({
     type: String,
     require: true,
   },
-  prizePool: {
-    type: Number,
-    require: true,
-  },
-  DueDate: {
+  dueDate: {
     type: Date,
     require: true,
   },
   tokenAddress: {
     type: String,
-    require: true,
-  },
-  depositLimit: {
-    type: Number,
-    require: true,
-  },
-  numberOfWinners: {
-    type: Number,
     require: true,
   },
   status: {

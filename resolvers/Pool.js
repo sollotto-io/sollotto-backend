@@ -23,24 +23,13 @@ module.exports = {
   Mutations: {
     async addPool(_, { poolInput }, context, info) {
       try {
-        const {
-          tokenName,
-          tokenLogo,
-          prizePool,
-          DueDate,
-          tokenAddress,
-          depositLimit,
-          numberOfWinners,
-        } = poolInput;
+        const { tokenName, tokenLogo, dueDate, tokenAddress } = poolInput;
 
         const newPool = new Pool({
           tokenName,
           tokenLogo,
-          prizePool,
-          DueDate,
+          dueDate,
           tokenAddress,
-          depositLimit,
-          numberOfWinners,
         });
         const pool = await newPool.save();
         if (pool) {
@@ -53,15 +42,7 @@ module.exports = {
       }
     },
     async updatePool(_, { poolId, poolInput }, context, info) {
-      const {
-        tokenName,
-        tokenLogo,
-        prizePool,
-        DueDate,
-        tokenAddress,
-        depositLimit,
-        numberOfWinners,
-      } = poolInput;
+      const { tokenName, tokenLogo, dueDate, tokenAddress } = poolInput;
 
       try {
         const pool = await Pool.findByIdAndUpdate(
@@ -69,11 +50,8 @@ module.exports = {
           {
             tokenName,
             tokenLogo,
-            prizePool,
-            DueDate,
+            dueDate,
             tokenAddress,
-            depositLimit,
-            numberOfWinners,
           },
           { new: true }
         );

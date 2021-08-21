@@ -5,21 +5,15 @@ module.exports = gql`
     id: ID!
     tokenName: String!
     tokenLogo: String!
-    prizePool: Float!
-    DueDate: String!
+    dueDate: String!
     tokenAddress: String!
-    depositLimit: Int!
-    numberOfWinners: Int!
     status: Boolean
   }
   input poolInput {
     tokenName: String!
     tokenLogo: String!
-    prizePool: Float!
-    DueDate: String!
+    dueDate: String!
     tokenAddress: String!
-    depositLimit: Int!
-    numberOfWinners: Int!
   }
 
   extend type Query {
