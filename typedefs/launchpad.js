@@ -11,11 +11,11 @@ module.exports = gql`
     MaxDeposit: Int
   }
   input LaunchPadInput {
-    PoolName: String
-    PoolImage: String
-    TotalWinners: Int
-    TimeRemaining: String
-    MaxDeposit: Int
+    PoolName: String!
+    PoolImage: String!
+    TotalWinners: Int!
+    TimeRemaining: String!
+    MaxDeposit: Int!
   }
   extend type Query {
     getAllLaunched: [LaunchPad]
@@ -24,5 +24,6 @@ module.exports = gql`
   extend type Mutation {
     AddLaunchPad(LaunchPadInput: LaunchPadInput): String
     changeLaunchState(Id:ID! Status: Boolean): String
+    EditLaunchPad(Id: ID!, LaunchPadInput: LaunchPadInput): String
   }
 `;

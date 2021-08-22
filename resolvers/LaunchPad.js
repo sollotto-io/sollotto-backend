@@ -1,3 +1,4 @@
+const { UserInputError } = require("apollo-server-errors");
 const moment = require("moment");
 const LaunchPad = require("../models/LaunchPad");
 
@@ -47,11 +48,43 @@ module.exports = {
       await newLaunch.save();
       return "Launch Pad Lottery is saved";
     },
-    async changeLaunchState(_, {Id, Status}, context, info) {
+    async changeLaunchState(_, { Id, Status }, context, info) {
       await LaunchPad.findByIdAndUpdate(Id, { Status: Status });
-  
+
       return "Charity Status Updated";
     },
+    async EditLaunchPad(
+      parent,
+      {
+        Id,
+        LaunchPadInput: {
+          PoolName,
+          PoolImage,
+          TotalWinners,
+          TimeRemaining,
+          MaxDeposit,
+        },
+      },
+      context,
+      info
+    ) {
+      try {
+        const updatedLaunchPad = await LaunchPad.findByIdAndUpdate(
+          Id,
+          {
+            PoolName,
+            PoolImage,
+            TotalWinners,
+            TimeRemaining,
+            MaxDeposit,
+          },
+          { new: true }
+        );
+        if (updatedLaunchPad) return "LaunchPad Updated Sucessfully";
+      } catch (e) {
+        console.log(e);
+      }
+      throw new UserInputError("cannot update charity");
+    },
   },
-  
 };
