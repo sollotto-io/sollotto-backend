@@ -44,6 +44,7 @@ module.exports = {
     async updatePool(_, { poolId, poolInput }, context, info) {
       const { tokenName, tokenLogo, dueDate, tokenAddress } = poolInput;
 
+      console.log(tokenName, tokenLogo, dueDate, tokenAddress);
       try {
         const pool = await Pool.findByIdAndUpdate(
           poolId,

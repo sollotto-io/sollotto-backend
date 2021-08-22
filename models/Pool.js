@@ -10,7 +10,7 @@ const poolSchema = new Schema({
     require: true,
   },
   dueDate: {
-    type: Date,
+    type: String,
     require: true,
   },
   tokenAddress: {
