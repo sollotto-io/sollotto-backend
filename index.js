@@ -15,6 +15,7 @@ const multer = require("multer");
 const { initLottery } = require("./utils/on-chain-instructions/initLottery");
 const { uploadRaffleImage } = require("./Routes/imageUploadRaffle");
 const { uploadLaunchImage } = require("./Routes/ImageUploadLaunchPad");
+const { uploadPoolImage } = require("./Routes/imageUploadPool");
 async function startServer() {
   const app = express();
   const server = new ApolloServer({
@@ -75,6 +76,8 @@ async function startServer() {
   uploadCharityImage(app, multer);
   uploadRaffleImage(app, multer);
   uploadLaunchImage(app, multer);
+  uploadPoolImage(app, multer);
+  
   app.listen({ port: process.env.PORT || 5000 }, () => {
     console.log("server running at port 5000");
   });
