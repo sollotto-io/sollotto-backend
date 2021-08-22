@@ -7,7 +7,8 @@ const ticket = require('./ticket')
 const user = require('./user')
 const raffle = require('./raffle')
 const launch = require('./launchpad') 
-const typedefs = [root,charity, ticket,drawing,lottery,user,raffle, launch]
+const pool = require('./pool') 
+const typedefs = [root,charity, ticket,drawing,lottery,user,raffle, launch,pool]
 
 
 module.exports = typedefs;
