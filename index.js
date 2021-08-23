@@ -21,9 +21,9 @@ async function startServer() {
   const server = new ApolloServer({
     typeDefs,
     resolvers,
-    plugins: [
-      ApolloServerPluginLandingPageGraphQLPlayground()
-    ]
+    // plugins: [
+    //   ApolloServerPluginLandingPageGraphQLPlayground()
+    // ]
   });
   await server.start();
   app.use(cors());
