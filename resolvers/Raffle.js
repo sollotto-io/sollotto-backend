@@ -20,6 +20,7 @@ module.exports = {
       context,
       info
     ) {
+    
       try {
         const newRaffle = new Raffle({
           raffleName,
@@ -39,15 +40,13 @@ module.exports = {
         console.log(e);
       }
     },
-    async changeRaffleStatus(_, { raffleId, raffleStatus }, context, info) {
-      await Raffle.findByIdAndUpdate(raffleId, { raffleStatus, raffleStatus });
+    async changeRaffleStatus(_, { raffleId, Status }, context, info) {
+      await Raffle.findByIdAndUpdate(raffleId, { Status });
       return "Raffle Status Updated";
     },
 
-    async editRaffle(
-      _,
-      {
-        raffleId,
+    async editRaffle(parent, { raffleId, raffleInput }, context, info) {
+      const {
         raffleName,
         urlSlug,
         raffleImage,
@@ -57,10 +56,8 @@ module.exports = {
         operatorWa,
         vanityUrl,
         raffleStatus,
-      },
-      context,
-      info
-    ) {
+      } = raffleInput;
+   
       await Raffle.findByIdAndUpdate(raffleId, {
         raffleName,
         urlSlug,

@@ -37,6 +37,11 @@ const raffleSchema = new Schema({
     type: String,
     require: true,
   },
+  Status: {
+    type: Boolean,
+    require: true,
+    default: true,
+  },
 });
 
 module.exports = model("Raffle", raffleSchema);

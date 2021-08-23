@@ -12,6 +12,7 @@ module.exports = gql`
     operatorWa: String!
     vanityUrl: String!
     raffleStatus: String!
+    Status: Boolean!
   }
 
   extend type Query {
