@@ -20,6 +20,7 @@ module.exports = {
       context,
       info
     ) {
+    
       try {
         const newRaffle = new Raffle({
           raffleName,
@@ -39,8 +40,8 @@ module.exports = {
         console.log(e);
       }
     },
-    async changeRaffleStatus(_, { raffleId, status }, context, info) {
-      await Raffle.findByIdAndUpdate(raffleId, { status });
+    async changeRaffleStatus(_, { raffleId, Status }, context, info) {
+      await Raffle.findByIdAndUpdate(raffleId, { Status });
       return "Raffle Status Updated";
     },
 
@@ -56,7 +57,7 @@ module.exports = {
         vanityUrl,
         raffleStatus,
       } = raffleInput;
-
+   
       await Raffle.findByIdAndUpdate(raffleId, {
         raffleName,
         urlSlug,
