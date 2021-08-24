@@ -17,7 +17,7 @@ module.exports = gql`
 
   extend type Query {
     getAllRaffle: [Raffle]
-    getActiveRaffle: Raffle
+    getActiveRaffle: [Raffle]
   }
   input raffleInput {
     raffleName: String!

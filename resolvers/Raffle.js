@@ -83,7 +83,7 @@ module.exports = {
     },
     async getActiveRaffle(_, args, context, info) {
       try {
-        const raffle = await Raffle.findOne({ Status: true });
+        const raffle = await Raffle.find({ Status: true });
         return raffle;
       } catch (e) {
         console.log(e);
