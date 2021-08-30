@@ -29,10 +29,11 @@ module.exports = {
 
       if (newUser) {
         return {
-          token: jwt.sign(username, process.env.JWT_SECRET, {
-            expiresIn: 7000,
+          token: jwt.sign({ username: username }, process.env.JWT_SECRET, {
+            expiresIn: "2h",
           }),
           username: username,
+          admin: admin,
         };
       } else {
         throw new Error("unable to login");
@@ -52,7 +53,7 @@ module.exports = {
           { username: username, admin: Exist.admin },
           process.env.JWT_SECRET,
           {
-            expiresIn: 7200,
+            expiresIn: "2h",
           }
         ),
         username: username,
