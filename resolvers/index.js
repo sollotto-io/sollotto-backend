@@ -26,5 +26,6 @@ module.exports = {
     ...raffleResolvers.Query,
     ...LaunchPadResolvers.Query,
     ...poolResolvers.Query,
+    ...adminUserResolvers.Query,
   },
 };

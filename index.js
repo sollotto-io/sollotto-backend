@@ -18,15 +18,24 @@ const { initLottery } = require("./utils/on-chain-instructions/initLottery");
 const { uploadRaffleImage } = require("./Routes/imageUploadRaffle");
 const { uploadLaunchImage } = require("./Routes/ImageUploadLaunchPad");
 const { uploadPoolImage } = require("./Routes/imageUploadPool");
+const Auth = require("./utils/auth");
 async function startServer() {
   const app = express();
   const server = new ApolloServer({
     typeDefs,
     resolvers,
     plugins: [ApolloServerPluginLandingPageGraphQLPlayground()],
+    context: async (context) => {
+      const ctx = await Auth.contextManager(context).catch(() => null);
+      return ctx;
+    },
   });
   await server.start();
-  app.use(cors());
+  app.use(
+    cors({
+      credentials: true,
+    })
+  );
 
   app.use("/static", express.static(path.join(__dirname, "public")));
   app.all("/", function (req, res, next) {

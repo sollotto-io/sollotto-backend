@@ -1,8 +1,9 @@
 const Pool = require("../models/Pool");
+const protectedResolvers = require("./utils");
 
-module.exports = {
+const poolResolvers = {
   Query: {
-    async getAllPools() {
+    async getAllPools(_, params, context, info) {
       try {
         const pools = await Pool.find().sort({ createdAt: -1 });
         return pools;
@@ -77,4 +78,10 @@ module.exports = {
       }
     },
   },
+};
+
+module.exports = {
+  Query: poolResolvers.Query,
+
+  Mutations: protectedResolvers(poolResolvers.Mutations),
 };

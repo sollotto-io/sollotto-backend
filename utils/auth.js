@@ -1,7 +1,5 @@
-import jwt from "jsonwebtoken";
-import ms from "ms";
-import Config from "./config";
-import { ForbiddenError } from "apollo-server";
+const jwt = require("jsonwebtoken");
+const { ForbiddenError } = require("apollo-server");
 
 async function contextManager(ctx) {
   if (ctx.req.method === "POST") {
@@ -13,9 +11,7 @@ async function contextManager(ctx) {
     if (token) {
       // Verify Token.
 
-      let decoded = await verifyToken(token).catch(
-        () => new Error("Authorization Token is invalid.")
-      );
+      let decoded = await verifyToken(token).catch(() => null);
 
       // After verify, pass both values to the context.
 
@@ -30,6 +26,7 @@ const verifyToken = (token) => {
   return new Promise((resolve, reject) => {
     if (token && token.startsWith("Bearer ")) {
       token = token.slice(7, token.length);
+
       jwt.verify(token, process.env.JWT_SECRET, (error, decoded) => {
         if (error) {
           reject();
@@ -43,12 +40,12 @@ const verifyToken = (token) => {
   });
 };
 
-const verifyUserId = (ctx, user_id) => {
-  if (ctx && ctx.token && ctx.token._id === user_id) {
+const verifyUserId = (ctx) => {
+  if (ctx && ctx.token && ctx.token !== null) {
     return true;
   }
   throw new ForbiddenError("Permission denied.");
 };
 
-const Auth = { contextManager, signToken, verifyToken, verifyUserId };
-export default Auth;
+const Auth = { contextManager, verifyToken, verifyUserId };
+module.exports = Auth;

@@ -5,7 +5,12 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 module.exports = {
   Mutations: {
-    async signupUser(_, { userInput: { username, password } }, context, info) {
+    async signupUser(
+      _,
+      { userInput: { username, password, admin } },
+      context,
+      info
+    ) {
       if (!username || !password) {
         throw new UserInputError("Please fill all the  fields");
       }
@@ -17,13 +22,16 @@ module.exports = {
       const user = new AdminUser({
         username,
         password: bcrypt.hashSync(password, 10),
+        admin: admin,
       });
 
       const newUser = await user.save();
 
       if (newUser) {
         return {
-          token: jwt.sign(username, process.env.JWT_SECRET),
+          token: jwt.sign(username, process.env.JWT_SECRET, {
+            expiresIn: 7000,
+          }),
           username: username,
         };
       } else {
@@ -38,10 +46,25 @@ module.exports = {
 
       const passwordMatch = bcrypt.compareSync(password, Exist.password);
       if (!passwordMatch) throw new Error("Incorrect credentials");
+
       return {
-        token: jwt.sign(username, process.env.JWT_SECRET),
+        token: jwt.sign(
+          { username: username, admin: Exist.admin },
+          process.env.JWT_SECRET,
+          {
+            expiresIn: 7200,
+          }
+        ),
         username: username,
+        admin: Exist.admin,
       };
+    },
+  },
+  Query: {
+    async getAllUsers(_, params, context, info) {
+      const users = await AdminUser.find();
+
+      return users;
     },
   },
 };
