@@ -7,6 +7,7 @@ module.exports = gql`
   }
 
   type AuthPayLoad {
+    id: ID!
     token: String!
     username: String!
     admin: Boolean
@@ -14,11 +15,22 @@ module.exports = gql`
   type UserPayload {
     username: String!
     admin: Boolean!
+    id: ID!
   }
 
   input userInput {
     username: String!
     password: String!
+    admin: Boolean
+  }
+  input changePasswordInput {
+    id: ID!
+    oldpassword: String!
+    password: String!
+  }
+  input userEditInput {
+    id: ID!
+    username: String!
     admin: Boolean
   }
 
@@ -28,5 +40,8 @@ module.exports = gql`
   extend type Mutation {
     signupUser(userInput: userInput!): AuthPayLoad!
     loginUser(userInput: userInput!): AuthPayLoad!
+    updateUser(userEditInput: userEditInput): UserPayload!
+    updateUserRole(userId: ID!, admin: Boolean!): UserPayload!
+    changePassword(changePasswordInput: changePasswordInput): String!
   }
 `;

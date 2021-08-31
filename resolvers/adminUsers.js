@@ -34,6 +34,7 @@ module.exports = {
           }),
           username: username,
           admin: admin,
+          id: newUser._id,
         };
       } else {
         throw new Error("unable to login");
@@ -58,7 +59,72 @@ module.exports = {
         ),
         username: username,
         admin: Exist.admin,
+        id: Exist._id,
       };
+    },
+    async updateUser(
+      _,
+      { userEditInput: { username, admin, id } },
+      context,
+      info
+    ) {
+      const exist = await AdminUser.findOne({ username: username });
+      if (exist) {
+        throw new UserInputError(
+          "That username you trying to update already exist"
+        );
+      }
+      const user = await AdminUser.findById(id);
+      if (!user) {
+        throw new UserInputError("That username doesn't exist");
+      }
+      user.username = username;
+      if (admin !== null) user.admin = admin;
+
+      const updatedUser = await user.save();
+      return {
+        username: username,
+        admin: updatedUser.admin,
+        id: id,
+      };
+    },
+
+    async updateUserRole(_, { userId, admin }, context, info) {
+      const user = await AdminUser.findById(userId);
+      if (!user) {
+        throw new UserInputError("That user doesn't exist");
+      }
+      user.admin = admin;
+      const updatedUser = await user.save();
+      return {
+        username: updatedUser.username,
+        admin: updatedUser.admin,
+        id: updatedUser._id,
+      };
+    },
+    async changePassword(
+      _,
+      { changePasswordInput: { id, oldpassword, password } },
+      context,
+      info
+    ) {
+      const user = await AdminUser.findById(id);
+      if (!user) {
+        throw new UserInputError("That user doesn't exist");
+      }
+
+      const passwordMatch = bcrypt.compareSync(oldpassword, user.password);
+
+      if (!passwordMatch) throw new Error("Old password doesn't match");
+
+      user.password = bcrypt.hashSync(password, 10);
+
+      try {
+        await user.save();
+        return "Password changed succesfully";
+      } catch (e) {
+        return "Password changed iunsuccesfully";
+      }
     },
   },
   Query: {
