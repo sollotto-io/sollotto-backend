@@ -20,7 +20,7 @@ module.exports = {
   Query: {
     ...charityResolvers.Query,
     ...drawingResolvers.Query,
-    // ...ticketResolvers.Query,
+    ...ticketResolvers.Query,
     ...lotteryResolvers.Query,
     ...userResolvers.Query,
     ...raffleResolvers.Query,

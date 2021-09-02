@@ -66,5 +66,21 @@ module.exports = {
       return "Ticket Saved Successfully";
     },
   },
-  Query: {},
+  Query: {
+    async getAllTickets() {
+      const tickets = await Ticket.find();
+
+      return tickets;
+    },
+    async getTicketsByUserCount(_, { walletId }, context, info) {
+      const count = await Ticket.countDocuments({ walletID: walletId });
+
+      return count;
+    },
+    async getTicketsCount() {
+      const count = await Ticket.countDocuments({});
+
+      return count;
+    },
+  },
 };

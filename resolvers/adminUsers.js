@@ -104,7 +104,7 @@ module.exports = {
     },
     async changePassword(
       _,
-      { changePasswordInput: { id, oldpassword, password } },
+      { changePasswordInput: { id, password } },
       context,
       info
     ) {
@@ -113,18 +113,22 @@ module.exports = {
         throw new UserInputError("That user doesn't exist");
       }
 
-      const passwordMatch = bcrypt.compareSync(oldpassword, user.password);
-
-      if (!passwordMatch) throw new Error("Old password doesn't match");
-
       user.password = bcrypt.hashSync(password, 10);
 
       try {
         await user.save();
         return "Password changed succesfully";
       } catch (e) {
-        return "Password changed iunsuccesfully";
+        return "Password changed unsuccesfully";
       }
+    },
+
+    async deleteUser(_, { userId }, context, info) {
+      const userDeleted = await AdminUser.findByIdAndDelete(userId)
+        .then(() => true)
+        .catch(() => false);
+      if (userDeleted) return "user Succesfully deleted";
+      return `could not delete user`;
     },
   },
   Query: {

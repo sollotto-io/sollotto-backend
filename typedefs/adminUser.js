@@ -25,7 +25,6 @@ module.exports = gql`
   }
   input changePasswordInput {
     id: ID!
-    oldpassword: String!
     password: String!
   }
   input userEditInput {
@@ -43,5 +42,6 @@ module.exports = gql`
     updateUser(userEditInput: userEditInput): UserPayload!
     updateUserRole(userId: ID!, admin: Boolean!): UserPayload!
     changePassword(changePasswordInput: changePasswordInput): String!
+    deleteUser(userId: ID!): String!
   }
 `;
