@@ -9,7 +9,7 @@ cd /home/ec2-user/sollotto-backend
 #install pm2
 npm install pm2 -g
 #stop pm2
-pm2 delete index.js
+
 #add npm and node to path
 export NVM_DIR="$HOME/.nvm"	
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # loads nvm	
