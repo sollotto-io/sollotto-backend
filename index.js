@@ -43,6 +43,11 @@ async function startServer() {
     res.header("Access-Control-Allow-Headers", "X-Requested-With");
     next();
   });
+  app.get("/", (req, res) => {
+    res.send(
+      "<h1>Express Demo App</h1> <h4>Hola Bryan</h4> <p>Version 1.1</p>"
+    );
+  });
   server.applyMiddleware({ app: app });
   mongoose.set("useFindAndModify", false);
   mongoose
