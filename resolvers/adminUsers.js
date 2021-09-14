@@ -3,7 +3,9 @@ const AdminUser = require("../models/AdminUser");
 const { UserInputError } = require("apollo-server-express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-module.exports = {
+const protectedResolvers = require("./utils");
+const adminUser = require("../typedefs/adminUser");
+const adminUserResolvers = {
   Mutations: {
     async signupUser(
       _,
@@ -17,6 +19,9 @@ module.exports = {
       const alreadyExist = await AdminUser.findOne({ username: username });
       if (alreadyExist) {
         throw new UserInputError("That username already exist");
+      }
+      if (!context.token.admin) {
+        throw new Error("You are not authorized to do this");
       }
 
       const user = new AdminUser({
@@ -74,6 +79,9 @@ module.exports = {
           "That username you trying to update already exist"
         );
       }
+      if (!context.token.admin) {
+        throw new Error("You are not authorized to do this");
+      }
       const user = await AdminUser.findById(id);
       if (!user) {
         throw new UserInputError("That username doesn't exist");
@@ -94,6 +102,9 @@ module.exports = {
       if (!user) {
         throw new UserInputError("That user doesn't exist");
       }
+      if (!context.token.admin) {
+        throw new Error("You are not authorized to do this");
+      }
       user.admin = admin;
       const updatedUser = await user.save();
       return {
@@ -112,6 +123,9 @@ module.exports = {
       if (!user) {
         throw new UserInputError("That user doesn't exist");
       }
+      if (!context.token.admin) {
+        throw new Error("You are not authorized to do this");
+      }
 
       user.password = bcrypt.hashSync(password, 10);
 
@@ -124,6 +138,9 @@ module.exports = {
     },
 
     async deleteUser(_, { userId }, context, info) {
+      if (!context.token.admin) {
+        throw new Error("You are not authorized to do this");
+      }
       const userDeleted = await AdminUser.findByIdAndDelete(userId)
         .then(() => true)
         .catch(() => false);
@@ -138,4 +155,9 @@ module.exports = {
       return users;
     },
   },
+};
+
+module.exports = {
+  Query: adminUserResolvers.Query,
+  Mutations: protectedResolvers(adminUserResolvers.Mutations),
 };
