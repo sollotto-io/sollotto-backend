@@ -159,5 +159,5 @@ const adminUserResolvers = {
 
 module.exports = {
   Query: adminUserResolvers.Query,
-  Mutations: protectedResolvers(adminUserResolvers.Mutations),
+  Mutations: protectedResolvers(adminUserResolvers.Mutations, ["loginUser"]),
 };
