@@ -15,11 +15,10 @@ export NVM_DIR="$HOME/.nvm"
 #install pm2
  npm install pm2@latest -g
 
-
 #install node modules
 npm install
 
 #start our node app in the background
-pm2 start index.js 
+pm2 start index.js > app.out.log 2> app.err.log < /dev/null & 
 
 
