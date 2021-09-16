@@ -18,8 +18,10 @@ export NVM_DIR="$HOME/.nvm"
 #install node modules
 npm install
 
-#restart pm2
-pm2 restart index.js
-#start our node app in the background
-pm2 index.js > app.out.log 2> app.err.log < /dev/null & 
 
+
+#start our node app in the background
+pm2 start index.js > app.out.log 2> app.err.log < /dev/null & 
+
+#restart pm2 to apply changes
+pm2 restart index.js
