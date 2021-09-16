@@ -1,8 +1,9 @@
 const { UserInputError } = require("apollo-server-errors");
 const moment = require("moment");
 const LaunchPad = require("../models/LaunchPad");
+const protectedResolvers = require("./utils");
 
-module.exports = {
+const launchPadResolvers = {
   Query: {
     async getAllLaunched(_, { UserPK }, context, info) {
       try {
@@ -87,4 +88,9 @@ module.exports = {
       throw new UserInputError("cannot update charity");
     },
   },
+};
+
+module.exports = {
+  Query: launchPadResolvers.Query,
+  Mutations: protectedResolvers(launchPadResolvers.Mutation),
 };

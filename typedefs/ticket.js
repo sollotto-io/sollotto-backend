@@ -1,5 +1,4 @@
-const {gql} = require("apollo-server-express");
-
+const { gql } = require("apollo-server-express");
 
 module.exports = gql`
   type Ticket {
@@ -14,6 +13,12 @@ module.exports = gql`
   # extend type Query{
   #
   # }
+
+  extend type Query {
+    getTicketsByUserCount(walletId: [Int]!): Int!
+    getAllTickets: [Ticket]!
+    getTicketsCount: Int!
+  }
 
   extend type Mutation {
     addTicket(

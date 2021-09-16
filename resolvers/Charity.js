@@ -6,7 +6,8 @@ const _ = require("lodash");
 const { CHARITY_STATUS } = require("../config");
 const { UserInputError } = require("apollo-server-express");
 const { ValidateUpdateProjectInput } = require("../utils/helpers");
-module.exports = {
+const protectedResolvers = require("./utils");
+const charityResolvers = {
   Mutation: {
     async addCharity(
       _,
@@ -31,7 +32,6 @@ module.exports = {
       context,
       info
     ) {
-     
       const newCharity = new Charity({
         charityName,
         projectDetails,
@@ -48,14 +48,14 @@ module.exports = {
         socialMedia,
         publicKey,
         nominationVotes: 0,
-        lifeTimeNominationVotes:0,
+        lifeTimeNominationVotes: 0,
         LastNominationVote: "",
         currentVotes: 0,
         lifeTimeVotes: 0,
         lifeTimeWins: 0,
       });
       const res = await newCharity.save();
-      return "Charity Added Successfully"
+      return "Charity Added Successfully";
     },
     async addNominationVotes(_, { charityId, UserPk, Votes }, context, info) {
       await Charity.findByIdAndUpdate(charityId, {
@@ -81,7 +81,8 @@ module.exports = {
       try {
         const updatedCharity = await Charity.findByIdAndUpdate(
           charityId,
-          {  charityName: data.charityName,
+          {
+            charityName: data.charityName,
             projectDetails: data.projectDetails,
             ImageURL: data.ImageURL,
             fundUse: data.fundUse,
@@ -94,7 +95,8 @@ module.exports = {
             Impact: data.Impact,
             webURL: data.webURL,
             socialMedia: data.socialMedia,
-            publicKey: data.publicKey },
+            publicKey: data.publicKey,
+          },
           { new: true }
         );
         if (updatedCharity) return "Charity Updated Sucessfully";
@@ -114,4 +116,9 @@ module.exports = {
       }
     },
   },
+};
+
+module.exports = {
+  Query: charityResolvers.Query,
+  Mutation: protectedResolvers(charityResolvers.Mutation),
 };

@@ -1,6 +1,6 @@
 const Raffle = require("../models/Raffle");
-
-module.exports = {
+const protectedResolvers = require("./utils");
+const raffleMutations = {
   Mutations: {
     async addRaffle(
       _,
@@ -20,7 +20,6 @@ module.exports = {
       context,
       info
     ) {
-    
       try {
         const newRaffle = new Raffle({
           raffleName,
@@ -57,7 +56,7 @@ module.exports = {
         vanityUrl,
         raffleStatus,
       } = raffleInput;
-   
+
       await Raffle.findByIdAndUpdate(raffleId, {
         raffleName,
         urlSlug,
@@ -75,6 +74,7 @@ module.exports = {
   Query: {
     async getAllRaffle(_, args, context, info) {
       try {
+        console.log(context);
         const raffle = await Raffle.find().sort({ createdAt: -1 });
         return raffle;
       } catch (err) {
@@ -90,4 +90,9 @@ module.exports = {
       }
     },
   },
+};
+
+module.exports = {
+  Query: raffleMutations.Query,
+  Mutations: protectedResolvers(raffleMutations.Mutations),
 };
