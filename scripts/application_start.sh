@@ -19,9 +19,10 @@ export NVM_DIR="$HOME/.nvm"
 npm install
 
 
-
+if [pm2 pid index.js == 1] then
 #start our node app in the background
-pm2 start index.js > app.out.log 2> app.err.log < /dev/null & 
-
+    pm2 start index.js > app.out.log 2> app.err.log < /dev/null & 
+else
 #restart pm2 to apply changes
-pm2 restart index.js
+    pm2 restart index.js
+fi
