@@ -33,6 +33,6 @@ jobs:
             echo SOLANA_NETWORK=$SOLANA_NETWORK >> .env
             echo LOTTERY_ID=$LOTTERY_ID >> .env
             echo MONGO_DB=$MONGO_DB >> .env
-            echo JWT_SECRET >> .env
+            echo JWT_SECRET=$JWT_SECRET >> .env
             pm2 kill
             pm2 start index.js
