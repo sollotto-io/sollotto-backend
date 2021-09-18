@@ -86,8 +86,8 @@ async function startServer() {
   uploadLaunchImage(app, multer);
   uploadPoolImage(app, multer);
 
-  app.listen({ port: process.env.PORT || 3000 }, () => {
-    console.log("server running at port 3000");
+  app.listen({ port: process.env.PORT || 5000 }, () => {
+    console.log("server running at port 5000");
   });
 }
 startServer();
