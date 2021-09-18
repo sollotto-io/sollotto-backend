@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: SSH and Setting ENV variables
-        uses: actions/checkout@v2
+        uses: appleboy/ssh-action@master
         env:
           SOLANA_INIT_LOTTERY_PROGRAM: ${{ secrets.SOLANA_INIT_LOTTERY_PROGRAM }}
           SOLANA_NETWORK: ${{ secrets.SOLANA_NETWORK }}
