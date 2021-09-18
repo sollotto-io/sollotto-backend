@@ -12,11 +12,13 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # loads nvm bash_completion (node is in path now)
 
 
+#installing yarn
+npm install -g yarn
 #install pm2
 npm install pm2@latest -g
 
 #install node modules
-npm install
+yarn install
 
 pm2 kill
 
