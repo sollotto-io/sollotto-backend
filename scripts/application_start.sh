@@ -1,10 +1,10 @@
 #!/bin/bash
 
 #give permission for everything in the sollotto-backend directory
-sudo chmod -R 777 /home/ec2-user/sollotto-backend
+sudo chmod -R 777 /home/ubuntu/sollotto-backend
 
 #navigate into our working directory where we have all our github files
-cd /home/ec2-user/sollotto-backend
+cd /home/ubuntu/sollotto-backend
 
 #add npm and node to path
 export NVM_DIR="$HOME/.nvm"	
@@ -13,7 +13,7 @@ export NVM_DIR="$HOME/.nvm"
 
 
 #install pm2
- npm install pm2@latest -g
+npm install pm2@latest -g
 
 #install node modules
 npm install
