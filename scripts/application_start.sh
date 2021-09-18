@@ -13,7 +13,7 @@ export NVM_DIR="$HOME/.nvm"
 
 
 #installing yarn
-npm install -g yarn
+npm install yarn -g
 #install pm2
 npm install pm2@latest -g
 
