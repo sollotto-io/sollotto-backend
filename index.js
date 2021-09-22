@@ -25,6 +25,8 @@ async function startServer() {
     typeDefs,
     resolvers,
     //plugins: [ApolloServerPluginLandingPageGraphQLPlayground()],
+    playground: false,
+    introspection: false,
     context: async (context) => {
       const ctx = await Auth.contextManager(context).catch(() => null);
       return ctx;
