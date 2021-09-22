@@ -13,7 +13,7 @@ module.exports = {
     ...ticketResolvers.Mutation,
     ...drawingResolvers.Mutation,
     ...raffleResolvers.Mutations,
-    ...LaunchPadResolvers.Mutation,
+    ...LaunchPadResolvers.Mutations,
     ...poolResolvers.Mutations,
     ...adminUserResolvers.Mutations,
   },
