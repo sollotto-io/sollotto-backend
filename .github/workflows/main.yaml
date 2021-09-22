@@ -1,0 +1,38 @@
+name: sollotto-backend-develop
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: SSH and Setting ENV variables
+        uses: appleboy/ssh-action@master
+        env:
+          SOLANA_INIT_LOTTERY_PROGRAM: ${{ secrets.SOLANA_INIT_LOTTERY_PROGRAM }}
+          SOLANA_NETWORK: ${{ secrets.SOLANA_NETWORK }}
+          LOTTERY_ID: ${{ secrets.LOTTERY_ID  }}
+          MONGO_DB: ${{ secrets.MONGO_DB }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          key: ${{ secrets.SSH_KEY }}
+          username: ubuntu
+          envs: SOLANA_INIT_LOTTERY_PROGRAM,SOLANA_NETWORK,LOTTERY_ID,MONGO_DB,JWT_SECRET
+          script: |
+            cd sollotto-backend/
+            export NVM_DIR="$HOME/.nvm"	
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # loads nvm	
+            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+            [ -e .env ] && rm .env
+            touch .env
+            echo SOLANA_INIT_LOTTERY_PROGRAM=$SOLANA_INIT_LOTTERY_PROGRAM >> .env
+            echo SOLANA_NETWORK=$SOLANA_NETWORK >> .env
+            echo LOTTERY_ID=$LOTTERY_ID >> .env
+            echo MONGO_DB=$MONGO_DB >> .env
+            echo JWT_SECRET=$JWT_SECRET >> .env
+            pm2 kill
+            pm2 start index.js
