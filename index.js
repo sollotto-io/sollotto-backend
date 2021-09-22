@@ -45,7 +45,7 @@ async function startServer() {
   });
   app.get("/", (req, res) => {
     res.send(
-      "<h1>Express Demo App</h1> <h4>If you can see this is because it works/h4> <p>Version 1.12</p> <h1>All good</h1>"
+      "<h1>Dev</h1> <h4>If you can see this is because it works/h4> <p>Version 1.13</p> <h1>All good</h1>"
     );
   });
   server.applyMiddleware({ app: app });
