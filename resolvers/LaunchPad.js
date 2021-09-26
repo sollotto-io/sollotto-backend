@@ -27,61 +27,94 @@ const launchPadResolvers = {
       _,
       {
         LaunchPadInput: {
-          PoolName,
-          PoolImage,
-          TotalWinners,
-          TimeRemaining,
-          MaxDeposit,
+          tokenName,
+          tokenLogo,
+          totalWinners,
+          dueDate,
+          maxDeposit,
+          tokenAddress,
+          frequency,
         },
       },
       context,
       info
     ) {
+      const endDate = new Date(dueDate);
+      endDate.setDate(endDate.getDate() + frequency);
       const newLaunch = new LaunchPad({
-        PoolName,
-        PoolImage,
-        TotalWinners,
-        Status: true,
-        TimeRemaining,
-        MaxDeposit,
+        tokenName,
+        tokenLogo,
+        totalWinners,
+        dueDate,
+        maxDeposit,
+        tokenAddress,
+        frequency,
+        endDate: endDate.toDateString() + " GMT-8",
       });
 
       await newLaunch.save();
-      return "Launch Pad Lottery is saved";
+      return newLaunch;
     },
-    async changeLaunchState(_, { Id, Status }, context, info) {
-      await LaunchPad.findByIdAndUpdate(Id, { Status: Status });
+    async changeLaunchState(_, { Id, status }, context, info) {
+      console.log(status);
+      const updatedLaunch = await LaunchPad.findByIdAndUpdate(
+        Id,
+        {
+          status: status,
+        },
+        { new: true }
+      );
+      console.log(updatedLaunch);
 
-      return "Charity Status Updated";
+      return updatedLaunch;
     },
     async EditLaunchPad(
       parent,
       {
         Id,
         LaunchPadInput: {
-          PoolName,
-          PoolImage,
-          TotalWinners,
-          TimeRemaining,
-          MaxDeposit,
+          tokenName,
+          tokenLogo,
+          totalWinners,
+          dueDate,
+          maxDeposit,
+          tokenAddress,
+          frequency,
         },
       },
       context,
       info
     ) {
       try {
-        const updatedLaunchPad = await LaunchPad.findByIdAndUpdate(
-          Id,
-          {
-            PoolName,
-            PoolImage,
-            TotalWinners,
-            TimeRemaining,
-            MaxDeposit,
-          },
-          { new: true }
-        );
-        if (updatedLaunchPad) return "LaunchPad Updated Sucessfully";
+        const endDate = new Date(dueDate);
+        endDate.setDate(endDate.getDate() + frequency);
+        const launch = await LaunchPad.findById(Id);
+        launch.tokenName = tokenName;
+        launch.tokenLogo = tokenLogo;
+        launch.tokenAddress = tokenAddress;
+
+        if (launch.frequency !== frequency) {
+          freq = frequency;
+
+          const endDate = new Date(launch.endDate);
+          endDate.setDate(endDate.getDate() + (frequency - launch.frequency));
+          launch.endDate = endDate.toDateString() + " GMT-8";
+        } else {
+          freq = launch.frequency;
+        }
+        launch.frequency = frequency;
+
+        if (launch.dueDate !== dueDate) {
+          const endDate = new Date(dueDate);
+          endDate.setDate(endDate.getDate() + freq);
+          launch.endDate = endDate.toDateString() + " GMT-8";
+        }
+
+        launch.dueDate = dueDate;
+        launch.totalWinners = totalWinners;
+        launch.maxDeposit = maxDeposit;
+        await launch.save();
+        if (launch) return launch;
       } catch (e) {
         console.log(e);
       }

@@ -1,29 +1,40 @@
 const { gql } = require("apollo-server-express");
 
 module.exports = gql`
+  type PassLaunches {
+    id: ID
+    winnersWalletsId: String
+    finishDate: String
+  }
   type LaunchPad {
     id: ID!
-    PoolName: String
-    PoolImage: String
-    Status: Boolean
-    TotalWinners: Int
-    TimeRemaining: String
-    MaxDeposit: Int
+    tokenName: String!
+    tokenLogo: String!
+    status: Boolean!
+    totalWinners: Int!
+    passLaunches: [PassLaunches]
+    dueDate: String!
+    endDate: String!
+    maxDeposit: Int!
+    tokenAddress: String!
+    frequency: Int!
   }
   input LaunchPadInput {
-    PoolName: String!
-    PoolImage: String!
-    TotalWinners: Int!
-    TimeRemaining: String!
-    MaxDeposit: Int!
+    tokenName: String!
+    tokenLogo: String!
+    totalWinners: Int!
+    dueDate: String!
+    maxDeposit: Int!
+    tokenAddress: String!
+    frequency: Int!
   }
   extend type Query {
     getAllLaunched: [LaunchPad]
     getLaunchPadById(Id: ID!): LaunchPad
   }
   extend type Mutation {
-    AddLaunchPad(LaunchPadInput: LaunchPadInput): String
-    changeLaunchState(Id:ID! Status: Boolean): String
-    EditLaunchPad(Id: ID!, LaunchPadInput: LaunchPadInput): String
+    AddLaunchPad(LaunchPadInput: LaunchPadInput): LaunchPad
+    changeLaunchState(Id: ID!, status: Boolean): LaunchPad
+    EditLaunchPad(Id: ID!, LaunchPadInput: LaunchPadInput): LaunchPad
   }
 `;

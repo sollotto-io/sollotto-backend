@@ -19,12 +19,14 @@ const { uploadRaffleImage } = require("./Routes/imageUploadRaffle");
 const { uploadLaunchImage } = require("./Routes/ImageUploadLaunchPad");
 const { uploadPoolImage } = require("./Routes/imageUploadPool");
 const Auth = require("./utils/auth");
+const verifyPool = require("./utils/verifyLottteries/verifyPool");
+
 async function startServer() {
   const app = express();
   const server = new ApolloServer({
     typeDefs,
     resolvers,
-    //plugins: [ApolloServerPluginLandingPageGraphQLPlayground()],
+    plugins: [ApolloServerPluginLandingPageGraphQLPlayground()],
     context: async (context) => {
       const ctx = await Auth.contextManager(context).catch(() => null);
       return ctx;
