@@ -3,7 +3,7 @@ const { gql } = require("apollo-server-express");
 module.exports = gql`
   type PassLaunches {
     id: ID
-    winnersWalletsId: String
+    winnersWalletsId: [String]
     finishDate: String
   }
   type LaunchPad {

@@ -7,7 +7,7 @@ const mongoose = require("mongoose");
 const typeDefs = require("./typedefs/index");
 const resolvers = require("./resolvers/index");
 const { MONGODB } = require("./config");
-// const cron = require("node-cron");
+const cron = require("node-cron");
 const cors = require("cors");
 const path = require("path");
 // const { changeDraw } = require("./utils/changeDraw");
@@ -20,6 +20,7 @@ const { uploadLaunchImage } = require("./Routes/ImageUploadLaunchPad");
 const { uploadPoolImage } = require("./Routes/imageUploadPool");
 const Auth = require("./utils/auth");
 const verifyPool = require("./utils/verifyLottteries/verifyPool");
+const verifyLaunch = require("./utils/verifyLottteries/verifyLaunchPool");
 
 async function startServer() {
   const app = express();
@@ -71,7 +72,17 @@ async function startServer() {
       //     timezone: "Atlantic/Azores",
       //   }
       // );
-
+      cron.schedule(
+        "0 0 * * *",
+        async () => {
+          await verifyLaunch();
+          await verifyPool();
+        },
+        {
+          scheduled: true,
+          timezone: "Atlantic/Azores",
+        }
+      );
       // console.log("inside cron then");
       // cron.schedule("*/1 * * * *", () => {changeDraw()},
       // {
