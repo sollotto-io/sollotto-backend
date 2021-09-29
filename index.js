@@ -21,6 +21,7 @@ const { uploadPoolImage } = require("./Routes/imageUploadPool");
 const Auth = require("./utils/auth");
 const verifyPool = require("./utils/verifyLottteries/verifyPool");
 const verifyLaunch = require("./utils/verifyLottteries/verifyLaunchPool");
+const verifyModel4 = require("./utils/verifyLottteries/verifyModel4");
 
 async function startServer() {
   const app = express();
@@ -77,6 +78,7 @@ async function startServer() {
         async () => {
           await verifyLaunch();
           await verifyPool();
+          await verifyModel4();
         },
         {
           scheduled: true,

@@ -8,6 +8,9 @@ const launchPadResolvers = {
     async getAllLaunched(_, { UserPK }, context, info) {
       try {
         const LaunchPads = await LaunchPad.find().sort({ createdAt: -1 });
+        LaunchPads.forEach((launch) => {
+          launch.passLaunches = launch.passLaunches.reverse().slice(0, 4);
+        });
         return LaunchPads;
       } catch (err) {
         throw new Error(err);

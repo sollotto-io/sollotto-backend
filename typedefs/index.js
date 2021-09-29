@@ -8,6 +8,7 @@ const raffle = require("./raffle");
 const launch = require("./launchpad");
 const pool = require("./pool");
 const adminUser = require("./adminUser");
+const model4 = require("./model4");
 const typedefs = [
   root,
   charity,
@@ -19,6 +20,7 @@ const typedefs = [
   launch,
   pool,
   adminUser,
+  model4,
 ];
 
 module.exports = typedefs;

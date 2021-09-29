@@ -4,10 +4,13 @@ const protectedResolvers = require("./utils");
 
 const poolResolvers = {
   Query: {
-    async getAllPools(_, params, context, info) {
+    async getAllPools(_, { last }, context, info) {
       try {
         const pools = await Pool.find().sort({ createdAt: -1 });
-
+        console.log(last);
+        pools.forEach((pool) => {
+          pool.passPools = pool.passPools.reverse().slice(0, 4);
+        });
         return pools;
       } catch (e) {
         return e;
