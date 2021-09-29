@@ -80,7 +80,7 @@ async function startServer() {
         },
         {
           scheduled: true,
-          timezone: "Atlantic/Azores",
+          timezone: "Etc/GMT-8",
         }
       );
       // console.log("inside cron then");
