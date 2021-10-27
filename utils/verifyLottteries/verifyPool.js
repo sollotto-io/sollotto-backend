@@ -1,6 +1,7 @@
 const Pool = require("../../models/Pool");
 const verifyPool = async () => {
-  const pools = await Pool.find().sort({ createdAt: -1 });
+  console.log("verifying pool");
+  /* const pools = await Pool.find().sort({ createdAt: -1 });
 
   if (pools) {
     pools.forEach(async (pool) => {
@@ -12,14 +13,14 @@ const verifyPool = async () => {
           currentPool.endDate = endDate.toDateString() + " GMT-8";
 
           currentPool.passPools.push({
-            winningWalletId: "DR9bNjsv25meGDeXqQLqf6Xoo1LBpdhP6wiuQ4ir2Jmo",
+            winningWalletId: "Test",
             finishDate: pool.endDate,
           });
         }
         await currentPool.save();
       }
     });
-  }
+  } */
 };
 
 module.exports = verifyPool;

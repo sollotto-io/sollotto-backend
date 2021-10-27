@@ -8,6 +8,7 @@ const LaunchPadResolvers = require("./LaunchPad");
 const poolResolvers = require("./Pool");
 const adminUserResolvers = require("./adminUsers");
 const Model4 = require("./Model4");
+const NFT = require("./Nft");
 module.exports = {
   Mutation: {
     ...charityResolvers.Mutation,
@@ -17,6 +18,7 @@ module.exports = {
     ...LaunchPadResolvers.Mutations,
     ...poolResolvers.Mutations,
     ...adminUserResolvers.Mutations,
+    ...NFT.Mutation,
   },
   Query: {
     ...charityResolvers.Query,
@@ -29,5 +31,6 @@ module.exports = {
     ...poolResolvers.Query,
     ...adminUserResolvers.Query,
     ...Model4.Query,
+    ...NFT.Query,
   },
 };

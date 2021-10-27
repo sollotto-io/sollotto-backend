@@ -9,6 +9,7 @@ const launch = require("./launchpad");
 const pool = require("./pool");
 const adminUser = require("./adminUser");
 const model4 = require("./model4");
+const nft = require("./nft");
 const typedefs = [
   root,
   charity,
@@ -21,6 +22,7 @@ const typedefs = [
   pool,
   adminUser,
   model4,
+  nft,
 ];
 
 module.exports = typedefs;
