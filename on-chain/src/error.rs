@@ -38,6 +38,9 @@ pub enum LotteryError {
     /// Invalid sollotto accounts
     #[error("Invalid sollotto account")]
     InvalidSollottoAccount,
+    /// Invalid vrf result
+    #[error("Invalid random result")]
+    InvalidRandomResult,
 }
 
 impl From<LotteryError> for ProgramError {

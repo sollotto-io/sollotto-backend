@@ -27,6 +27,7 @@ pub struct LotteryData {
     pub rewards_wallet: Pubkey,
     pub slot_holders_rewards_wallet: Pubkey,
     pub sollotto_labs_wallet: Pubkey,
+    pub randomness_account: Pubkey,
 }
 
 impl Sealed for LotteryData {}
@@ -38,11 +39,11 @@ impl IsInitialized for LotteryData {
 }
 
 impl Pack for LotteryData {
-    /// 1 + 1 + 4 + 32 + 32 + 32 + 32 + 4 + 4 + 4 + 4 + 4 + 6 + 8 + 32 + 32 + 32 + 32 = 296
-    const LEN: usize = 296;
+    /// 1 + 1 + 4 + 32 + 32 + 32 + 32 + 4 + 4 + 4 + 4 + 4 + 6 + 8 + 32 + 32 + 32 + 32 + 32 = 296
+    const LEN: usize = 328;
 
     fn unpack_from_slice(src: &[u8]) -> Result<Self, ProgramError> {
-        let src = array_ref![src, 0, 296];
+        let src = array_ref![src, 0, 328];
         let (
             is_initialized,
             is_finaled,
@@ -62,7 +63,8 @@ impl Pack for LotteryData {
             rewards_wallet,
             slot_holders_rewards_wallet,
             sollotto_labs_wallet,
-        ) = array_refs![src, 1, 1, 4, 32, 32, 32, 32, 4, 4, 4, 4, 4, 6, 8, 32, 32, 32, 32];
+            randomness_account,
+        ) = array_refs![src, 1, 1, 4, 32, 32, 32, 32, 4, 4, 4, 4, 4, 6, 8, 32, 32, 32, 32, 32];
 
         let is_initialized = match is_initialized {
             [0] => false,
@@ -95,13 +97,14 @@ impl Pack for LotteryData {
             rewards_wallet: Pubkey::new_from_array(*rewards_wallet),
             slot_holders_rewards_wallet: Pubkey::new_from_array(*slot_holders_rewards_wallet),
             sollotto_labs_wallet: Pubkey::new_from_array(*sollotto_labs_wallet),
+            randomness_account: Pubkey::new_from_array(*randomness_account),
         };
 
         Ok(result)
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
-        let dst = array_mut_ref![dst, 0, 296];
+        let dst = array_mut_ref![dst, 0, 328];
         let (
             is_initialized_dst,
             is_finaled_dst,
@@ -121,7 +124,8 @@ impl Pack for LotteryData {
             rewards_wallet_dst,
             slot_holders_rewards_wallet_dst,
             sollotto_labs_wallet_dst,
-        ) = mut_array_refs![dst, 1, 1, 4, 32, 32, 32, 32, 4, 4, 4, 4, 4, 6, 8, 32, 32, 32, 32];
+            randomness_account_dst,
+        ) = mut_array_refs![dst, 1, 1, 4, 32, 32, 32, 32, 4, 4, 4, 4, 4, 6, 8, 32, 32, 32, 32, 32];
 
         is_initialized_dst[0] = self.is_initialized as u8;
         is_finaled_dst[0] = self.is_finaled as u8;
@@ -141,6 +145,7 @@ impl Pack for LotteryData {
         rewards_wallet_dst.copy_from_slice(self.rewards_wallet.as_ref());
         slot_holders_rewards_wallet_dst.copy_from_slice(self.slot_holders_rewards_wallet.as_ref());
         sollotto_labs_wallet_dst.copy_from_slice(self.sollotto_labs_wallet.as_ref());
+        randomness_account_dst.copy_from_slice(self.randomness_account.as_ref());
     }
 }
 
