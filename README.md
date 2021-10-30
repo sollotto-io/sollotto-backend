@@ -1,82 +1,100 @@
-SolLotto Readme
-Welcome to SolLotto
+<p align="center">
+  <a href="https://app.sollotto.io/">
+    <img alt="Metaplex" src="https://app.sollotto.io/static/media/SolLotto-logo-horizontal.b4b49b1a.png" width="250" />
+  </a>
+</p>
 
-An open and fair pooled giveaway protocol that enables community-driven effective altruism. SolLotto is the first lottery system built on the Solana blockchain.
+# About us
 
-WEBSITE: https://sollotto.io - The Official SolLotto Website!
+SolLotto is the first decentralized peer-to-peer lottery system built on the Solana blockchain.
 
-PROBLEM: Traditional lotteries have excessive administrative fees and a fixed set of charities the funding goes towards. This reduces the effectiveness of the charitable contributions.
+We believe a community-driven approach to effective altruism will result in the most impact globally, which is why we're introducing a lottery system that utilizes verifiable community-consensus to dynamically allocate the resources where the community believes they will do the most good each week.
 
-SOLUTION: SolLotto is the first decentralized, peer-to-peer giveaway system built on the Solana blockchain. Our plan is to operate a number of pooled giveaways compatible with various SPL tokens, offering convenience of entry to members of the Solana ecosystem. Our blockchain based protocols are designed to offer consumers greater transparency and choice compared to traditional lotteries in three primary ways:
-1. Eliminating the need to trust traditional intermediaries.
-2. Reducing administrative fees and expenses.
-3. Creating meaningful differences in how the pool giveaways are structured.
+### Model 1 (Traditional “Lottery” Giveaway Model)
 
+Donate for a ticket, pick 6 numbers, vote for a charity, if your numbers match the 6 randomly selected winning numbers then you win.
 
+### Model 2 (Pooled Giveaway Model)
 
-Built With
-React - User interface
-Rust & Solana - Smart Contracts & on-chain data storage
-MongoDB - Off-chain database
+Stake supported tokens, have a chance to win the prize pool generated from staking rewards based on how much of the staking pool you contributed.
 
+### Model 3 (Launchpad Pool Model)
 
+Stake supported tokens, have a chance to win a prize pool donated by an up and coming Solana project.
 
-Data Sources
-Winning Number Generation
-To ensure highest standards of trustlessness, we aim to use Chainlink for secure random number generation on-chain when possible. Currently we generate random numbers off-chain and store those value on-chain. We plan to integrate our own random number generation with Chainlink as soon as Chainlink has made those features available on the Solana blockchain.
+### Model 4 (Lifetime “Lottery” Giveaway Model)
 
-Eligible Charities
-Charities will be pre-vetted for inclusion on the platform by the SolLotto team. While we hope to develop or encourage the development of independent ranking systems as more transactions take place on-chain, we currently rely on third-party partners to verify the effectiveness of the charities we include. Currently we accept charities that have a ranking of A- or better from CharityWatch.org, or appear on GiveWell.orgs top charities list.
+Chances to win are increased by playing the traditional lottery model
 
+### Model 5 (Fixed-Quantity Giveaway Model)(not implemented)
 
-Initial Contributors
+Only holders of the platform token are eligible to purchase a single ticket for each token held.
 
-Kashyap Pavra - Lead Developer
-Rushi Chandalia - Development Team
-Conor Holds - Protocol Design, UI & UX Design
-Bishop Smith - Protocol Design
-David Seo - Protocol Design
+## Community
 
+- [Discord](https://discord.gg/uMgJcMr5m2)
+- [@teamsollotto](https://twitter.com/teamsollotto) on twitter
+- [Website](https://sollotto.io/)
 
-Roadmap
+# Usage
 
-May 2021 - Protocol & Platform Design, Team Building, & Community Building
-SolLotto was started on May 5, 2021. In addition to designing the protocols and platforms behind the five pooled giveaway models described in our litepaper, we welcomed new team members that will be key contributors to the success of SolLotto. 
+## Installation
 
-June 2021 - Alpha Testing Begins. 
-Initial testing on the Solana dev-net for the Standard Lottery model (model #1) and continued development of additional models for inclusion on the platform. Our alpha-test will use a UI similar to Raydium’s open-sourced front-end to speed up development time. During this time we will address any issues found with the functionality of the platform and begin implementing our own customized SolLotto UI. 
+```bash
+$ git clone https://github.com/sollotto-io/sollotto-backend.git
+$ cd solloto-backend
+$ npm install
+```
 
-July 2021 - Open-Beta Testing. 
-We will open the platform to the public for testing on Solana’s dev-net in order to collect additional feedback and recommendations from community members on what is needed most for the platform to be successful. We will also continue the development of lottery model #2 as well as improving the usability and user experience of the platform itself. 
+### Setup enviroment variables
 
-August 2021 - IDO & Platform Launch
-After successfully launching the SolLotto platform, we plan to expand the number of “deposit pools” available to include other SPL tokens that generate staking rewards. We will also implement an instant-reward giveaway system for participants in the model #1 giveaway (they will receive some type of reward instantly and automatically when they purchase a ticket).
+In order to start the app go to the `.env` file and proceed to fill the environment variables.
 
-September 2021 - Core Platform Development Continues
-Initial selection for which charities are included in the next drawing will be done using web2.0 technology while the core features of the platform are finished. Soon after launch we plan to transition this voting process to be blockchain verifiable as well. Additionally, we will continue development on models 3-5 found in our litepaper. Models #4 and #5 will be introduced to the platform when the share of the staking rewards generated in the SolLotto Foundation Rewards pool and allocated to each model for any one drawing is greater than $1000 USDC per model.
+For setting up a development environment you will need to start locally the frontend server included in [sollotto frontend](https://github.com/sollotto-io/sollotto-frontend.git) repo.
 
-October 2021 - Community Feature Development Continues
-In commitment to  increasing the value that our platform provides to our community, we will first implement an NFT rewards system for the most active participants on the platform. This will be based on a number of different measurements of overall activity and specific engagements. We will additionally be further developing the results and reporting functionalities of the SolLotto platform to improve the participant experience.
+#### Enviroment Variables
 
-November 2021 - Platform Development Continues
-Continued development of the platform to include functionality which improves user experience. We plan to implement quick-pick & bulk quick-pick functionalities for model #1, as well as a tiered prize pool system for both the lottery and charity winners.
+```
+SOLANA_INIT_LOTTERY_PROGRAM = ""
+SOLANA_NETWORK = ""
+LOTTERY_ID = ""
+MONGO_DB = ""
+JWT_SECRET= ""
+SECRET_KEY =""
+HOLDING_WALLET_SECRETKEY = ""
+REWARD_WALLET_PUBLIC_KEY = ""
+SLOT_HOLDER_REWARDS_PUBLIC_KEY = ""
+SOLLOTTO_LABS_PUBLIC_KEY = ""
+```
 
-December 2021 - UI / UX Development Continues
-Introduction of a fully SolLotto branded version of the UI, featuring increased gamification and multiple style options for the end user to choose from.
+- **SOLANA_INIT_PROGRAM:** Is the address for the on-chain model 1 lottery initialization. The on-chain model 1 program source code can be found in the [sollotto backend](https://github.com/sollotto-io/sollotto-backend.git) in the **feature/model4** branch
 
+- **SOLANA_NETWORK:** The Solana network in which the program operates, for example: `https://api.devnet.solana.com/`
 
-2022 - Charity Eligibility Expansion + Protocol Development
-After successfully launching the SolLotto platform, the team at SolLotto will:
-Expand the quantity of charities eligible to participate in the SolLotto protocol by growing a charity verification team.
-Develop our protocol to make it easier for other Solana projects to seamlessly integrate SolLotto protocols into their own platforms (Defi, Wallet’s, CEXs).
-Depending on the effectiveness of the third-party verification organizations we rely on to determine the eligibility of charities, we may develop our own system for transparently and trustlessly tracking the effectiveness of the charitable contributions.
+- **LOTTERY_ID:** The MongoDB id for the model 1 Lottery (You will need to create a document, you can see the schema for the model 1 lottery in `/models`).
 
-2023 - Introducing Governance Tokens & Transitioning Platform Governance to a DAO
-We will enable community-driven decisions in platform governance by introducing the LGOV token. Holders of LGOV will be able to participate in votes and propose changes around the key aspects of the SolLotto platform. Individuals will only be able to hold a capped amount of LGOV in order to ensure the key benefits of decentralization are maintained.
+- **MONGO_DB**: MongoDB connection string.
 
+- **JWT_SECRET:** The secret for the JWT generation
 
-2024 & Beyond
-The SolLotto team will take the necessary steps to ensure that the SolLotto platform and protocol will transition into a fully decentralized, autonomous organization (DAO), while ensuring the continued security & usability of the platform and protocol are taken into consideration.
+- **SECRET_KEY:** Secret key for encrypting information
 
+- **HOLDING_WALLET_SECRETKEY:** Secret key for the holding wallet
 
+- **REWARD_WALLET_PUBLIC_KEY:** Public key for the reward wallet
 
+- **SLOT_HOLDER_REWARDS_PUBLIC_KEY:** Public key for the slot holder rewards
+
+- **SOLLOTTO_LABS_PUBLIC_KEY:** Public key for your project wallet
+
+## Start the app
+
+```bash
+$ npm start
+```
+
+Once is started you can go to `http://localhost:5000/graphql` to see the app running
+
+# Devops
+
+This repo includes integration with **Github Actions** and **AWS Codeploy & Code Pipeline** for CI/CD. You can see the scripts integration in the `.github/workflows` and `/scripts` folders

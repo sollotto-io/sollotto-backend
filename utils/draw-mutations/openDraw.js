@@ -19,7 +19,7 @@ const openDrawing = async (activeDrawing, charities) => {
     drawCharity.push(t.id);
   });
 
-  console.log(drawCharity);
+
 
   if (day === "Wednesday") {
     if (lottery.TotalPoolValue < 10) {

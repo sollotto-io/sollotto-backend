@@ -74,7 +74,6 @@ const raffleMutations = {
   Query: {
     async getAllRaffle(_, args, context, info) {
       try {
-        console.log(context);
         const raffle = await Raffle.find().sort({ createdAt: -1 });
         return raffle;
       } catch (err) {

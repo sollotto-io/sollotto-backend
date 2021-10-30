@@ -59,7 +59,6 @@ const launchPadResolvers = {
       return newLaunch;
     },
     async changeLaunchState(_, { Id, status }, context, info) {
-      console.log(status);
       const updatedLaunch = await LaunchPad.findByIdAndUpdate(
         Id,
         {
@@ -67,8 +66,6 @@ const launchPadResolvers = {
         },
         { new: true }
       );
-      console.log(updatedLaunch);
-
       return updatedLaunch;
     },
     async EditLaunchPad(
