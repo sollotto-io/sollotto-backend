@@ -10,11 +10,12 @@ use solana_sdk::{
     signature::Keypair, system_transaction, transaction::TransactionError,
     transport::TransportError,
 };
-use sollotto::{
+use sollotto_model_1::{
     processor::id,
     processor::Processor,
     state::{LotteryData, LotteryResultData, TicketData},
 };
+use spl_token::state::{Account, Mint};
 use {
     solana_program::pubkey::Pubkey,
     solana_sdk::{signature::Signer, transaction::Transaction},
@@ -42,10 +43,10 @@ async fn initialize_lottery(
                 &payer.pubkey(),
                 &lottery_authority.pubkey(),
                 lottery_data_rent,
-                sollotto::state::LotteryData::LEN as u64,
+                sollotto_model_1::state::LotteryData::LEN as u64,
                 &id(),
             ),
-            sollotto::instruction::initialize_lottery(
+            sollotto_model_1::instruction::initialize_lottery(
                 &id(),
                 lottery_id,
                 &charities[0],
@@ -67,6 +68,72 @@ async fn initialize_lottery(
     Ok(())
 }
 
+async fn initialize_lifetime_ticket_token(
+    banks_client: &mut BanksClient,
+    payer: &Keypair,
+    recent_blockhash: &Hash,
+    mint_data_rent: u64,
+    lifetime_ticket_mint: &Keypair,
+    lifetime_ticket_owner: &Pubkey,
+) -> Result<(), TransportError> {
+    let mut transaction = Transaction::new_with_payer(
+        &[
+            system_instruction::create_account(
+                &payer.pubkey(),
+                &lifetime_ticket_mint.pubkey(),
+                mint_data_rent,
+                spl_token::state::Mint::LEN as u64,
+                &spl_token::id(),
+            ),
+            spl_token::instruction::initialize_mint(
+                &spl_token::id(),
+                &lifetime_ticket_mint.pubkey(),
+                lifetime_ticket_owner,
+                None,
+                9,
+            )
+            .unwrap(),
+        ],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[payer, lifetime_ticket_mint], *recent_blockhash);
+    banks_client.process_transaction(transaction).await?;
+    Ok(())
+}
+
+async fn initialize_lifetime_ticket_user_account(
+    banks_client: &mut BanksClient,
+    payer: &Keypair,
+    recent_blockhash: &Hash,
+    account_data_rent: u64,
+    user_lifetime_ticket_account: &Keypair,
+    user_wallet: &Pubkey,
+    lifetime_ticket_mint: &Pubkey,
+) -> Result<(), TransportError> {
+    let mut transaction = Transaction::new_with_payer(
+        &[
+            system_instruction::create_account(
+                &payer.pubkey(),
+                &user_lifetime_ticket_account.pubkey(),
+                account_data_rent,
+                spl_token::state::Account::LEN as u64,
+                &spl_token::id(),
+            ),
+            spl_token::instruction::initialize_account(
+                &spl_token::id(),
+                &user_lifetime_ticket_account.pubkey(),
+                lifetime_ticket_mint,
+                user_wallet,
+            )
+            .unwrap(),
+        ],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[payer, user_lifetime_ticket_account], *recent_blockhash);
+    banks_client.process_transaction(transaction).await?;
+    Ok(())
+}
+
 async fn initialize_lottery_without_creation(
     banks_client: &mut BanksClient,
     payer: &Keypair,
@@ -81,7 +148,7 @@ async fn initialize_lottery_without_creation(
 ) -> Result<(), TransportError> {
     assert_eq!(charities.len(), 4);
     let mut transaction = Transaction::new_with_payer(
-        &[sollotto::instruction::initialize_lottery(
+        &[sollotto_model_1::instruction::initialize_lottery(
             &id(),
             lottery_id,
             &charities[0],
@@ -113,31 +180,46 @@ async fn purchase_ticket(
     ticket_authority: &Keypair,
     user_authority: &Keypair,
     lottery_authority: &Keypair,
+    user_lifetime_ticket_account: &Pubkey,
+    lifetime_ticket_mint: &Pubkey,
+    lifetime_ticket_owner: &Keypair,
 ) -> Result<(), TransportError> {
     let mut transaction = Transaction::new_with_payer(
-        &[
-            system_instruction::create_account(
-                &payer.pubkey(),
-                &ticket_authority.pubkey(),
-                ticket_data_rent,
-                sollotto::state::TicketData::LEN as u64,
-                &id(),
-            ),
-            sollotto::instruction::purchase_ticket(
-                &id(),
-                charity,
-                &user_authority.pubkey(),
-                ticket_number,
-                &ticket_authority.pubkey(),
-                holding_wallet,
-                &lottery_authority.pubkey(),
-            )
-            .unwrap(),
-        ],
+        &[system_instruction::create_account(
+            &payer.pubkey(),
+            &ticket_authority.pubkey(),
+            ticket_data_rent,
+            sollotto_model_1::state::TicketData::LEN as u64,
+            &id(),
+        )],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[payer, ticket_authority], *recent_blockhash);
+    banks_client.process_transaction(transaction).await?;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[sollotto_model_1::instruction::purchase_ticket(
+            &id(),
+            charity,
+            &user_authority.pubkey(),
+            ticket_number,
+            &ticket_authority.pubkey(),
+            holding_wallet,
+            &lottery_authority.pubkey(),
+            user_lifetime_ticket_account,
+            &lifetime_ticket_owner.pubkey(),
+            lifetime_ticket_mint,
+        )
+        .unwrap()],
         Some(&payer.pubkey()),
     );
     transaction.sign(
-        &[payer, ticket_authority, lottery_authority, user_authority],
+        &[
+            payer,
+            lottery_authority,
+            user_authority,
+            lifetime_ticket_owner,
+        ],
         *recent_blockhash,
     );
     banks_client.process_transaction(transaction).await?;
@@ -156,7 +238,7 @@ async fn create_ticket_account(
             &payer.pubkey(),
             &ticket_authority.pubkey(),
             ticket_data_rent,
-            sollotto::state::TicketData::LEN as u64,
+            sollotto_model_1::state::TicketData::LEN as u64,
             &id(),
         )],
         Some(&payer.pubkey()),
@@ -176,9 +258,12 @@ async fn purchase_ticket_without_creation(
     ticket_authority: &Keypair,
     user_authority: &Keypair,
     lottery_authority: &Keypair,
+    user_lifetime_ticket_account: &Pubkey,
+    lifetime_ticket_mint: &Pubkey,
+    lifetime_ticket_owner: &Keypair,
 ) -> Result<(), TransportError> {
     let mut transaction = Transaction::new_with_payer(
-        &[sollotto::instruction::purchase_ticket(
+        &[sollotto_model_1::instruction::purchase_ticket(
             &id(),
             charity,
             &user_authority.pubkey(),
@@ -186,12 +271,20 @@ async fn purchase_ticket_without_creation(
             &ticket_authority.pubkey(),
             holding_wallet,
             &lottery_authority.pubkey(),
+            user_lifetime_ticket_account,
+            &lifetime_ticket_owner.pubkey(),
+            lifetime_ticket_mint,
         )
         .unwrap()],
         Some(&payer.pubkey()),
     );
     transaction.sign(
-        &[payer, lottery_authority, user_authority],
+        &[
+            payer,
+            lottery_authority,
+            user_authority,
+            lifetime_ticket_owner,
+        ],
         *recent_blockhash,
     );
     banks_client.process_transaction(transaction).await?;
@@ -206,7 +299,7 @@ async fn store_winning_numbers(
     lottery_authority: &Keypair,
 ) -> Result<(), TransportError> {
     let mut transaction = Transaction::new_with_payer(
-        &[sollotto::instruction::store_winning_numbers(
+        &[sollotto_model_1::instruction::store_winning_numbers(
             &id(),
             winning_numbers,
             &lottery_authority.pubkey(),
@@ -240,10 +333,10 @@ async fn reward_winners(
                 &payer.pubkey(),
                 &lottery_result_authority.pubkey(),
                 lottery_result_data_rent,
-                sollotto::state::LotteryResultData::LEN as u64,
+                sollotto_model_1::state::LotteryResultData::LEN as u64,
                 &id(),
             ),
-            sollotto::instruction::reward_winners(
+            sollotto_model_1::instruction::reward_winners(
                 &id(),
                 &lottery_authority.pubkey(),
                 &lottery_result_authority.pubkey(),
@@ -280,7 +373,7 @@ async fn update_charity(
 ) -> Result<(), TransportError> {
     assert_eq!(charities.len(), 4);
     let mut transaction = Transaction::new_with_payer(
-        &[sollotto::instruction::update_charity(
+        &[sollotto_model_1::instruction::update_charity(
             &id(),
             &charities[0],
             &charities[1],
@@ -307,7 +400,7 @@ async fn update_sollotto_wallets(
     lottery_authority: &Keypair,
 ) -> Result<(), TransportError> {
     let mut transaction = Transaction::new_with_payer(
-        &[sollotto::instruction::update_sollotto_wallets(
+        &[sollotto_model_1::instruction::update_sollotto_wallets(
             &id(),
             holding_wallet,
             rewards_wallet,
@@ -348,6 +441,28 @@ async fn check_balance(banks_client: &mut BanksClient, address: Pubkey, check_so
     );
 }
 
+async fn get_token_balance(banks_client: &mut BanksClient, token_account: Pubkey) -> u64 {
+    let account = banks_client
+        .get_account(token_account)
+        .await
+        .unwrap()
+        .unwrap();
+    let account_data =
+        spl_token::state::Account::unpack_from_slice(account.data.as_slice()).unwrap();
+    account_data.amount
+}
+
+async fn check_token_balance(
+    banks_client: &mut BanksClient,
+    token_account: Pubkey,
+    check_amount: f64,
+) {
+    assert_eq!(
+        get_token_balance(banks_client, token_account).await,
+        sol_to_lamports(check_amount)
+    );
+}
+
 #[tokio::test]
 async fn test_one_winner() {
     let program = ProgramTest::new("sollotto", id(), processor!(Processor::process));
@@ -357,6 +472,8 @@ async fn test_one_winner() {
     let lottery_result_data_rent = rent.minimum_balance(LotteryResultData::LEN);
     let ticket_data_rent = rent.minimum_balance(TicketData::LEN);
     let lottery_data_rent = rent.minimum_balance(LotteryData::LEN);
+    let mint_data_rent = rent.minimum_balance(Mint::LEN);
+    let account_data_rent = rent.minimum_balance(Account::LEN);
 
     let number_of_users = 5;
     let lottery_id = 112233;
@@ -397,6 +514,35 @@ async fn test_one_winner() {
     .await
     .unwrap();
 
+    let lifetime_ticket_mint = Keypair::new();
+    let lifetime_ticket_owner = Keypair::new();
+    initialize_lifetime_ticket_token(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        mint_data_rent,
+        &lifetime_ticket_mint,
+        &lifetime_ticket_owner.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    let users_lifetime_ticket_accounts: Vec<Keypair> =
+        (0..number_of_users).map(|_| Keypair::new()).collect();
+    for i in 0..number_of_users {
+        initialize_lifetime_ticket_user_account(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            account_data_rent,
+            &users_lifetime_ticket_accounts[i],
+            &users_wallets[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+        )
+        .await
+        .unwrap();
+    }
+
     // Users purchase tickets
     let mut ticket_numbers;
     for i in 0..number_of_users {
@@ -416,9 +562,20 @@ async fn test_one_winner() {
             &tickets[i],
             &users_wallets[i],
             &lottery_authority,
+            &users_lifetime_ticket_accounts[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+            &lifetime_ticket_owner,
         )
         .await
         .unwrap();
+
+        // Check user's lifetime ticket token balance
+        check_token_balance(
+            &mut banks_client,
+            users_lifetime_ticket_accounts[i].pubkey(),
+            1.0,
+        )
+        .await;
     }
 
     // Check balances
@@ -517,6 +674,8 @@ async fn test_update_wallets() {
     let lottery_result_data_rent = rent.minimum_balance(LotteryResultData::LEN);
     let ticket_data_rent = rent.minimum_balance(TicketData::LEN);
     let lottery_data_rent = rent.minimum_balance(LotteryData::LEN);
+    let mint_data_rent = rent.minimum_balance(Mint::LEN);
+    let account_data_rent = rent.minimum_balance(Account::LEN);
 
     let number_of_users = 5;
     let lottery_id = 112233;
@@ -557,6 +716,35 @@ async fn test_update_wallets() {
     .await
     .unwrap();
 
+    let lifetime_ticket_mint = Keypair::new();
+    let lifetime_ticket_owner = Keypair::new();
+    initialize_lifetime_ticket_token(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        mint_data_rent,
+        &lifetime_ticket_mint,
+        &lifetime_ticket_owner.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    let users_lifetime_ticket_accounts: Vec<Keypair> =
+        (0..number_of_users).map(|_| Keypair::new()).collect();
+    for i in 0..number_of_users {
+        initialize_lifetime_ticket_user_account(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            account_data_rent,
+            &users_lifetime_ticket_accounts[i],
+            &users_wallets[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+        )
+        .await
+        .unwrap();
+    }
+
     // Users purchase tickets
     for i in 0..number_of_users {
         purchase_ticket(
@@ -570,9 +758,20 @@ async fn test_update_wallets() {
             &tickets[i],
             &users_wallets[i],
             &lottery_authority,
+            &users_lifetime_ticket_accounts[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+            &lifetime_ticket_owner,
         )
         .await
         .unwrap();
+
+        // Check user's lifetime ticket token balance
+        check_token_balance(
+            &mut banks_client,
+            users_lifetime_ticket_accounts[i].pubkey(),
+            1.0,
+        )
+        .await;
     }
 
     // Check balances
@@ -721,9 +920,20 @@ async fn test_update_wallets() {
             &tickets[i],
             &users_wallets[i],
             &lottery_authority,
+            &users_lifetime_ticket_accounts[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+            &lifetime_ticket_owner,
         )
         .await
         .unwrap();
+
+        // Check user's lifetime ticket token balance
+        check_token_balance(
+            &mut banks_client,
+            users_lifetime_ticket_accounts[i].pubkey(),
+            2.0,
+        )
+        .await;
     }
 
     // Check balances
@@ -733,7 +943,12 @@ async fn test_update_wallets() {
         check_balance(&mut banks_client, user.pubkey(), 0.8).await;
     }
 
-    check_balance(&mut banks_client, holding_wallet.pubkey(), prize_pool_1_remain + prize_pool_sol_2).await;
+    check_balance(
+        &mut banks_client,
+        holding_wallet.pubkey(),
+        prize_pool_1_remain + prize_pool_sol_2,
+    )
+    .await;
 
     // Finaled lottery
     let winning_numbers = [1, 1, 1, 1, 1, 1];
@@ -807,6 +1022,8 @@ async fn test_without_winners() {
     let lottery_result_data_rent = rent.minimum_balance(LotteryResultData::LEN);
     let ticket_data_rent = rent.minimum_balance(TicketData::LEN);
     let lottery_data_rent = rent.minimum_balance(LotteryData::LEN);
+    let mint_data_rent = rent.minimum_balance(Mint::LEN);
+    let account_data_rent = rent.minimum_balance(Account::LEN);
 
     let number_of_users = 5;
     let lottery_id = 112233;
@@ -847,6 +1064,35 @@ async fn test_without_winners() {
     .await
     .unwrap();
 
+    let lifetime_ticket_mint = Keypair::new();
+    let lifetime_ticket_owner = Keypair::new();
+    initialize_lifetime_ticket_token(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        mint_data_rent,
+        &lifetime_ticket_mint,
+        &lifetime_ticket_owner.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    let users_lifetime_ticket_accounts: Vec<Keypair> =
+        (0..number_of_users).map(|_| Keypair::new()).collect();
+    for i in 0..number_of_users {
+        initialize_lifetime_ticket_user_account(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            account_data_rent,
+            &users_lifetime_ticket_accounts[i],
+            &users_wallets[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+        )
+        .await
+        .unwrap();
+    }
+
     // Users purchase tickets
     let ticket_numbers = [1, 1, 1, 1, 1, 1];
     for i in 0..number_of_users {
@@ -861,9 +1107,20 @@ async fn test_without_winners() {
             &tickets[i],
             &users_wallets[i],
             &lottery_authority,
+            &users_lifetime_ticket_accounts[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+            &lifetime_ticket_owner,
         )
         .await
         .unwrap();
+
+        // Check user's lifetime ticket token balance
+        check_token_balance(
+            &mut banks_client,
+            users_lifetime_ticket_accounts[i].pubkey(),
+            1.0,
+        )
+        .await;
     }
 
     // Check balances
@@ -960,6 +1217,8 @@ async fn test_repeat_lottery() {
     let lottery_result_data_rent = rent.minimum_balance(LotteryResultData::LEN);
     let ticket_data_rent = rent.minimum_balance(TicketData::LEN);
     let lottery_data_rent = rent.minimum_balance(LotteryData::LEN);
+    let mint_data_rent = rent.minimum_balance(Mint::LEN);
+    let account_data_rent = rent.minimum_balance(Account::LEN);
 
     let number_of_users = 5;
     let lottery_id = 111111;
@@ -1000,6 +1259,35 @@ async fn test_repeat_lottery() {
     .await
     .unwrap();
 
+    let lifetime_ticket_mint = Keypair::new();
+    let lifetime_ticket_owner = Keypair::new();
+    initialize_lifetime_ticket_token(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        mint_data_rent,
+        &lifetime_ticket_mint,
+        &lifetime_ticket_owner.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    let users_lifetime_ticket_accounts: Vec<Keypair> =
+        (0..number_of_users).map(|_| Keypair::new()).collect();
+    for i in 0..number_of_users {
+        initialize_lifetime_ticket_user_account(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            account_data_rent,
+            &users_lifetime_ticket_accounts[i],
+            &users_wallets[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+        )
+        .await
+        .unwrap();
+    }
+
     // Users purchase tickets (without winners)
     let ticket_numbers = [1, 1, 1, 1, 1, 1];
     for i in 0..number_of_users {
@@ -1014,9 +1302,20 @@ async fn test_repeat_lottery() {
             &tickets[i],
             &users_wallets[i],
             &lottery_authority,
+            &users_lifetime_ticket_accounts[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+            &lifetime_ticket_owner,
         )
         .await
         .unwrap();
+
+        // Check user's lifetime ticket token balance
+        check_token_balance(
+            &mut banks_client,
+            users_lifetime_ticket_accounts[i].pubkey(),
+            1.0,
+        )
+        .await;
     }
 
     // Check balances
@@ -1138,9 +1437,20 @@ async fn test_repeat_lottery() {
             &tickets_2[i],
             &users_wallets[i],
             &lottery_authority,
+            &users_lifetime_ticket_accounts[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+            &lifetime_ticket_owner,
         )
         .await
         .unwrap();
+
+        // Check user's lifetime ticket token balance
+        check_token_balance(
+            &mut banks_client,
+            users_lifetime_ticket_accounts[i].pubkey(),
+            2.0,
+        )
+        .await;
     }
 
     // Check balances
@@ -1257,6 +1567,8 @@ async fn test_charities_share() {
     let lottery_result_data_rent = rent.minimum_balance(LotteryResultData::LEN);
     let ticket_data_rent = rent.minimum_balance(TicketData::LEN);
     let lottery_data_rent = rent.minimum_balance(LotteryData::LEN);
+    let mint_data_rent = rent.minimum_balance(Mint::LEN);
+    let account_data_rent = rent.minimum_balance(Account::LEN);
 
     let number_of_users = 5;
     let lottery_id = 112233;
@@ -1297,6 +1609,35 @@ async fn test_charities_share() {
     .await
     .unwrap();
 
+    let lifetime_ticket_mint = Keypair::new();
+    let lifetime_ticket_owner = Keypair::new();
+    initialize_lifetime_ticket_token(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        mint_data_rent,
+        &lifetime_ticket_mint,
+        &lifetime_ticket_owner.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    let users_lifetime_ticket_accounts: Vec<Keypair> =
+        (0..number_of_users).map(|_| Keypair::new()).collect();
+    for i in 0..number_of_users {
+        initialize_lifetime_ticket_user_account(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            account_data_rent,
+            &users_lifetime_ticket_accounts[i],
+            &users_wallets[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+        )
+        .await
+        .unwrap();
+    }
+
     // Users purchase tickets
     let mut ticket_numbers;
     let mut user_charity;
@@ -1326,9 +1667,20 @@ async fn test_charities_share() {
             &tickets[i],
             &users_wallets[i],
             &lottery_authority,
+            &users_lifetime_ticket_accounts[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+            &lifetime_ticket_owner,
         )
         .await
         .unwrap();
+
+        // Check user's lifetime ticket token balance
+        check_token_balance(
+            &mut banks_client,
+            users_lifetime_ticket_accounts[i].pubkey(),
+            1.0,
+        )
+        .await;
     }
 
     // Check balances
@@ -1433,6 +1785,8 @@ async fn test_many_users_many_winners() {
     let lottery_result_data_rent = rent.minimum_balance(LotteryResultData::LEN);
     let ticket_data_rent = rent.minimum_balance(TicketData::LEN);
     let lottery_data_rent = rent.minimum_balance(LotteryData::LEN);
+    let mint_data_rent = rent.minimum_balance(Mint::LEN);
+    let account_data_rent = rent.minimum_balance(Account::LEN);
 
     let number_of_users = 25;
     let number_of_winners = 10;
@@ -1475,6 +1829,35 @@ async fn test_many_users_many_winners() {
     .await
     .unwrap();
 
+    let lifetime_ticket_mint = Keypair::new();
+    let lifetime_ticket_owner = Keypair::new();
+    initialize_lifetime_ticket_token(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        mint_data_rent,
+        &lifetime_ticket_mint,
+        &lifetime_ticket_owner.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    let users_lifetime_ticket_accounts: Vec<Keypair> =
+        (0..number_of_users).map(|_| Keypair::new()).collect();
+    for i in 0..number_of_users {
+        initialize_lifetime_ticket_user_account(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            account_data_rent,
+            &users_lifetime_ticket_accounts[i],
+            &users_wallets[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+        )
+        .await
+        .unwrap();
+    }
+
     // Users purchase tickets
     let mut ticket_numbers;
     for i in 0..number_of_users {
@@ -1495,9 +1878,20 @@ async fn test_many_users_many_winners() {
             &tickets[i],
             &users_wallets[i],
             &lottery_authority,
+            &users_lifetime_ticket_accounts[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+            &lifetime_ticket_owner,
         )
         .await
         .unwrap();
+
+        // Check user's lifetime ticket token balance
+        check_token_balance(
+            &mut banks_client,
+            users_lifetime_ticket_accounts[i].pubkey(),
+            1.0,
+        )
+        .await;
     }
 
     // Check balances
@@ -1598,6 +1992,8 @@ async fn test_many_users_without_winners() {
     let lottery_result_data_rent = rent.minimum_balance(LotteryResultData::LEN);
     let ticket_data_rent = rent.minimum_balance(TicketData::LEN);
     let lottery_data_rent = rent.minimum_balance(LotteryData::LEN);
+    let mint_data_rent = rent.minimum_balance(Mint::LEN);
+    let account_data_rent = rent.minimum_balance(Account::LEN);
 
     let number_of_users = 30;
     let lottery_id = 112233;
@@ -1639,6 +2035,35 @@ async fn test_many_users_without_winners() {
     .await
     .unwrap();
 
+    let lifetime_ticket_mint = Keypair::new();
+    let lifetime_ticket_owner = Keypair::new();
+    initialize_lifetime_ticket_token(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        mint_data_rent,
+        &lifetime_ticket_mint,
+        &lifetime_ticket_owner.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    let users_lifetime_ticket_accounts: Vec<Keypair> =
+        (0..number_of_users).map(|_| Keypair::new()).collect();
+    for i in 0..number_of_users {
+        initialize_lifetime_ticket_user_account(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            account_data_rent,
+            &users_lifetime_ticket_accounts[i],
+            &users_wallets[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+        )
+        .await
+        .unwrap();
+    }
+
     // Users purchase tickets
     let mut user_charity;
     for i in 0..number_of_users {
@@ -1663,9 +2088,20 @@ async fn test_many_users_without_winners() {
             &tickets[i],
             &users_wallets[i],
             &lottery_authority,
+            &users_lifetime_ticket_accounts[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+            &lifetime_ticket_owner,
         )
         .await
         .unwrap();
+
+        // Check user's lifetime ticket token balance
+        check_token_balance(
+            &mut banks_client,
+            users_lifetime_ticket_accounts[i].pubkey(),
+            1.0,
+        )
+        .await;
     }
 
     // Check balances
@@ -1772,6 +2208,8 @@ async fn test_insufficient_funds() {
     let lottery_result_data_rent = rent.minimum_balance(LotteryResultData::LEN);
     let ticket_data_rent = rent.minimum_balance(TicketData::LEN);
     let lottery_data_rent = rent.minimum_balance(LotteryData::LEN);
+    let mint_data_rent = rent.minimum_balance(Mint::LEN);
+    let account_data_rent = rent.minimum_balance(Account::LEN);
 
     let number_of_users = 5;
     let lottery_id = 112233;
@@ -1806,6 +2244,35 @@ async fn test_insufficient_funds() {
     .await
     .unwrap();
 
+    let lifetime_ticket_mint = Keypair::new();
+    let lifetime_ticket_owner = Keypair::new();
+    initialize_lifetime_ticket_token(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        mint_data_rent,
+        &lifetime_ticket_mint,
+        &lifetime_ticket_owner.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    let users_lifetime_ticket_accounts: Vec<Keypair> =
+        (0..number_of_users).map(|_| Keypair::new()).collect();
+    for i in 0..number_of_users {
+        initialize_lifetime_ticket_user_account(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            account_data_rent,
+            &users_lifetime_ticket_accounts[i],
+            &users_wallets[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+        )
+        .await
+        .unwrap();
+    }
+
     // Create tickets accounts
     for i in 0..number_of_users {
         create_ticket_account(
@@ -1833,6 +2300,9 @@ async fn test_insufficient_funds() {
                 &tickets[i],
                 &users_wallets[i],
                 &lottery_authority,
+                &users_lifetime_ticket_accounts[i].pubkey(),
+                &lifetime_ticket_mint.pubkey(),
+                &lifetime_ticket_owner,
             )
             .await
             .unwrap_err()
@@ -1865,9 +2335,20 @@ async fn test_insufficient_funds() {
             &tickets[i],
             &users_wallets[i],
             &lottery_authority,
+            &users_lifetime_ticket_accounts[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+            &lifetime_ticket_owner,
         )
         .await
         .unwrap();
+
+        // Check user's lifetime ticket token balance
+        check_token_balance(
+            &mut banks_client,
+            users_lifetime_ticket_accounts[i].pubkey(),
+            1.0,
+        )
+        .await;
     }
 
     // Finaled lottery

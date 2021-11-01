@@ -1,3 +1,7 @@
 /*-dump.txt
 /*.so
-/target/
+/model-1/target/
+/model-2/target/
+/model-3/target/
+/model-4/target/
+/model-5/target/
