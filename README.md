@@ -30,12 +30,6 @@ Chances to win are increased by playing the traditional lottery model
 
 Only holders of the platform token are eligible to purchase a single ticket for each token held.
 
-## Community
-
-- [Discord](https://discord.gg/uMgJcMr5m2)
-- [@teamsollotto](https://twitter.com/teamsollotto) on twitter
-- [Website](https://sollotto.io/)
-
 # Usage
 
 ## Installation
