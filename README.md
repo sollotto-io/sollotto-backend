@@ -42,7 +42,7 @@ $ npm install
 
 ### Setup enviroment variables
 
-In order to start the app go to the `.env` file and proceed to fill the environment variables.
+In order to start the app create an `.env` file in the root folder and proceed to fill the environment variables.
 
 For setting up a development environment you will need to start locally the frontend server included in [sollotto frontend](https://github.com/sollotto-io/sollotto-frontend.git) repo.
 
