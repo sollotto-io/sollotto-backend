@@ -10,11 +10,11 @@ const { MONGODB } = require("./config");
 const cron = require("node-cron");
 const cors = require("cors");
 const path = require("path");
-// const { changeDraw } = require("./utils/changeDraw");
+const { changeDraw } = require("./utils/changeDraw");
 // const { resetDb } = require("./utils/resetDB");
 const { uploadCharityImage } = require("./Routes/ImageUploadCharity");
 const multer = require("multer");
-const { initLottery } = require("./utils/on-chain-instructions/initLottery");
+// const { initLottery } = require("./utils/on-chain-instructions/initLottery");
 const { uploadRaffleImage } = require("./Routes/imageUploadRaffle");
 const { uploadLaunchImage } = require("./Routes/ImageUploadLaunchPad");
 const { uploadPoolImage } = require("./Routes/imageUploadPool");
@@ -28,7 +28,9 @@ async function startServer() {
   const server = new ApolloServer({
     typeDefs,
     resolvers,
-    plugins: [ApolloServerPluginLandingPageGraphQLPlayground()],
+    //plugins: [ApolloServerPluginLandingPageGraphQLPlayground()],
+    playground: false,
+    introspection: false,
     context: async (context) => {
       const ctx = await Auth.contextManager(context).catch(() => null);
       return ctx;
@@ -49,7 +51,7 @@ async function startServer() {
   });
   app.get("/", (req, res) => {
     res.send(
-      "<h1>Express Demo App</h1> <h4>If you can see this is because it works/h4> <p>Version 1.12</p> <h1>All good</h1>"
+      "<h1>Dev</h1> <h4>If you can see this is because it works/h4> <p>Version 1.13</p> <h1>All good</h1>"
     );
   });
   server.applyMiddleware({ app: app });

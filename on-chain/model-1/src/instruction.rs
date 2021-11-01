@@ -29,6 +29,7 @@ pub enum LotteryInstruction {
         rewards_wallet: Pubkey,
         slot_holders_rewards_wallet: Pubkey,
         sollotto_labs_wallet: Pubkey,
+        randomness_account: Pubkey,
     },
 
     /// User purchases new ticket for lottery
@@ -54,7 +55,8 @@ pub enum LotteryInstruction {
     /// Accounts expected by this instruction:
     ///
     /// 0. `[writable, signer]` Lottery data account
-    StoreWinningNumbers { winning_numbers_arr: [u8; 6] },
+    /// 1. `[]` Vrf account
+    StoreWinningNumbers {},
 
     /// Check users number combinations and find the lottery winner.
     /// Information obout winner sotored in LotteryResultData account,
@@ -113,7 +115,8 @@ impl LotteryInstruction {
                 let (holding_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
                 let (rewards_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
                 let (slot_holders_rewards_wallet, rest) = Self::unpack_pubkey(rest).unwrap();
-                let (sollotto_labs_wallet, _) = Self::unpack_pubkey(rest).unwrap();
+                let (sollotto_labs_wallet, res) = Self::unpack_pubkey(rest).unwrap();
+                let (randomness_account, _) = Self::unpack_pubkey(rest).unwrap();
 
                 Self::InitLottery {
                     lottery_id,
@@ -125,6 +128,7 @@ impl LotteryInstruction {
                     rewards_wallet,
                     slot_holders_rewards_wallet,
                     sollotto_labs_wallet,
+                    randomness_account,
                 }
             }
 
@@ -140,12 +144,7 @@ impl LotteryInstruction {
                 }
             }
 
-            2 => {
-                let (winning_numbers_arr, _) = Self::unpack_ticket_number_arr(rest).unwrap();
-                Self::StoreWinningNumbers {
-                    winning_numbers_arr: *winning_numbers_arr,
-                }
-            }
+            2 => Self::StoreWinningNumbers {},
 
             3 => Self::RewardWinners {},
 
@@ -195,6 +194,7 @@ impl LotteryInstruction {
                 rewards_wallet,
                 slot_holders_rewards_wallet,
                 sollotto_labs_wallet,
+                randomness_account,
             } => {
                 buf.push(0);
                 buf.extend_from_slice(&lottery_id.to_le_bytes());
@@ -206,6 +206,7 @@ impl LotteryInstruction {
                 buf.extend_from_slice(rewards_wallet.as_ref());
                 buf.extend_from_slice(slot_holders_rewards_wallet.as_ref());
                 buf.extend_from_slice(sollotto_labs_wallet.as_ref());
+                buf.extend_from_slice(randomness_account.as_ref());
             }
 
             Self::PurchaseTicket {
@@ -219,11 +220,8 @@ impl LotteryInstruction {
                 buf.extend_from_slice(&ticket_number_arr.as_ref());
             }
 
-            Self::StoreWinningNumbers {
-                winning_numbers_arr,
-            } => {
+            Self::StoreWinningNumbers {} => {
                 buf.push(2);
-                buf.extend_from_slice(&winning_numbers_arr.as_ref());
             }
 
             Self::RewardWinners {} => {
@@ -291,6 +289,7 @@ pub fn initialize_lottery(
     rewards_wallet: &Pubkey,
     slot_holders_rewards_wallet: &Pubkey,
     sollotto_labs_wallet: &Pubkey,
+    randomness_account: &Pubkey,
     lottery_authority: &Pubkey,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(program_id)?;
@@ -304,6 +303,7 @@ pub fn initialize_lottery(
         rewards_wallet: *rewards_wallet,
         slot_holders_rewards_wallet: *slot_holders_rewards_wallet,
         sollotto_labs_wallet: *sollotto_labs_wallet,
+        randomness_account: *randomness_account,
     }
     .pack();
 
@@ -368,10 +368,7 @@ pub fn store_winning_numbers(
     lottery_authority: &Pubkey,
 ) -> Result<Instruction, ProgramError> {
     check_program_account(program_id)?;
-    let data = LotteryInstruction::StoreWinningNumbers {
-        winning_numbers_arr: *winning_numbers_arr,
-    }
-    .pack();
+    let data = LotteryInstruction::StoreWinningNumbers {}.pack();
 
     let mut accounts = Vec::with_capacity(1);
     accounts.push(AccountMeta::new(*lottery_authority, true));
