@@ -1401,7 +1401,7 @@ async fn test_repeat_lottery() {
     let lottery_id = 222222;
     let tickets_2: Vec<Keypair> = (0..number_of_users).map(|_| Keypair::new()).collect();
     let tickets_pubkeys_2: Vec<Pubkey> = tickets_2.iter().map(|x| x.pubkey()).collect();
-    let winning_numbers_2 = [1, 1, 2, 2, 3, 3];
+    let winning_numbers_2 = [10, 11, 12, 21, 31, 13];
 
     initialize_lottery_without_creation(
         &mut banks_client,
@@ -2398,4 +2398,484 @@ async fn test_insufficient_funds() {
         .unwrap_err()
         .unwrap(),
     );
+}
+
+#[tokio::test]
+async fn test_lower_tier_winners() {
+    let program = ProgramTest::new("sollotto", id(), processor!(Processor::process));
+    let (mut banks_client, payer, recent_blockhash) = program.start().await;
+
+    let rent = banks_client.get_rent().await.unwrap();
+    let lottery_result_data_rent = rent.minimum_balance(LotteryResultData::LEN);
+    let ticket_data_rent = rent.minimum_balance(TicketData::LEN);
+    let lottery_data_rent = rent.minimum_balance(LotteryData::LEN);
+    let mint_data_rent = rent.minimum_balance(Mint::LEN);
+    let account_data_rent = rent.minimum_balance(Account::LEN);
+
+    let number_of_users = 10;
+    let lottery_id = 111111;
+    let lottery_authority = Keypair::new();
+    let lottery_result = Keypair::new();
+    let holding_wallet = Keypair::new();
+    let rewards_wallet = Keypair::new();
+    let slot_holders_rewards_wallet = Keypair::new();
+    let sollotto_labs_wallet = Keypair::new();
+    let charities: Vec<Keypair> = (0..4).map(|_| Keypair::new()).collect();
+    let charities_pubkeys: Vec<Pubkey> = charities.iter().map(|c| c.pubkey()).collect();
+    let users_wallets: Vec<Keypair> = (0..number_of_users).map(|_| Keypair::new()).collect();
+    let users_wallets_pubkeys: Vec<Pubkey> = users_wallets.iter().map(|x| x.pubkey()).collect();
+    let tickets: Vec<Keypair> = (0..number_of_users).map(|_| Keypair::new()).collect();
+    let tickets_pubkeys: Vec<Pubkey> = tickets.iter().map(|x| x.pubkey()).collect();
+    let winning_numbers = [1, 2, 3, 4, 5, 6];
+
+    // Set initial balances for users
+    for user in &users_wallets {
+        transfer_sol(&mut banks_client, &recent_blockhash, &payer, user, 1.0)
+            .await
+            .unwrap();
+    }
+
+    initialize_lottery(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        lottery_data_rent,
+        lottery_id,
+        &charities_pubkeys,
+        &holding_wallet.pubkey(),
+        &rewards_wallet.pubkey(),
+        &slot_holders_rewards_wallet.pubkey(),
+        &sollotto_labs_wallet.pubkey(),
+        &lottery_authority,
+    )
+    .await
+    .unwrap();
+
+    let lifetime_ticket_mint = Keypair::new();
+    let lifetime_ticket_owner = Keypair::new();
+    initialize_lifetime_ticket_token(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        mint_data_rent,
+        &lifetime_ticket_mint,
+        &lifetime_ticket_owner.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    let users_lifetime_ticket_accounts: Vec<Keypair> =
+        (0..number_of_users).map(|_| Keypair::new()).collect();
+    for i in 0..number_of_users {
+        initialize_lifetime_ticket_user_account(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            account_data_rent,
+            &users_lifetime_ticket_accounts[i],
+            &users_wallets[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+        )
+        .await
+        .unwrap();
+    }
+
+    // Users purchase tickets
+    let winner_3_idx = 0;
+    let winner_4_idx = 1;
+    let winner_5_idx = 2;
+    let winner_full_idx = 3;
+    let mut ticket_numbers;
+    for i in 0..number_of_users {
+        if i == winner_3_idx {
+            ticket_numbers = [1, 2, 3, 44, 55, 7];
+        } else if i == winner_4_idx {
+            ticket_numbers = [1, 2, 3, 4, 55, 7];
+        } else if i == winner_5_idx {
+            ticket_numbers = [1, 2, 3, 4, 5, 7];
+        } else if i == winner_full_idx {
+            ticket_numbers = winning_numbers;
+        } else {
+            ticket_numbers = [11, 22, 33, 44, 55, 7];
+        }
+
+        purchase_ticket(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            ticket_data_rent,
+            &charities_pubkeys[0],
+            &ticket_numbers,
+            &holding_wallet.pubkey(),
+            &tickets[i],
+            &users_wallets[i],
+            &lottery_authority,
+            &users_lifetime_ticket_accounts[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+            &lifetime_ticket_owner,
+        )
+        .await
+        .unwrap();
+
+        // Check user's lifetime ticket token balance
+        check_token_balance(
+            &mut banks_client,
+            users_lifetime_ticket_accounts[i].pubkey(),
+            1.0,
+        )
+        .await;
+    }
+
+    // Check balances
+    let prize_pool_sol = 0.1 * number_of_users as f64;
+    for user in &users_wallets {
+        check_balance(&mut banks_client, user.pubkey(), 0.9).await;
+    }
+
+    check_balance(&mut banks_client, holding_wallet.pubkey(), prize_pool_sol).await;
+
+    // Finaled lottery
+    store_winning_numbers(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        &winning_numbers,
+        &lottery_authority,
+    )
+    .await
+    .unwrap();
+
+    let participants = (0..number_of_users)
+        .map(|i| (tickets_pubkeys[i], users_wallets_pubkeys[i]))
+        .collect();
+
+    // Reward winners
+    reward_winners(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        lottery_result_data_rent,
+        &rewards_wallet.pubkey(),
+        &slot_holders_rewards_wallet.pubkey(),
+        &sollotto_labs_wallet.pubkey(),
+        &charities_pubkeys,
+        &participants,
+        &holding_wallet,
+        &lottery_result,
+        &lottery_authority,
+    )
+    .await
+    .unwrap();
+
+    // Check balances
+    check_balance(&mut banks_client, holding_wallet.pubkey(), 0.0).await;
+    check_balance(
+        &mut banks_client,
+        rewards_wallet.pubkey(),
+        prize_pool_sol * 0.04,
+    )
+    .await;
+    check_balance(
+        &mut banks_client,
+        slot_holders_rewards_wallet.pubkey(),
+        prize_pool_sol * 0.006,
+    )
+    .await;
+    check_balance(
+        &mut banks_client,
+        sollotto_labs_wallet.pubkey(),
+        prize_pool_sol * 0.004,
+    )
+    .await;
+
+    // Charity balances
+    check_balance(
+        &mut banks_client,
+        charities_pubkeys[0],
+        prize_pool_sol * 0.3,
+    )
+    .await;
+    for i in 1..4 {
+        check_balance(&mut banks_client, charities_pubkeys[i], 0.0).await;
+    }
+
+    // Winners balances
+    for i in 0..number_of_users {
+        if i == winner_3_idx {
+            check_balance(&mut banks_client, users_wallets_pubkeys[i], 0.1 + 0.9).await;
+        } else if i == winner_4_idx {
+            check_balance(
+                &mut banks_client,
+                users_wallets_pubkeys[i],
+                prize_pool_sol * 0.02 + 0.9,
+            )
+            .await;
+        } else if i == winner_5_idx {
+            check_balance(
+                &mut banks_client,
+                users_wallets_pubkeys[i],
+                prize_pool_sol * 0.05 + 0.9,
+            )
+            .await;
+        } else if i == winner_full_idx {
+            check_balance(
+                &mut banks_client,
+                users_wallets_pubkeys[i],
+                prize_pool_sol * 0.58 - 0.1 + 0.9,
+            )
+            .await;
+        } else {
+            // Loosers balances
+            check_balance(&mut banks_client, users_wallets_pubkeys[i], 0.9).await;
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_lower_tier_many_winners() {
+    let program = ProgramTest::new("sollotto", id(), processor!(Processor::process));
+    let (mut banks_client, payer, recent_blockhash) = program.start().await;
+
+    let rent = banks_client.get_rent().await.unwrap();
+    let lottery_result_data_rent = rent.minimum_balance(LotteryResultData::LEN);
+    let ticket_data_rent = rent.minimum_balance(TicketData::LEN);
+    let lottery_data_rent = rent.minimum_balance(LotteryData::LEN);
+    let mint_data_rent = rent.minimum_balance(Mint::LEN);
+    let account_data_rent = rent.minimum_balance(Account::LEN);
+
+    let number_of_users = 20;
+    let lottery_id = 111111;
+    let lottery_authority = Keypair::new();
+    let lottery_result = Keypair::new();
+    let holding_wallet = Keypair::new();
+    let rewards_wallet = Keypair::new();
+    let slot_holders_rewards_wallet = Keypair::new();
+    let sollotto_labs_wallet = Keypair::new();
+    let charities: Vec<Keypair> = (0..4).map(|_| Keypair::new()).collect();
+    let charities_pubkeys: Vec<Pubkey> = charities.iter().map(|c| c.pubkey()).collect();
+    let users_wallets: Vec<Keypair> = (0..number_of_users).map(|_| Keypair::new()).collect();
+    let users_wallets_pubkeys: Vec<Pubkey> = users_wallets.iter().map(|x| x.pubkey()).collect();
+    let tickets: Vec<Keypair> = (0..number_of_users).map(|_| Keypair::new()).collect();
+    let tickets_pubkeys: Vec<Pubkey> = tickets.iter().map(|x| x.pubkey()).collect();
+
+    // Set initial balances for users
+    for user in &users_wallets {
+        transfer_sol(&mut banks_client, &recent_blockhash, &payer, user, 1.0)
+            .await
+            .unwrap();
+    }
+
+    initialize_lottery(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        lottery_data_rent,
+        lottery_id,
+        &charities_pubkeys,
+        &holding_wallet.pubkey(),
+        &rewards_wallet.pubkey(),
+        &slot_holders_rewards_wallet.pubkey(),
+        &sollotto_labs_wallet.pubkey(),
+        &lottery_authority,
+    )
+    .await
+    .unwrap();
+
+    let lifetime_ticket_mint = Keypair::new();
+    let lifetime_ticket_owner = Keypair::new();
+    initialize_lifetime_ticket_token(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        mint_data_rent,
+        &lifetime_ticket_mint,
+        &lifetime_ticket_owner.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    let users_lifetime_ticket_accounts: Vec<Keypair> =
+        (0..number_of_users).map(|_| Keypair::new()).collect();
+    for i in 0..number_of_users {
+        initialize_lifetime_ticket_user_account(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            account_data_rent,
+            &users_lifetime_ticket_accounts[i],
+            &users_wallets[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+        )
+        .await
+        .unwrap();
+    }
+
+    // Users purchase tickets
+    let winning_numbers = [1, 1, 3, 6, 6, 4];
+    let winner_3_idx = [0, 1, 2, 3];
+    let winner_4_idx = [4, 5, 6];
+    let winner_5_idx = [7, 8];
+    let winner_full_idx = [9, 10];
+    let mut ticket_numbers;
+    for i in 0..number_of_users {
+        if winner_3_idx.contains(&i) {
+            if i == winner_3_idx[0] {
+                ticket_numbers = [44, 1, 7, 1, 55, 3];
+            } else if i == winner_3_idx[1] {
+                ticket_numbers = [44, 1, 1, 1, 1, 3];
+            } else if i == winner_3_idx[2] {
+                ticket_numbers = [1, 1, 3, 7, 55, 8];
+            } else {
+                ticket_numbers = [9, 1, 7, 6, 6, 9];
+            }
+        } else if winner_4_idx.contains(&i) {
+            ticket_numbers = [1, 6, 3, 4, 55, 4];
+        } else if winner_5_idx.contains(&i) {
+            ticket_numbers = [6, 6, 3, 4, 5, 1];
+        } else if winner_full_idx.contains(&i) {
+            ticket_numbers = [6, 1, 6, 1, 4, 3];
+        } else {
+            ticket_numbers = [11, 22, 33, 44, 55, 7];
+        }
+
+        purchase_ticket(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            ticket_data_rent,
+            &charities_pubkeys[0],
+            &ticket_numbers,
+            &holding_wallet.pubkey(),
+            &tickets[i],
+            &users_wallets[i],
+            &lottery_authority,
+            &users_lifetime_ticket_accounts[i].pubkey(),
+            &lifetime_ticket_mint.pubkey(),
+            &lifetime_ticket_owner,
+        )
+        .await
+        .unwrap();
+
+        // Check user's lifetime ticket token balance
+        check_token_balance(
+            &mut banks_client,
+            users_lifetime_ticket_accounts[i].pubkey(),
+            1.0,
+        )
+        .await;
+    }
+
+    // Check balances
+    let prize_pool_sol = 0.1 * number_of_users as f64;
+    for user in &users_wallets {
+        check_balance(&mut banks_client, user.pubkey(), 0.9).await;
+    }
+
+    check_balance(&mut banks_client, holding_wallet.pubkey(), prize_pool_sol).await;
+
+    // Finaled lottery
+    store_winning_numbers(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        &winning_numbers,
+        &lottery_authority,
+    )
+    .await
+    .unwrap();
+
+    let participants = (0..number_of_users)
+        .map(|i| (tickets_pubkeys[i], users_wallets_pubkeys[i]))
+        .collect();
+
+    // Reward winners
+    reward_winners(
+        &mut banks_client,
+        &payer,
+        &recent_blockhash,
+        lottery_result_data_rent,
+        &rewards_wallet.pubkey(),
+        &slot_holders_rewards_wallet.pubkey(),
+        &sollotto_labs_wallet.pubkey(),
+        &charities_pubkeys,
+        &participants,
+        &holding_wallet,
+        &lottery_result,
+        &lottery_authority,
+    )
+    .await
+    .unwrap();
+
+    // Check balances
+    // +3.0 lamports is division correction
+    check_balance(
+        &mut banks_client,
+        holding_wallet.pubkey(),
+        0.0 + lamports_to_sol(3),
+    )
+    .await;
+    check_balance(
+        &mut banks_client,
+        rewards_wallet.pubkey(),
+        prize_pool_sol * 0.04,
+    )
+    .await;
+    check_balance(
+        &mut banks_client,
+        slot_holders_rewards_wallet.pubkey(),
+        prize_pool_sol * 0.006,
+    )
+    .await;
+    check_balance(
+        &mut banks_client,
+        sollotto_labs_wallet.pubkey(),
+        prize_pool_sol * 0.004,
+    )
+    .await;
+
+    // Charity balances
+    check_balance(
+        &mut banks_client,
+        charities_pubkeys[0],
+        prize_pool_sol * 0.3,
+    )
+    .await;
+    for i in 1..4 {
+        check_balance(&mut banks_client, charities_pubkeys[i], 0.0).await;
+    }
+
+    // Winners balances
+    for i in 0..number_of_users {
+        if winner_3_idx.contains(&i) {
+            check_balance(&mut banks_client, users_wallets_pubkeys[i], 0.1 + 0.9).await;
+        } else if winner_4_idx.contains(&i) {
+            check_balance(
+                &mut banks_client,
+                users_wallets_pubkeys[i],
+                (prize_pool_sol * 0.02) / winner_4_idx.len() as f64 + 0.9,
+            )
+            .await;
+        } else if winner_5_idx.contains(&i) {
+            check_balance(
+                &mut banks_client,
+                users_wallets_pubkeys[i],
+                (prize_pool_sol * 0.05) / winner_5_idx.len() as f64 + 0.9,
+            )
+            .await;
+        } else if winner_full_idx.contains(&i) {
+            // - 1 lamport is division correction
+            check_balance(
+                &mut banks_client,
+                users_wallets_pubkeys[i],
+                (prize_pool_sol * 0.58 - (0.1 * winner_3_idx.len() as f64))
+                    / winner_full_idx.len() as f64
+                    + 0.9
+                    - lamports_to_sol(1),
+            )
+            .await;
+        } else {
+            // Loosers balances
+            check_balance(&mut banks_client, users_wallets_pubkeys[i], 0.9).await;
+        }
+    }
 }
